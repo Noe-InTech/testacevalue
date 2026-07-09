@@ -15,7 +15,8 @@ export async function POST(request: Request) {
   }
 
   const match = (body.match || "").trim();
-  const response = await triggerWorkflow(match);
+  const mode = (body.mode || "scan-json").trim();
+  const response = await triggerWorkflow(match, mode);
   const data = await response.json();
   return NextResponse.json(data, { status: response.status });
 }

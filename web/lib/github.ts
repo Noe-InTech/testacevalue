@@ -30,7 +30,7 @@ export async function fetchGithubJson<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
-export async function triggerWorkflow(match: string): Promise<Response> {
+export async function triggerWorkflow(match: string, mode: string = "scan-json"): Promise<Response> {
   const token = process.env.GITHUB_TOKEN?.trim();
   const { owner, repo } = githubConfig();
   if (!token || !owner || !repo) {
@@ -52,7 +52,7 @@ export async function triggerWorkflow(match: string): Promise<Response> {
       },
       body: JSON.stringify({
         ref: process.env.GITHUB_BRANCH?.trim() || DEFAULT_BRANCH,
-        inputs: { match },
+        inputs: { match, mode },
       }),
     },
   );

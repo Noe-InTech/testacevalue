@@ -90,7 +90,7 @@ export function Dashboard() {
       const response = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: secret.trim(), match: match.trim() }),
+        body: JSON.stringify({ secret: secret.trim(), match: match.trim(), mode: "scan-json" }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -118,7 +118,7 @@ export function Dashboard() {
         <p className="eyebrow">Tennis aces</p>
         <h1>FR vs FanDuel</h1>
         <p className="lead">
-          Lance la comparaison depuis ton telephone. Le calcul tourne sur GitHub Actions, pas sur ton PC.
+          Lance la comparaison depuis ton telephone. Mode cloud : cotes FR en cache + FanDuel en direct (~10 s).
         </p>
       </header>
 
