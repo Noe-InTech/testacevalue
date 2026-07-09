@@ -1,0 +1,78 @@
+name: Aces compare
+
+on:
+  workflow_dispatch:
+    inputs:
+      match:
+        description: "Filtre match optionnel (ex. sinner)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Mark run as started
+        run: |
+          python scripts/write_run_status.py \
+            --status running \
+            --message "Comparaison en cours..." \
+            --match "${{ github.event.inputs.match }}"
+
+      - name: Run aces compare
+        id: compare
+        run: |
+          set -o pipefail
+          CMD=(python compare_tennis_aces_vs_fanduel.py -o web/public/latest_aces.csv)
+          if [ -n "${{ github.event.inputs.match }}" ]; then
+            CMD+=(--match "${{ github.event.inputs.match }}")
+          fi
+          "${CMD[@]}"
+
+      - name: Mark run as success
+        if: success()
+        run: |
+          python scripts/write_run_status.py \
+            --status success \
+            --message "Comparaison terminee." \
+            --match "${{ github.event.inputs.match }}" \
+            --from-json web/public/latest_aces.json
+
+      - name: Mark run as failed
+        if: failure()
+        run: |
+          python scripts/write_run_status.py \
+            --status error \
+            --message "Echec du scrape ou de la comparaison. Les books FR bloquent peut-etre l'IP GitHub." \
+            --match "${{ github.event.inputs.match }}"
+
+      - name: Commit results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/public/
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(aces): update compare results [skip ci]"
+          git push

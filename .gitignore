@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+output/
+
+# Next.js dashboard
+web/node_modules/
+web/.next/
+web/.env*.local

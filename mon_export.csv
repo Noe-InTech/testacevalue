@@ -1,0 +1,902 @@
+﻿sport,event_id,home_team,away_team,commence_time,market,outcome,line,description,bookmaker,odds
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,France,,,winamax_fr,1.56
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Morocco,,,winamax_fr,6.25
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Draw,,,winamax_fr,3.9
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,France,,,winamax_fr,1.56
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Morocco,,,winamax_fr,6.25
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Draw,,,winamax_fr,3.9
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,France,,,pmu_fr,1.53
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Morocco,,,pmu_fr,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Draw,,,pmu_fr,3.8
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals,Over 2.5,2.5,,pmu_fr,1.83
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals,Under 2.5,2.5,,pmu_fr,1.83
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,France,,,pmu_fr,1.53
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Morocco,,,pmu_fr,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Draw,,,pmu_fr,3.8
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,France,,,unibet_fr,1.56
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Morocco,,,unibet_fr,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Draw,,,unibet_fr,4.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,France,,,unibet_fr,1.56
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Morocco,,,unibet_fr,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Draw,,,unibet_fr,4.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,France,,,pinnacle,1.59
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Morocco,,,pinnacle,6.62
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Draw,,,pinnacle,3.89
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals,Over 2.5,2.5,,pinnacle,2.02
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals,Under 2.5,2.5,,pinnacle,1.87
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 2.5,2.5,,pinnacle,2.02
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 1.5,1.5,,pinnacle,1.3
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 1.75,1.75,,pinnacle,1.37
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 2.0,2.0,,pinnacle,1.49
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 2.25,2.25,,pinnacle,1.75
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 2.75,2.75,,pinnacle,2.3
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 3.0,3.0,,pinnacle,2.82
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 3.25,3.25,,pinnacle,3.16
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Over 3.5,3.5,,pinnacle,3.51
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 2.5,2.5,,pinnacle,1.87
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 1.5,1.5,,pinnacle,3.47
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 1.75,1.75,,pinnacle,3.06
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 2.0,2.0,,pinnacle,2.66
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 2.25,2.25,,pinnacle,2.13
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 2.75,2.75,,pinnacle,1.65
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 3.0,3.0,,pinnacle,1.44
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 3.25,3.25,,pinnacle,1.35
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals,Under 3.5,3.5,,pinnacle,1.29
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,France,,,pinnacle,1.59
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Morocco,,,pinnacle,6.62
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Draw,,,pinnacle,3.89
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_team_totals_corners,Over 6.5 France,6.5,France,pinnacle,2.08
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_team_totals_corners,Under 6.5 France,6.5,France,pinnacle,1.7
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_team_totals_corners,Over 3.5 Morocco,3.5,Morocco,pinnacle,2.18
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_team_totals_corners,Under 3.5 Morocco,3.5,Morocco,pinnacle,1.64
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_cards,Over 3.0,3.0,,pinnacle,1.73
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_cards,Over 2.5,2.5,,pinnacle,1.46
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_cards,Over 3.5,3.5,,pinnacle,2.19
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_cards,Under 3.0,3.0,,pinnacle,2.11
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_cards,Under 2.5,2.5,,pinnacle,2.65
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_cards,Under 3.5,3.5,,pinnacle,1.66
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 9.5,9.5,,pinnacle,1.99
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 7.5,7.5,,pinnacle,1.28
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 8.0,8.0,,pinnacle,1.35
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 8.5,8.5,,pinnacle,1.53
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 9.0,9.0,,pinnacle,1.71
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 10.0,10.0,,pinnacle,2.27
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 10.5,10.5,,pinnacle,2.53
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 11.0,11.0,,pinnacle,3.05
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Over 11.5,11.5,,pinnacle,3.32
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 9.5,9.5,,pinnacle,1.81
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 7.5,7.5,,pinnacle,3.18
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 8.0,8.0,,pinnacle,2.86
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 8.5,8.5,,pinnacle,2.34
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 9.0,9.0,,pinnacle,2.06
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 10.0,10.0,,pinnacle,1.58
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 10.5,10.5,,pinnacle,1.46
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 11.0,11.0,,pinnacle,1.31
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_corners,Under 11.5,11.5,,pinnacle,1.26
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Over 0.5,0.5,,pinnacle,1.41
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Over 0.75,0.75,,pinnacle,1.6
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Over 1.25,1.25,,pinnacle,2.57
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Over 1.5,1.5,,pinnacle,3.09
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Under 0.5,0.5,,pinnacle,2.79
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Under 0.75,0.75,,pinnacle,2.31
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Under 1.25,1.25,,pinnacle,1.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,alternate_totals_h1,Under 1.5,1.5,,pinnacle,1.35
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,btts,Yes,,,pinnacle,1.97
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,btts,No,,,pinnacle,1.78
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,btts_h1,Yes,,,pinnacle,5.85
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,btts_h1,No,,,pinnacle,1.12
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,corners_1x2,France,,,pinnacle,1.31
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,corners_1x2,Morocco,,,pinnacle,4.22
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,corners_1x2,Draw,,,pinnacle,10.07
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,double_chance,France or Draw,,,pinnacle,1.12
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,double_chance,Morocco or Draw,,,pinnacle,2.41
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,double_chance,France or Morocco,,,pinnacle,1.27
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,double_chance_h1,France or Draw,,,pinnacle,1.13
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,double_chance_h1,Morocco or Draw,,,pinnacle,1.71
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,double_chance_h1,France or Morocco,,,pinnacle,1.65
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,draw_no_bet,France,,,pinnacle,1.2
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,draw_no_bet,Morocco,,,pinnacle,4.95
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,draw_no_bet_h1,France,,,pinnacle,1.26
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,draw_no_bet_h1,Morocco,,,pinnacle,3.93
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way_h1,France,,,pinnacle,2.18
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way_h1,Morocco,,,pinnacle,6.63
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way_h1,Draw,,,pinnacle,2.28
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_h1,France,,,pinnacle,2.18
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_h1,Morocco,,,pinnacle,6.63
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_h1,Draw,,,pinnacle,2.28
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,France/France,,,pinnacle,2.6
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,France/Morocco,,,pinnacle,47.13
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,France/Draw,,,pinnacle,15.3
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,Morocco/France,,,pinnacle,22.53
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,Morocco/Morocco,,,pinnacle,13.29
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,Morocco/Draw,,,pinnacle,19.66
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,Draw/France,,,pinnacle,4.45
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,Draw/Morocco,,,pinnacle,13.06
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,halftime_fulltime,Draw/Draw,,,pinnacle,6.03
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,odd_even,Odd,,,pinnacle,1.98
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,odd_even,Even,,,pinnacle,1.87
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,odd_even_h1,Odd,,,pinnacle,2.15
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,odd_even_h1,Even,,,pinnacle,1.71
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Kylian Mbappe,,Kylian Mbappe,pinnacle,3.4
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Ousmane Dembele,,Ousmane Dembele,pinnacle,6.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Michael Olise,,Michael Olise,pinnacle,7.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Desire Doue,,Desire Doue,pinnacle,7.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Bradley Barcola,,Bradley Barcola,pinnacle,9.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Soufiane Rahimi,,Soufiane Rahimi,pinnacle,9.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Brahim Diaz,,Brahim Diaz,pinnacle,12.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Azzedine Ounahi,,Azzedine Ounahi,pinnacle,15.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Achraf Hakimi,,Achraf Hakimi,pinnacle,17.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Adrien Rabiot,,Adrien Rabiot,pinnacle,17.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Aurelien Tchouameni,,Aurelien Tchouameni,pinnacle,19.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Manu Kone,,Manu Kone,pinnacle,19.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Bilal El Khannous,,Bilal El Khannous,pinnacle,21.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Lucas Digne,,Lucas Digne,pinnacle,23.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Jules Kounde,,Jules Kounde,pinnacle,23.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Dayot Upamecano,,Dayot Upamecano,pinnacle,25.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes William Saliba,,William Saliba,pinnacle,25.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Neil El Aynaoui,,Neil El Aynaoui,pinnacle,25.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Issa Diop,,Issa Diop,pinnacle,46.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Chadi Riad,,Chadi Riad,pinnacle,46.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Ayyoub Bouaddi,,Ayyoub Bouaddi,pinnacle,46.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Noussair Mazraoui,,Noussair Mazraoui,pinnacle,51.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes Redouane Halhal,,Redouane Halhal,pinnacle,51.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_first_goal_scorer,Yes No Scorer,,No Scorer,pinnacle,8.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Kylian Mbappe,,Kylian Mbappe,pinnacle,1.76
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Ousmane Dembele,,Ousmane Dembele,pinnacle,3.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Michael Olise,,Michael Olise,pinnacle,3.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Desire Doue,,Desire Doue,pinnacle,3.7
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Bradley Barcola,,Bradley Barcola,pinnacle,4.2
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Soufiane Rahimi,,Soufiane Rahimi,pinnacle,4.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Brahim Diaz,,Brahim Diaz,pinnacle,5.2
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Azzedine Ounahi,,Azzedine Ounahi,pinnacle,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Achraf Hakimi,,Achraf Hakimi,pinnacle,7.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Adrien Rabiot,,Adrien Rabiot,pinnacle,7.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Aurelien Tchouameni,,Aurelien Tchouameni,pinnacle,8.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Manu Kone,,Manu Kone,pinnacle,8.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Bilal El Khannous,,Bilal El Khannous,pinnacle,9.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Dayot Upamecano,,Dayot Upamecano,pinnacle,10.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Lucas Digne,,Lucas Digne,pinnacle,10.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Jules Kounde,,Jules Kounde,pinnacle,10.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes William Saliba,,William Saliba,pinnacle,10.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Neil El Aynaoui,,Neil El Aynaoui,pinnacle,11.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Issa Diop,,Issa Diop,pinnacle,19.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Chadi Riad,,Chadi Riad,pinnacle,19.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Ayyoub Bouaddi,,Ayyoub Bouaddi,pinnacle,19.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Redouane Halhal,,Redouane Halhal,pinnacle,19.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Noussair Mazraoui,,Noussair Mazraoui,pinnacle,20.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Brahim Diaz,,Brahim Diaz,pinnacle,6.21
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Brahim Diaz,,Brahim Diaz,pinnacle,1.13
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Azzedine Ounahi,,Azzedine Ounahi,pinnacle,7.12
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Azzedine Ounahi,,Azzedine Ounahi,pinnacle,1.11
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Kylian Mbappe,,Kylian Mbappe,pinnacle,1.89
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Kylian Mbappe,,Kylian Mbappe,pinnacle,1.93
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Ousmane Dembele,,Ousmane Dembele,pinnacle,3.18
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Ousmane Dembele,,Ousmane Dembele,pinnacle,1.37
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Bradley Barcola,,Bradley Barcola,pinnacle,4.31
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Bradley Barcola,,Bradley Barcola,pinnacle,1.24
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Michael Olise,,Michael Olise,pinnacle,3.7
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Michael Olise,,Michael Olise,pinnacle,1.29
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,Yes Soufiane Rahimi,,Soufiane Rahimi,pinnacle,5.58
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_goal_scorer_anytime,No Soufiane Rahimi,,Soufiane Rahimi,pinnacle,1.15
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Achraf Hakimi,,Achraf Hakimi,pinnacle,3.1
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Issa Diop,,Issa Diop,pinnacle,3.3
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Soufiane Rahimi,,Soufiane Rahimi,pinnacle,3.4
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Noussair Mazraoui,,Noussair Mazraoui,pinnacle,3.4
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Ayyoub Bouaddi,,Ayyoub Bouaddi,pinnacle,3.4
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Azzedine Ounahi,,Azzedine Ounahi,pinnacle,3.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Redouane Halhal,,Redouane Halhal,pinnacle,3.7
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Aurelien Tchouameni,,Aurelien Tchouameni,pinnacle,4.2
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Neil El Aynaoui,,Neil El Aynaoui,pinnacle,4.2
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Dayot Upamecano,,Dayot Upamecano,pinnacle,4.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Adrien Rabiot,,Adrien Rabiot,pinnacle,4.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Lucas Digne,,Lucas Digne,pinnacle,4.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Manu Kone,,Manu Kone,pinnacle,4.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Bilal El Khannous,,Bilal El Khannous,pinnacle,4.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Brahim Diaz,,Brahim Diaz,pinnacle,4.8
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Bradley Barcola,,Bradley Barcola,pinnacle,5.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Kylian Mbappe,,Kylian Mbappe,pinnacle,5.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Chadi Riad,,Chadi Riad,pinnacle,5.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes William Saliba,,William Saliba,pinnacle,5.2
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Desire Doue,,Desire Doue,pinnacle,5.8
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Jules Kounde,,Jules Kounde,pinnacle,6.0
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Ousmane Dembele,,Ousmane Dembele,pinnacle,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,player_to_receive_card,Yes Michael Olise,,Michael Olise,pinnacle,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,to_qualify,France,,,pinnacle,1.28
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,to_qualify,Morocco,,,pinnacle,4.03
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals_h1,Over 1.0,1.0,,pinnacle,2.03
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals_h1,Under 1.0,1.0,,pinnacle,1.83
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,France,,,netbet_fr,1.55
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Morocco,,,netbet_fr,6.4
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Draw,,,netbet_fr,3.85
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals,Over 2.5,2.5,,netbet_fr,1.83
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,totals,Under 2.5,2.5,,netbet_fr,1.78
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,btts,Yes,,,netbet_fr,1.9
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,btts,No,,,netbet_fr,1.72
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,France,,,netbet_fr,1.55
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Morocco,,,netbet_fr,6.4
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Draw,,,netbet_fr,3.85
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,France,,,betclic_fr,1.56
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Morocco,,,betclic_fr,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h,Draw,,,betclic_fr,3.9
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,France,,,betclic_fr,1.56
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Morocco,,,betclic_fr,6.5
+soccer_fifa_world_cup,b6e926d7f026782b9cab2fa02b823d92,France,Morocco,2026-07-09T20:00:00Z,h2h_3_way,Draw,,,betclic_fr,3.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Belgium,,,pinnacle,5.65
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Spain,,,pinnacle,1.64
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Draw,,,pinnacle,4.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals,Over 2.75,2.75,,pinnacle,2.06
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals,Under 2.75,2.75,,pinnacle,1.84
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 2.75,2.75,,pinnacle,2.06
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 1.75,1.75,,pinnacle,1.28
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 2.0,2.0,,pinnacle,1.36
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 2.25,2.25,,pinnacle,1.59
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 2.5,2.5,,pinnacle,1.82
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 3.0,3.0,,pinnacle,2.42
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 3.25,3.25,,pinnacle,2.73
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 3.5,3.5,,pinnacle,3.04
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Over 3.75,3.75,,pinnacle,3.69
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 2.75,2.75,,pinnacle,1.84
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 1.75,1.75,,pinnacle,3.57
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 2.0,2.0,,pinnacle,3.12
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 2.25,2.25,,pinnacle,2.41
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 2.5,2.5,,pinnacle,2.05
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 3.0,3.0,,pinnacle,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 3.25,3.25,,pinnacle,1.47
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 3.5,3.5,,pinnacle,1.38
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals,Under 3.75,3.75,,pinnacle,1.27
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Belgium,,,pinnacle,5.65
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Spain,,,pinnacle,1.64
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Draw,,,pinnacle,4.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_team_totals_corners,Over 3.5 Belgium,3.5,Belgium,pinnacle,2.08
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_team_totals_corners,Under 3.5 Belgium,3.5,Belgium,pinnacle,1.7
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_team_totals_corners,Over 5.5 Spain,5.5,Spain,pinnacle,1.85
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_team_totals_corners,Under 5.5 Spain,5.5,Spain,pinnacle,1.91
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_cards,Over 3.0,3.0,,pinnacle,1.72
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_cards,Over 2.5,2.5,,pinnacle,1.46
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_cards,Over 3.5,3.5,,pinnacle,2.16
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_cards,Under 3.0,3.0,,pinnacle,2.12
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_cards,Under 2.5,2.5,,pinnacle,2.65
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_cards,Under 3.5,3.5,,pinnacle,1.67
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 9.0,9.0,,pinnacle,1.83
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 7.0,7.0,,pinnacle,1.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 7.5,7.5,,pinnacle,1.34
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 8.0,8.0,,pinnacle,1.43
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 8.5,8.5,,pinnacle,1.62
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 9.5,9.5,,pinnacle,2.04
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 10.0,10.0,,pinnacle,2.37
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 10.5,10.5,,pinnacle,2.63
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Over 11.0,11.0,,pinnacle,3.22
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 9.0,9.0,,pinnacle,1.97
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 7.0,7.0,,pinnacle,3.79
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 7.5,7.5,,pinnacle,2.91
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 8.0,8.0,,pinnacle,2.62
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 8.5,8.5,,pinnacle,2.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 9.5,9.5,,pinnacle,1.73
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 10.0,10.0,,pinnacle,1.52
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 10.5,10.5,,pinnacle,1.41
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_corners,Under 11.0,11.0,,pinnacle,1.27
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Over 0.5,0.5,,pinnacle,1.33
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Over 0.75,0.75,,pinnacle,1.47
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Over 1.25,1.25,,pinnacle,2.23
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Over 1.5,1.5,,pinnacle,2.68
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Under 0.5,0.5,,pinnacle,3.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Under 0.75,0.75,,pinnacle,2.59
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Under 1.25,1.25,,pinnacle,1.62
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,alternate_totals_h1,Under 1.5,1.5,,pinnacle,1.43
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,btts,Yes,,,pinnacle,1.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,btts,No,,,pinnacle,1.98
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,btts_h1,Yes,,,pinnacle,4.76
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,btts_h1,No,,,pinnacle,1.17
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,corners_1x2,Belgium,,,pinnacle,3.54
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,corners_1x2,Spain,,,pinnacle,1.41
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,corners_1x2,Draw,,,pinnacle,9.52
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,double_chance,Belgium or Draw,,,pinnacle,2.36
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,double_chance,Spain or Draw,,,pinnacle,1.17
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,double_chance,Belgium or Spain,,,pinnacle,1.28
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,double_chance_h1,Belgium or Draw,,,pinnacle,1.71
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,double_chance_h1,Spain or Draw,,,pinnacle,1.15
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,double_chance_h1,Belgium or Spain,,,pinnacle,1.59
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,draw_no_bet,Belgium,,,pinnacle,4.29
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,draw_no_bet,Spain,,,pinnacle,1.24
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,draw_no_bet_h1,Belgium,,,pinnacle,3.56
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,draw_no_bet_h1,Spain,,,pinnacle,1.3
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way_h1,Belgium,,,pinnacle,5.83
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way_h1,Spain,,,pinnacle,2.18
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way_h1,Draw,,,pinnacle,2.41
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_h1,Belgium,,,pinnacle,5.83
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_h1,Spain,,,pinnacle,2.18
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_h1,Draw,,,pinnacle,2.41
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Belgium/Belgium,,,pinnacle,22.03
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Belgium/Spain,,,pinnacle,10.66
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Belgium/Draw,,,pinnacle,18.53
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Spain/Belgium,,,pinnacle,2.58
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Spain/Spain,,,pinnacle,41.62
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Spain/Draw,,,pinnacle,14.97
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Draw/Belgium,,,pinnacle,12.09
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Draw/Spain,,,pinnacle,5.01
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,halftime_fulltime,Draw/Draw,,,pinnacle,6.41
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,odd_even,Odd,,,pinnacle,1.98
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,odd_even,Even,,,pinnacle,1.88
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,odd_even_h1,Odd,,,pinnacle,2.09
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,odd_even_h1,Even,,,pinnacle,1.75
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Mikel Oyarzabal,,Mikel Oyarzabal,pinnacle,4.3
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Lamine Yamal,,Lamine Yamal,pinnacle,4.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Ferran Torres Garcia,,Ferran Torres Garcia,pinnacle,6.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Dani Olmo,,Dani Olmo,pinnacle,8.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Romelu Lukaku,,Romelu Lukaku,pinnacle,8.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Alejandro Baena,,Alejandro Baena,pinnacle,9.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Mikel Merino,,Mikel Merino,pinnacle,9.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Charles De Ketelaere,,Charles De Ketelaere,pinnacle,10.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Leandro Trossard,,Leandro Trossard,pinnacle,12.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Kevin De Bruyne,,Kevin De Bruyne,pinnacle,13.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Jeremy Doku,,Jeremy Doku,pinnacle,14.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Rodri,,Rodri,pinnacle,15.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Pedro Gonzalez Lopez,,Pedro Gonzalez Lopez,pinnacle,17.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Dodi Lukebakio,,Dodi Lukebakio,pinnacle,18.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Hans Vanaken,,Hans Vanaken,pinnacle,20.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Youri Tielemans,,Youri Tielemans,pinnacle,21.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Pedro Porro,,Pedro Porro,pinnacle,21.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Marc Cucurella,,Marc Cucurella,pinnacle,25.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Maxim de Cuyper,,Maxim de Cuyper,pinnacle,25.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Pau Cubarsi,,Pau Cubarsi,pinnacle,25.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Aymeric Laporte,,Aymeric Laporte,pinnacle,26.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Nicolas Raskin,,Nicolas Raskin,pinnacle,31.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Timothy Castagne,,Timothy Castagne,pinnacle,46.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Nathan Ngoy,,Nathan Ngoy,pinnacle,46.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes Brandon Mechele,,Brandon Mechele,pinnacle,46.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_first_goal_scorer,Yes No Scorer,,No Scorer,pinnacle,10.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Mikel Oyarzabal,,Mikel Oyarzabal,pinnacle,2.14
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Lamine Yamal,,Lamine Yamal,pinnacle,2.45
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Ferran Torres Garcia,,Ferran Torres Garcia,pinnacle,2.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Dani Olmo,,Dani Olmo,pinnacle,3.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Romelu Lukaku,,Romelu Lukaku,pinnacle,3.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Mikel Merino,,Mikel Merino,pinnacle,4.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Alejandro Baena,,Alejandro Baena,pinnacle,4.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Charles De Ketelaere,,Charles De Ketelaere,pinnacle,4.3
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Leandro Trossard,,Leandro Trossard,pinnacle,5.3
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Jeremy Doku,,Jeremy Doku,pinnacle,5.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Kevin De Bruyne,,Kevin De Bruyne,pinnacle,5.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Rodri,,Rodri,pinnacle,6.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Dodi Lukebakio,,Dodi Lukebakio,pinnacle,7.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Pedro Gonzalez Lopez,,Pedro Gonzalez Lopez,pinnacle,7.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Hans Vanaken,,Hans Vanaken,pinnacle,7.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Youri Tielemans,,Youri Tielemans,pinnacle,9.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Pedro Porro,,Pedro Porro,pinnacle,9.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Marc Cucurella,,Marc Cucurella,pinnacle,10.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Aymeric Laporte,,Aymeric Laporte,pinnacle,10.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Maxim de Cuyper,,Maxim de Cuyper,pinnacle,10.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Pau Cubarsi,,Pau Cubarsi,pinnacle,10.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Nicolas Raskin,,Nicolas Raskin,pinnacle,13.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Brandon Mechele,,Brandon Mechele,pinnacle,17.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Timothy Castagne,,Timothy Castagne,pinnacle,18.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Nathan Ngoy,,Nathan Ngoy,pinnacle,19.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Mikel Oyarzabal,,Mikel Oyarzabal,pinnacle,2.46
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,No Mikel Oyarzabal,,Mikel Oyarzabal,pinnacle,1.56
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Lamine Yamal,,Lamine Yamal,pinnacle,2.76
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,No Lamine Yamal,,Lamine Yamal,pinnacle,1.47
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Dani Olmo,,Dani Olmo,pinnacle,4.25
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,No Dani Olmo,,Dani Olmo,pinnacle,1.24
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Alejandro Baena,,Alejandro Baena,pinnacle,5.22
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,No Alejandro Baena,,Alejandro Baena,pinnacle,1.16
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Charles De Ketelaere,,Charles De Ketelaere,pinnacle,6.15
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,No Charles De Ketelaere,,Charles De Ketelaere,pinnacle,1.14
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,Yes Leandro Trossard,,Leandro Trossard,pinnacle,6.47
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_goal_scorer_anytime,No Leandro Trossard,,Leandro Trossard,pinnacle,1.13
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Nathan Ngoy,,Nathan Ngoy,pinnacle,3.3
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Maxim de Cuyper,,Maxim de Cuyper,pinnacle,3.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Nicolas Raskin,,Nicolas Raskin,pinnacle,3.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Alejandro Baena,,Alejandro Baena,pinnacle,4.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Dodi Lukebakio,,Dodi Lukebakio,pinnacle,4.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Hans Vanaken,,Hans Vanaken,pinnacle,4.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Jeremy Doku,,Jeremy Doku,pinnacle,4.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Youri Tielemans,,Youri Tielemans,pinnacle,4.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Rodri,,Rodri,pinnacle,4.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Brandon Mechele,,Brandon Mechele,pinnacle,4.3
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Marc Cucurella,,Marc Cucurella,pinnacle,4.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Timothy Castagne,,Timothy Castagne,pinnacle,4.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Pau Cubarsi,,Pau Cubarsi,pinnacle,4.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Pedro Porro,,Pedro Porro,pinnacle,5.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Charles De Ketelaere,,Charles De Ketelaere,pinnacle,5.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Leandro Trossard,,Leandro Trossard,pinnacle,5.4
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Mikel Merino,,Mikel Merino,pinnacle,5.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Kevin De Bruyne,,Kevin De Bruyne,pinnacle,5.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Aymeric Laporte,,Aymeric Laporte,pinnacle,5.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Dani Olmo,,Dani Olmo,pinnacle,5.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Romelu Lukaku,,Romelu Lukaku,pinnacle,5.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Ferran Torres Garcia,,Ferran Torres Garcia,pinnacle,6.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Lamine Yamal,,Lamine Yamal,pinnacle,7.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Mikel Oyarzabal,,Mikel Oyarzabal,pinnacle,8.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,player_to_receive_card,Yes Pedro Gonzalez Lopez,,Pedro Gonzalez Lopez,pinnacle,8.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,to_qualify,Belgium,,,pinnacle,3.68
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,to_qualify,Spain,,,pinnacle,1.32
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals_h1,Over 1.0,1.0,,pinnacle,1.77
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals_h1,Under 1.0,1.0,,pinnacle,2.07
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Belgium,,,unibet_fr,5.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Spain,,,unibet_fr,1.58
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Draw,,,unibet_fr,4.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Belgium,,,unibet_fr,5.8
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Spain,,,unibet_fr,1.58
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Draw,,,unibet_fr,4.1
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Belgium,,,pmu_fr,5.75
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Spain,,,pmu_fr,1.56
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Draw,,,pmu_fr,3.85
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals,Over 2.5,2.5,,pmu_fr,1.74
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals,Under 2.5,2.5,,pmu_fr,1.95
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Belgium,,,pmu_fr,5.75
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Spain,,,pmu_fr,1.56
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Draw,,,pmu_fr,3.85
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Belgium,,,winamax_fr,5.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Spain,,,winamax_fr,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Draw,,,winamax_fr,4.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Belgium,,,winamax_fr,5.2
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Spain,,,winamax_fr,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Draw,,,winamax_fr,4.0
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Belgium,,,netbet_fr,5.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Spain,,,netbet_fr,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Draw,,,netbet_fr,3.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals,Over 2.5,2.5,,netbet_fr,1.71
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,totals,Under 2.5,2.5,,netbet_fr,1.92
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,btts,Yes,,,netbet_fr,1.72
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,btts,No,,,netbet_fr,1.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Belgium,,,netbet_fr,5.5
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Spain,,,netbet_fr,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Draw,,,netbet_fr,3.9
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Belgium,,,betclic_fr,5.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Spain,,,betclic_fr,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h,Draw,,,betclic_fr,4.05
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Belgium,,,betclic_fr,5.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Spain,,,betclic_fr,1.6
+soccer_fifa_world_cup,fca257de4583bd4bc592e8b2a8f24ad7,Spain,Belgium,2026-07-10T19:00:00Z,h2h_3_way,Draw,,,betclic_fr,4.05
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,England,,,winamax_fr,1.82
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Norway,,,winamax_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Draw,,,winamax_fr,3.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,England,,,winamax_fr,1.82
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Norway,,,winamax_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Draw,,,winamax_fr,3.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,England,,,unibet_fr,1.84
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Norway,,,unibet_fr,3.9
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Draw,,,unibet_fr,3.85
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,England,,,unibet_fr,1.84
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Norway,,,unibet_fr,3.9
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Draw,,,unibet_fr,3.85
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,England,,,pmu_fr,1.85
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Norway,,,pmu_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Draw,,,pmu_fr,3.55
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals,Over 2.5,2.5,,pmu_fr,1.66
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals,Under 2.5,2.5,,pmu_fr,2.07
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,England,,,pmu_fr,1.85
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Norway,,,pmu_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Draw,,,pmu_fr,3.55
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,England,,,pinnacle,1.87
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Norway,,,pinnacle,4.27
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Draw,,,pinnacle,3.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals,Over 2.75,2.75,,pinnacle,1.93
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals,Under 2.75,2.75,,pinnacle,1.95
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 2.75,2.75,,pinnacle,1.93
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 1.75,1.75,,pinnacle,1.27
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 2.0,2.0,,pinnacle,1.33
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 2.25,2.25,,pinnacle,1.53
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 2.5,2.5,,pinnacle,1.73
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 3.0,3.0,,pinnacle,2.23
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 3.25,3.25,,pinnacle,2.52
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 3.5,3.5,,pinnacle,2.8
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Over 3.75,3.75,,pinnacle,3.37
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 2.75,2.75,,pinnacle,1.95
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 1.75,1.75,,pinnacle,3.87
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 2.0,2.0,,pinnacle,3.4
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 2.25,2.25,,pinnacle,2.57
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 2.5,2.5,,pinnacle,2.17
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 3.0,3.0,,pinnacle,1.7
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 3.25,3.25,,pinnacle,1.55
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 3.5,3.5,,pinnacle,1.45
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals,Under 3.75,3.75,,pinnacle,1.33
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,England,,,pinnacle,1.87
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Norway,,,pinnacle,4.27
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Draw,,,pinnacle,3.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_team_totals_corners,Over 5.5 England,5.5,England,pinnacle,2.12
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_team_totals_corners,Under 5.5 England,5.5,England,pinnacle,1.68
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_team_totals_corners,Over 3.5 Norway,3.5,Norway,pinnacle,1.65
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_team_totals_corners,Under 3.5 Norway,3.5,Norway,pinnacle,2.16
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 9.5,9.5,,pinnacle,1.97
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 7.5,7.5,,pinnacle,1.31
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 8.0,8.0,,pinnacle,1.4
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 8.5,8.5,,pinnacle,1.59
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 9.0,9.0,,pinnacle,1.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 10.0,10.0,,pinnacle,2.24
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 10.5,10.5,,pinnacle,2.49
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 11.0,11.0,,pinnacle,2.93
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Over 11.5,11.5,,pinnacle,3.17
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 9.5,9.5,,pinnacle,1.82
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 7.5,7.5,,pinnacle,2.99
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 8.0,8.0,,pinnacle,2.68
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 8.5,8.5,,pinnacle,2.23
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 9.0,9.0,,pinnacle,2.02
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 10.0,10.0,,pinnacle,1.6
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 10.5,10.5,,pinnacle,1.48
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 11.0,11.0,,pinnacle,1.34
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_corners,Under 11.5,11.5,,pinnacle,1.28
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Over 0.5,0.5,,pinnacle,1.37
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Over 0.75,0.75,,pinnacle,1.53
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Over 1.25,1.25,,pinnacle,2.34
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Over 1.5,1.5,,pinnacle,2.8
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Under 0.5,0.5,,pinnacle,2.97
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Under 0.75,0.75,,pinnacle,2.48
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Under 1.25,1.25,,pinnacle,1.59
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,alternate_totals_h1,Under 1.5,1.5,,pinnacle,1.41
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,btts,Yes,,,pinnacle,1.63
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,btts,No,,,pinnacle,2.31
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,btts_h1,Yes,,,pinnacle,4.62
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,btts_h1,No,,,pinnacle,1.18
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,corners_1x2,England,,,pinnacle,1.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,corners_1x2,Norway,,,pinnacle,2.86
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,corners_1x2,Draw,,,pinnacle,5.88
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,double_chance,England or Draw,,,pinnacle,1.25
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,double_chance,Norway or Draw,,,pinnacle,2.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,double_chance,England or Norway,,,pinnacle,1.3
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,double_chance_h1,England or Draw,,,pinnacle,1.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,double_chance_h1,Norway or Draw,,,pinnacle,1.54
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,double_chance_h1,England or Norway,,,pinnacle,1.66
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,draw_no_bet,England,,,pinnacle,1.38
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,draw_no_bet,Norway,,,pinnacle,3.16
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,draw_no_bet_h1,England,,,pinnacle,1.45
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,draw_no_bet_h1,Norway,,,pinnacle,2.78
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way_h1,England,,,pinnacle,2.53
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way_h1,Norway,,,pinnacle,4.76
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way_h1,Draw,,,pinnacle,2.27
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_h1,England,,,pinnacle,2.53
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_h1,Norway,,,pinnacle,4.76
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_h1,Draw,,,pinnacle,2.27
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,England/England,,,pinnacle,36.37
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,England/Norway,,,pinnacle,3.01
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,England/Draw,,,pinnacle,17.18
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,Norway/England,,,pinnacle,7.92
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,Norway/Norway,,,pinnacle,23.33
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,Norway/Draw,,,pinnacle,16.46
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,Draw/England,,,pinnacle,5.48
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,Draw/Norway,,,pinnacle,9.46
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,halftime_fulltime,Draw/Draw,,,pinnacle,5.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,odd_even,Odd,,,pinnacle,1.98
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,odd_even,Even,,,pinnacle,1.88
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,odd_even_h1,Odd,,,pinnacle,2.13
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,odd_even_h1,Even,,,pinnacle,1.73
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Harry Kane,,Harry Kane,pinnacle,3.6
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Erling Braut Haaland,,Erling Braut Haaland,pinnacle,4.8
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Jude Bellingham,,Jude Bellingham,pinnacle,6.75
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Alexander Sorloth,,Alexander Sorloth,pinnacle,9.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Anthony Gordon,,Anthony Gordon,pinnacle,9.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Bukayo Saka,,Bukayo Saka,pinnacle,10.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Andreas Schjelderup,,Andreas Schjelderup,pinnacle,13.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Oscar Bobb,,Oscar Bobb,pinnacle,14.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Antonio Nusa,,Antonio Nusa,pinnacle,14.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Martin Odegaard,,Martin Odegaard,pinnacle,18.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Declan Rice,,Declan Rice,pinnacle,19.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Nico O'Reilly,,Nico O'Reilly,pinnacle,21.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Elliot Anderson,,Elliot Anderson,pinnacle,23.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Patrick Berg,,Patrick Berg,pinnacle,23.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Djed Spence,,Djed Spence,pinnacle,26.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes John Stones,,John Stones,pinnacle,29.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Marc Guehi,,Marc Guehi,pinnacle,29.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Ezri Konsa,,Ezri Konsa,pinnacle,29.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Fredrik Aursnes,,Fredrik Aursnes,pinnacle,35.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Julian Ryerson,,Julian Ryerson,pinnacle,36.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Kristoffer Ajer,,Kristoffer Ajer,pinnacle,36.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Torbjorn Lysaker Heggem,,Torbjorn Lysaker Heggem,pinnacle,36.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes David Moller Wolfe,,David Moller Wolfe,pinnacle,36.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes Sander Berge,,Sander Berge,pinnacle,41.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_first_goal_scorer,Yes No Scorer,,No Scorer,pinnacle,11.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Harry Kane,,Harry Kane,pinnacle,1.71
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Erling Braut Haaland,,Erling Braut Haaland,pinnacle,2.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Jude Bellingham,,Jude Bellingham,pinnacle,3.1
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Anthony Gordon,,Anthony Gordon,pinnacle,3.9
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Alexander Sorloth,,Alexander Sorloth,pinnacle,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Bukayo Saka,,Bukayo Saka,pinnacle,4.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Andreas Schjelderup,,Andreas Schjelderup,pinnacle,5.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Oscar Bobb,,Oscar Bobb,pinnacle,5.8
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Antonio Nusa,,Antonio Nusa,pinnacle,5.8
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Martin Odegaard,,Martin Odegaard,pinnacle,7.4
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Declan Rice,,Declan Rice,pinnacle,7.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Nico O'Reilly,,Nico O'Reilly,pinnacle,8.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Elliot Anderson,,Elliot Anderson,pinnacle,8.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Patrick Berg,,Patrick Berg,pinnacle,9.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Marc Guehi,,Marc Guehi,pinnacle,10.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Ezri Konsa,,Ezri Konsa,pinnacle,10.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes John Stones,,John Stones,pinnacle,10.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Djed Spence,,Djed Spence,pinnacle,10.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Fredrik Aursnes,,Fredrik Aursnes,pinnacle,12.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Julian Ryerson,,Julian Ryerson,pinnacle,14.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Kristoffer Ajer,,Kristoffer Ajer,pinnacle,14.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Torbjorn Lysaker Heggem,,Torbjorn Lysaker Heggem,pinnacle,14.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes David Moller Wolfe,,David Moller Wolfe,pinnacle,14.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_goal_scorer_anytime,Yes Sander Berge,,Sander Berge,pinnacle,15.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Julian Ryerson,,Julian Ryerson,pinnacle,3.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Alexander Sorloth,,Alexander Sorloth,pinnacle,3.6
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Marc Guehi,,Marc Guehi,pinnacle,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Torbjorn Lysaker Heggem,,Torbjorn Lysaker Heggem,pinnacle,4.1
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Kristoffer Ajer,,Kristoffer Ajer,pinnacle,4.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Elliot Anderson,,Elliot Anderson,pinnacle,4.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Ezri Konsa,,Ezri Konsa,pinnacle,4.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes David Moller Wolfe,,David Moller Wolfe,pinnacle,4.2
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Declan Rice,,Declan Rice,pinnacle,4.3
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Anthony Gordon,,Anthony Gordon,pinnacle,4.3
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Erling Braut Haaland,,Erling Braut Haaland,pinnacle,4.4
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Nico O'Reilly,,Nico O'Reilly,pinnacle,4.4
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Jude Bellingham,,Jude Bellingham,pinnacle,4.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Sander Berge,,Sander Berge,pinnacle,4.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Djed Spence,,Djed Spence,pinnacle,4.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Patrick Berg,,Patrick Berg,pinnacle,4.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Fredrik Aursnes,,Fredrik Aursnes,pinnacle,5.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Martin Odegaard,,Martin Odegaard,pinnacle,5.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Bukayo Saka,,Bukayo Saka,pinnacle,5.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Oscar Bobb,,Oscar Bobb,pinnacle,5.3
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes John Stones,,John Stones,pinnacle,5.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Antonio Nusa,,Antonio Nusa,pinnacle,6.25
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Harry Kane,,Harry Kane,pinnacle,6.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,player_to_receive_card,Yes Andreas Schjelderup,,Andreas Schjelderup,pinnacle,6.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,to_qualify,England,,,pinnacle,1.5
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,to_qualify,Norway,,,pinnacle,2.78
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals_h1,Over 1.0,1.0,,pinnacle,1.87
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals_h1,Under 1.0,1.0,,pinnacle,1.99
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,England,,,netbet_fr,1.83
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Norway,,,netbet_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Draw,,,netbet_fr,3.65
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals,Over 2.5,2.5,,netbet_fr,1.63
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,totals,Under 2.5,2.5,,netbet_fr,2.02
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,btts,Yes,,,netbet_fr,1.55
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,btts,No,,,netbet_fr,2.17
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,England,,,netbet_fr,1.83
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Norway,,,netbet_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Draw,,,netbet_fr,3.65
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,England,,,betclic_fr,1.83
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Norway,,,betclic_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h,Draw,,,betclic_fr,3.8
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,England,,,betclic_fr,1.83
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Norway,,,betclic_fr,4.0
+soccer_fifa_world_cup,e66e4478b739fa0657a7a11235e1fcee,Norway,England,2026-07-11T21:00:00Z,h2h_3_way,Draw,,,betclic_fr,3.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Argentina,,,pmu_fr,1.66
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Switzerland,,,pmu_fr,5.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Draw,,,pmu_fr,3.45
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals,Over 2.5,2.5,,pmu_fr,2.15
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals,Under 2.5,2.5,,pmu_fr,1.61
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Argentina,,,pmu_fr,1.66
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Switzerland,,,pmu_fr,5.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Draw,,,pmu_fr,3.45
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Argentina,,,unibet_fr,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Switzerland,,,unibet_fr,5.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Draw,,,unibet_fr,3.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Argentina,,,unibet_fr,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Switzerland,,,unibet_fr,5.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Draw,,,unibet_fr,3.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Argentina,,,betclic_fr,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Switzerland,,,betclic_fr,5.75
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Draw,,,betclic_fr,3.58
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Argentina,,,betclic_fr,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Switzerland,,,betclic_fr,5.75
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Draw,,,betclic_fr,3.58
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Argentina,,,pinnacle,1.71
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Switzerland,,,pinnacle,5.76
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Draw,,,pinnacle,3.58
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals,Over 2.25,2.25,,pinnacle,1.99
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals,Under 2.25,2.25,,pinnacle,1.89
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 2.25,2.25,,pinnacle,1.99
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 1.25,1.25,,pinnacle,1.23
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 1.5,1.5,,pinnacle,1.38
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 1.75,1.75,,pinnacle,1.49
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 2.0,2.0,,pinnacle,1.67
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 2.5,2.5,,pinnacle,2.28
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 2.75,2.75,,pinnacle,2.67
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 3.0,3.0,,pinnacle,3.42
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Over 3.25,3.25,,pinnacle,3.82
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 2.25,2.25,,pinnacle,1.89
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 1.25,1.25,,pinnacle,3.99
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 1.5,1.5,,pinnacle,3.02
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 1.75,1.75,,pinnacle,2.66
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 2.0,2.0,,pinnacle,2.27
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 2.5,2.5,,pinnacle,1.67
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 2.75,2.75,,pinnacle,1.49
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 3.0,3.0,,pinnacle,1.31
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals,Under 3.25,3.25,,pinnacle,1.25
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Argentina,,,pinnacle,1.71
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Switzerland,,,pinnacle,5.76
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Draw,,,pinnacle,3.58
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_team_totals_corners,Over 4.5 Argentina,4.5,Argentina,pinnacle,1.81
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_team_totals_corners,Under 4.5 Argentina,4.5,Argentina,pinnacle,1.95
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_team_totals_corners,Over 3.5 Switzerland,3.5,Switzerland,pinnacle,2.13
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_team_totals_corners,Under 3.5 Switzerland,3.5,Switzerland,pinnacle,1.67
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 8.5,8.5,,pinnacle,2.01
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 6.5,6.5,,pinnacle,1.28
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 7.0,7.0,,pinnacle,1.36
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 7.5,7.5,,pinnacle,1.56
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 8.0,8.0,,pinnacle,1.74
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 9.0,9.0,,pinnacle,2.29
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 9.5,9.5,,pinnacle,2.54
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 10.0,10.0,,pinnacle,3.06
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Over 10.5,10.5,,pinnacle,3.33
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 8.5,8.5,,pinnacle,1.79
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 6.5,6.5,,pinnacle,3.19
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 7.0,7.0,,pinnacle,2.84
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 7.5,7.5,,pinnacle,2.3
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 8.0,8.0,,pinnacle,2.03
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 9.0,9.0,,pinnacle,1.57
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 9.5,9.5,,pinnacle,1.46
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 10.0,10.0,,pinnacle,1.31
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_corners,Under 10.5,10.5,,pinnacle,1.25
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_h1,Over 0.5,0.5,,pinnacle,1.49
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_h1,Over 1.0,1.0,,pinnacle,2.24
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_h1,Over 1.25,1.25,,pinnacle,2.83
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_h1,Under 0.5,0.5,,pinnacle,2.53
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_h1,Under 1.0,1.0,,pinnacle,1.62
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,alternate_totals_h1,Under 1.25,1.25,,pinnacle,1.39
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,btts,Yes,,,pinnacle,2.13
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,btts,No,,,pinnacle,1.73
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,btts_h1,Yes,,,pinnacle,6.31
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,btts_h1,No,,,pinnacle,1.12
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,corners_1x2,Argentina,,,pinnacle,1.51
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,corners_1x2,Switzerland,,,pinnacle,3.12
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,corners_1x2,Draw,,,pinnacle,8.72
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,double_chance,Argentina or Draw,,,pinnacle,1.17
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,double_chance,Switzerland or Draw,,,pinnacle,2.22
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,double_chance,Argentina or Switzerland,,,pinnacle,1.32
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,double_chance_h1,Argentina or Draw,,,pinnacle,1.14
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,double_chance_h1,Switzerland or Draw,,,pinnacle,1.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,double_chance_h1,Argentina or Switzerland,,,pinnacle,1.75
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,draw_no_bet,Argentina,,,pinnacle,1.25
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,draw_no_bet,Switzerland,,,pinnacle,4.21
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,draw_no_bet_h1,Argentina,,,pinnacle,1.31
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,draw_no_bet_h1,Switzerland,,,pinnacle,3.56
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way_h1,Argentina,,,pinnacle,2.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way_h1,Switzerland,,,pinnacle,6.3
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way_h1,Draw,,,pinnacle,2.12
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_h1,Argentina,,,pinnacle,2.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_h1,Switzerland,,,pinnacle,6.3
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_h1,Draw,,,pinnacle,2.12
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Argentina/Argentina,,,pinnacle,2.92
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Argentina/Switzerland,,,pinnacle,43.39
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Argentina/Draw,,,pinnacle,14.23
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Switzerland/Argentina,,,pinnacle,22.95
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Switzerland/Switzerland,,,pinnacle,11.71
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Switzerland/Draw,,,pinnacle,19.64
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Draw/Argentina,,,pinnacle,4.57
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Draw/Switzerland,,,pinnacle,11.26
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,halftime_fulltime,Draw/Draw,,,pinnacle,5.41
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,odd_even,Odd,,,pinnacle,1.99
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,odd_even,Even,,,pinnacle,1.86
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,odd_even_h1,Odd,,,pinnacle,2.22
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,odd_even_h1,Even,,,pinnacle,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Lionel Messi,,Lionel Messi,pinnacle,3.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Lautaro Martinez,,Lautaro Martinez,pinnacle,5.2
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Julian Alvarez,,Julian Alvarez,pinnacle,5.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Nicolas Paz Martinez,,Nicolas Paz Martinez,pinnacle,8.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Breel Embolo,,Breel Embolo,pinnacle,9.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Cedric Itten,,Cedric Itten,pinnacle,10.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Giuliano Simeone,,Giuliano Simeone,pinnacle,11.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Thiago Almada,,Thiago Almada,pinnacle,12.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Mohamed Zeki Amdouni,,Mohamed Zeki Amdouni,pinnacle,12.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Dan Ndoye,,Dan Ndoye,pinnacle,12.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Enzo Fernandez,,Enzo Fernandez,pinnacle,13.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Johan Manzambi,,Johan Manzambi,pinnacle,13.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Giovani Lo Celso,,Giovani Lo Celso,pinnacle,14.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Ruben Vargas,,Ruben Vargas,pinnacle,14.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Alexis Mac Allister,,Alexis Mac Allister,pinnacle,16.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Exequiel Palacios,,Exequiel Palacios,pinnacle,19.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Granit Xhaka,,Granit Xhaka,pinnacle,21.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Christian Fassnacht,,Christian Fassnacht,pinnacle,21.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Rodrigo Javier De Paul,,Rodrigo Javier De Paul,pinnacle,21.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Leandro Paredes,,Leandro Paredes,pinnacle,21.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Marcos Senesi,,Marcos Senesi,pinnacle,23.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Nahuel Molina,,Nahuel Molina,pinnacle,25.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Nicolas Otamendi,,Nicolas Otamendi,pinnacle,25.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Cristian Romero,,Cristian Romero,pinnacle,25.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Lisandro Martinez,,Lisandro Martinez,pinnacle,25.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Gonzalo Montiel,,Gonzalo Montiel,pinnacle,26.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Facundo Medina,,Facundo Medina,pinnacle,26.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Fabian Rieder,,Fabian Rieder,pinnacle,26.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Nicolas Tagliafico,,Nicolas Tagliafico,pinnacle,26.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Remo Freuler,,Remo Freuler,pinnacle,30.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Miro Muheim,,Miro Muheim,pinnacle,31.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Michel Aebischer,,Michel Aebischer,pinnacle,31.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Ricardo Rodríguez,,Ricardo Rodríguez,pinnacle,36.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Denis Zakaria,,Denis Zakaria,pinnacle,41.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Manuel Akanji,,Manuel Akanji,pinnacle,46.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Nico Elvedi,,Nico Elvedi,pinnacle,46.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Djibril Sow,,Djibril Sow,pinnacle,46.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Luca Jaquez,,Luca Jaquez,pinnacle,46.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes Aurele Amenda,,Aurele Amenda,pinnacle,56.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_first_goal_scorer,Yes No Scorer,,No Scorer,pinnacle,7.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Lionel Messi,,Lionel Messi,pinnacle,1.88
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Lautaro Martinez,,Lautaro Martinez,pinnacle,2.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Julian Alvarez,,Julian Alvarez,pinnacle,3.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Nicolas Paz Martinez,,Nicolas Paz Martinez,pinnacle,3.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Breel Embolo,,Breel Embolo,pinnacle,4.2
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Cedric Itten,,Cedric Itten,pinnacle,4.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Giuliano Simeone,,Giuliano Simeone,pinnacle,5.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Mohamed Zeki Amdouni,,Mohamed Zeki Amdouni,pinnacle,5.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Dan Ndoye,,Dan Ndoye,pinnacle,5.75
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Thiago Almada,,Thiago Almada,pinnacle,5.75
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Johan Manzambi,,Johan Manzambi,pinnacle,6.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Enzo Fernandez,,Enzo Fernandez,pinnacle,6.25
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Giovani Lo Celso,,Giovani Lo Celso,pinnacle,6.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Ruben Vargas,,Ruben Vargas,pinnacle,7.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Exequiel Palacios,,Exequiel Palacios,pinnacle,8.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Alexis Mac Allister,,Alexis Mac Allister,pinnacle,8.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Granit Xhaka,,Granit Xhaka,pinnacle,9.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Christian Fassnacht,,Christian Fassnacht,pinnacle,9.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Rodrigo Javier De Paul,,Rodrigo Javier De Paul,pinnacle,9.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Leandro Paredes,,Leandro Paredes,pinnacle,10.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Cristian Romero,,Cristian Romero,pinnacle,10.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Gonzalo Montiel,,Gonzalo Montiel,pinnacle,11.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Fabian Rieder,,Fabian Rieder,pinnacle,11.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Nahuel Molina,,Nahuel Molina,pinnacle,11.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Nicolas Otamendi,,Nicolas Otamendi,pinnacle,11.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Marcos Senesi,,Marcos Senesi,pinnacle,11.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Lisandro Martinez,,Lisandro Martinez,pinnacle,11.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Facundo Medina,,Facundo Medina,pinnacle,12.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Nicolas Tagliafico,,Nicolas Tagliafico,pinnacle,12.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Remo Freuler,,Remo Freuler,pinnacle,13.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Michel Aebischer,,Michel Aebischer,pinnacle,14.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Miro Muheim,,Miro Muheim,pinnacle,15.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Ricardo Rodríguez,,Ricardo Rodríguez,pinnacle,16.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Djibril Sow,,Djibril Sow,pinnacle,18.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Denis Zakaria,,Denis Zakaria,pinnacle,18.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Manuel Akanji,,Manuel Akanji,pinnacle,20.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Nico Elvedi,,Nico Elvedi,pinnacle,20.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Luca Jaquez,,Luca Jaquez,pinnacle,20.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_goal_scorer_anytime,Yes Aurele Amenda,,Aurele Amenda,pinnacle,21.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Johan Manzambi,,Johan Manzambi,pinnacle,3.35
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Miro Muheim,,Miro Muheim,pinnacle,3.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Granit Xhaka,,Granit Xhaka,pinnacle,3.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Breel Embolo,,Breel Embolo,pinnacle,3.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Aurele Amenda,,Aurele Amenda,pinnacle,3.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Cedric Itten,,Cedric Itten,pinnacle,3.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Remo Freuler,,Remo Freuler,pinnacle,3.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Dan Ndoye,,Dan Ndoye,pinnacle,3.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Cristian Romero,,Cristian Romero,pinnacle,3.9
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Facundo Medina,,Facundo Medina,pinnacle,3.9
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Denis Zakaria,,Denis Zakaria,pinnacle,4.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Marcos Senesi,,Marcos Senesi,pinnacle,4.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Michel Aebischer,,Michel Aebischer,pinnacle,4.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Alexis Mac Allister,,Alexis Mac Allister,pinnacle,4.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Djibril Sow,,Djibril Sow,pinnacle,4.1
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Rodrigo Javier De Paul,,Rodrigo Javier De Paul,pinnacle,4.1
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Luca Jaquez,,Luca Jaquez,pinnacle,4.2
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Ruben Vargas,,Ruben Vargas,pinnacle,4.3
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Giuliano Simeone,,Giuliano Simeone,pinnacle,4.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Enzo Fernandez,,Enzo Fernandez,pinnacle,4.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Christian Fassnacht,,Christian Fassnacht,pinnacle,4.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Mohamed Zeki Amdouni,,Mohamed Zeki Amdouni,pinnacle,4.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Manuel Akanji,,Manuel Akanji,pinnacle,4.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Exequiel Palacios,,Exequiel Palacios,pinnacle,4.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Fabian Rieder,,Fabian Rieder,pinnacle,4.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Nicolas Tagliafico,,Nicolas Tagliafico,pinnacle,4.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Leandro Paredes,,Leandro Paredes,pinnacle,4.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Lisandro Martinez,,Lisandro Martinez,pinnacle,4.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Nicolas Paz Martinez,,Nicolas Paz Martinez,pinnacle,4.6
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Lautaro Martinez,,Lautaro Martinez,pinnacle,4.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Ricardo Rodríguez,,Ricardo Rodríguez,pinnacle,4.7
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Gonzalo Montiel,,Gonzalo Montiel,pinnacle,4.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Nico Elvedi,,Nico Elvedi,pinnacle,4.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Giovani Lo Celso,,Giovani Lo Celso,pinnacle,4.8
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Julian Alvarez,,Julian Alvarez,pinnacle,5.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Nicolas Otamendi,,Nicolas Otamendi,pinnacle,5.1
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Nahuel Molina,,Nahuel Molina,pinnacle,5.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Thiago Almada,,Thiago Almada,pinnacle,6.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,player_to_receive_card,Yes Lionel Messi,,Lionel Messi,pinnacle,6.25
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,to_qualify,Argentina,,,pinnacle,1.31
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,to_qualify,Switzerland,,,pinnacle,3.75
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals_h1,Over 0.75,0.75,,pinnacle,1.74
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals_h1,Under 0.75,0.75,,pinnacle,2.11
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Argentina,,,winamax_fr,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Switzerland,,,winamax_fr,5.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Draw,,,winamax_fr,3.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Argentina,,,winamax_fr,1.68
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Switzerland,,,winamax_fr,5.4
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Draw,,,winamax_fr,3.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Argentina,,,netbet_fr,1.65
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Switzerland,,,netbet_fr,5.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h,Draw,,,netbet_fr,3.45
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals,Over 2.5,2.5,,netbet_fr,2.1
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,totals,Under 2.5,2.5,,netbet_fr,1.58
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,btts,Yes,,,netbet_fr,2.0
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,btts,No,,,netbet_fr,1.65
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Argentina,,,netbet_fr,1.65
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Switzerland,,,netbet_fr,5.5
+soccer_fifa_world_cup,200d9cd5eda092c7eb778cc104cd2fd2,Argentina,Switzerland,2026-07-12T01:00:00Z,h2h_3_way,Draw,,,netbet_fr,3.45
