@@ -1,6 +1,6 @@
 {
   "status": "error",
   "message": "Echec du scrape ou de la comparaison. Les books FR bloquent peut-etre l'IP GitHub.",
-  "match_filter": "",
-  "updated_at": "2026-07-09T15:25:04.725093+00:00"
+  "match_filter": "Kostyuk",
+  "updated_at": "2026-07-09T15:25:54.497993+00:00"
 }
