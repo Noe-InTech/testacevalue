@@ -1,0 +1,16 @@
+[Unit]
+Description=Aces live compare runner (EU)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/testacevalue
+Environment=RUNNER_SECRET=CHANGE_ME
+Environment=RUNNER_HOST=0.0.0.0
+Environment=RUNNER_PORT=8787
+ExecStart=/opt/testacevalue/.venv/bin/python /opt/testacevalue/runner/server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

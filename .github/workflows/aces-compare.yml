@@ -8,13 +8,13 @@ on:
         required: false
         default: ""
       mode:
-        description: "live = scrape FR+FD | scan-json = cache FR + FanDuel frais (recommande cloud)"
+        description: "live = scrape FR+FD (defaut) | scan-json = cache FR"
         required: false
-        default: "scan-json"
+        default: "live"
         type: choice
         options:
-          - scan-json
           - live
+          - scan-json
 
 permissions:
   contents: write
@@ -68,7 +68,7 @@ jobs:
         run: |
           set -o pipefail
           MODE="${{ github.event.inputs.mode }}"
-          if [ -z "$MODE" ]; then MODE="scan-json"; fi
+          if [ -z "$MODE" ]; then MODE="live"; fi
           CMD=(python compare_tennis_aces_vs_fanduel.py -o web/public/latest_aces.csv)
           if [ "$MODE" = "scan-json" ]; then
             if [ ! -f web/public/aces_scan_cache.json ]; then

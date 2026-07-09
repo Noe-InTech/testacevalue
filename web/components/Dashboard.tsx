@@ -90,14 +90,14 @@ export function Dashboard() {
       const response = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: secret.trim(), match: match.trim(), mode: "scan-json" }),
+        body: JSON.stringify({ secret: secret.trim(), match: match.trim() }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Echec du declenchement.");
       }
 
-      setInfo("Scrape en cours sur GitHub Actions...");
+      setInfo("Scrape live en cours... (~25 s)");
       await waitForCompletion(startedAt);
       setInfo("Comparaison terminee.");
     } catch (exc) {
@@ -118,7 +118,7 @@ export function Dashboard() {
         <p className="eyebrow">Tennis aces</p>
         <h1>FR vs FanDuel</h1>
         <p className="lead">
-          Lance la comparaison depuis ton telephone. Mode cloud : cotes FR en cache + FanDuel en direct (~10 s).
+          Lance la comparaison <strong>live</strong> depuis ton telephone (~25 s). Necessite un runner EU (Oracle gratuit).
         </p>
       </header>
 

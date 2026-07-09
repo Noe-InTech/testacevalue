@@ -30,7 +30,7 @@ export async function fetchGithubJson<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
-export async function triggerWorkflow(match: string, mode: string = "scan-json"): Promise<Response> {
+export async function triggerWorkflow(match: string, mode: string = "live"): Promise<Response> {
   const token = process.env.GITHUB_TOKEN?.trim();
   const { owner, repo } = githubConfig();
   if (!token || !owner || !repo) {

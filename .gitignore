@@ -7,6 +7,9 @@ venv/
 .pytest_cache/
 output/
 
+# Runner EU data
+runner/data/
+
 # Next.js dashboard
 web/node_modules/
 web/.next/

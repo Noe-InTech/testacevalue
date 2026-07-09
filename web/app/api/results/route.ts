@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { fetchGithubJson } from "@/lib/github";
+import { fetchRunnerResults, runnerEnabled } from "@/lib/runner";
 import type { AcesPayload, RunStatus } from "@/lib/types";
 
 async function readLocalJson<T>(filename: string): Promise<T | null> {
@@ -16,6 +17,18 @@ async function readLocalJson<T>(filename: string): Promise<T | null> {
 }
 
 export async function GET() {
+  if (runnerEnabled()) {
+    const runnerData = await fetchRunnerResults();
+    if (runnerData) {
+      return NextResponse.json({
+        payload: runnerData.payload,
+        status: runnerData.status,
+        source: "runner-live",
+        fetched_at: new Date().toISOString(),
+      });
+    }
+  }
+
   const [payload, status] = await Promise.all([
     fetchGithubJson<AcesPayload>("web/public/latest_aces.json"),
     fetchGithubJson<RunStatus>("web/public/run_status.json"),
