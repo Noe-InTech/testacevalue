@@ -1,15 +1,6 @@
 ﻿SECTION,,,,Toutes les cotes comparables,,,,,,
 match,ligne_aces_fr,marche_fr,marche_fanduel,issue_fr,cote_fr,bookmaker_fr,cote_us_fanduel_ml,cote_fr_fanduel,ecart_fr_moins_fd,meilleur_cote
-J.Sinner vs N.Djokovic,"Plus de 18,5 aces — Sinner","Plus / Moins (Aces) - J.Sinner 18,5 - Match",Total Jannik Sinner Aces 18.5,Plus,"1,70",Unibet,-126,"1,79","-0,09",FanDuel
-A.Fery vs A.Zverev,"Plus de 14,5 aces — Zverev","Plus / Moins (Aces) - A.Zverev 14,5 - Match",Total Alexander Zverev Aces 14.5,Plus,"1,84",Winamax,-122,"1,82","+0,02",FR
-A.Fery vs A.Zverev,"Moins de 14,5 aces — Zverev","Plus / Moins (Aces) - A.Zverev 14,5 - Match",Total Alexander Zverev Aces 14.5,Moins,"1,62",Winamax,-110,"1,91","-0,29",FanDuel
-A.Fery vs A.Zverev,"Plus de 5,5 aces — Fery",Nombre d'aces de A. Fery (5.5),Total Arthur Fery Aces 5.5,Plus,"1,74",Winamax,+100,"2,00","-0,26",FanDuel
-A.Fery vs A.Zverev,"Moins de 5,5 aces — Fery",Nombre d'aces de A. Fery (5.5),Total Arthur Fery Aces 5.5,Moins,"1,72",Winamax,-132,"1,76","-0,04",FanDuel
-K.Muchova vs L.Noskova,"Plus de 4,5 aces — Noskova","Plus / Moins (Aces) - L.Noskova 4,5 - Match",Total Linda Noskova Aces 4.5,Plus,"1,86",Winamax,+100,"2,00","-0,14",FanDuel
-K.Muchova vs L.Noskova,"Moins de 4,5 aces — Noskova","Plus / Moins (Aces) - L.Noskova 4,5 - Match",Total Linda Noskova Aces 4.5,Moins,"1,60",Winamax,-138,"1,72","-0,12",FanDuel
-K.Muchova vs L.Noskova,"Plus de 5,5 aces — Muchova","Plus / Moins (Aces) - K.Muchova 5,5 - Match",Total Karolina Muchova Aces 5.5,Plus,"1,86",Winamax,-106,"1,94","-0,08",FanDuel
-K.Muchova vs L.Noskova,"Moins de 5,5 aces — Muchova","Plus / Moins (Aces) - K.Muchova 5,5 - Match",Total Karolina Muchova Aces 5.5,Moins,"1,60",Winamax,-132,"1,76","-0,16",FanDuel
 ,,,,,,,,,,
 SECTION,,,,Cotes FR superieures a FanDuel,,,,,,
 match,ligne_aces_fr,marche_fr,marche_fanduel,issue_fr,cote_fr,bookmaker_fr,cote_us_fanduel_ml,cote_fr_fanduel,ecart_fr_moins_fd,meilleur_cote
-A.Fery vs A.Zverev,"Plus de 14,5 aces — Zverev","Plus / Moins (Aces) - A.Zverev 14,5 - Match",Total Alexander Zverev Aces 14.5,Plus,"1,84",Winamax,-122,"1,82","+0,02",FR
+,,,,Aucune cote FR superieure a FanDuel sur ce run.,,,,,,
