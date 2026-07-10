@@ -50,6 +50,10 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
+    refresh().catch((exc) => setError(exc instanceof Error ? exc.message : "Erreur inconnue."));
+  }, [refresh]);
+
+  useEffect(() => {
     if (!busy) {
       return;
     }
