@@ -1,9 +1,9 @@
 {
   "status": "success",
   "message": "Comparaison terminee (mode live).",
-  "match_filter": "fery",
-  "updated_at": "2026-07-10T08:49:10.412046+00:00",
-  "generated_at": "2026-07-10T08:49:10.332518",
-  "comparable_count": 4,
+  "match_filter": "",
+  "updated_at": "2026-07-10T08:57:55.948216+00:00",
+  "generated_at": "2026-07-10T08:57:55.871183+00:00",
+  "comparable_count": 9,
   "fr_higher_count": 1
 }
