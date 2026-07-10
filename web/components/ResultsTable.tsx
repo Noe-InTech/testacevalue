@@ -22,7 +22,9 @@ export function ResultsTable({ title, rows, emptyMessage }: ResultsTableProps) {
             <thead>
               <tr>
                 {TABLE_COLUMNS.map((column) => (
-                  <th key={column.key}>{column.label}</th>
+                  <th key={column.key} title={column.hint}>
+                    {column.label}
+                  </th>
                 ))}
               </tr>
             </thead>

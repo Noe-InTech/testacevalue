@@ -51,7 +51,7 @@ export function Dashboard() {
 
   const waitForCompletion = useCallback(
     async (startedAt: number) => {
-      const deadline = Date.now() + 4 * 60 * 1000;
+      const deadline = Date.now() + 3 * 60 * 1000;
       while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const data = await refresh();
@@ -59,16 +59,27 @@ export function Dashboard() {
         const generatedAt = data.payload?.generated_at
           ? new Date(data.payload.generated_at).getTime()
           : 0;
+        const updatedAt = data.status?.updated_at
+          ? new Date(data.status.updated_at).getTime()
+          : 0;
+
+        if ((data as { source?: string }).source === "runner-unreachable") {
+          throw new Error(
+            "Runner EU injoignable. Mets a jour RUNNER_URL sur Vercel (URL Cloudflare).",
+          );
+        }
 
         if (currentStatus === "error") {
           throw new Error(data.status?.message || "La comparaison a echoue.");
         }
 
-        if (currentStatus === "success" && generatedAt >= startedAt - 5000) {
-          return;
+        if (currentStatus === "success") {
+          if (generatedAt >= startedAt - 5000 || updatedAt >= startedAt - 5000) {
+            return;
+          }
         }
       }
-      throw new Error("Delai depasse. Recharge la page dans quelques instants.");
+      throw new Error("Delai depasse (~3 min). Recharge la page.");
     },
     [refresh],
   );
@@ -116,9 +127,9 @@ export function Dashboard() {
     <main className="page">
       <header className="hero">
         <p className="eyebrow">Tennis aces</p>
-        <h1>FR vs FanDuel</h1>
+        <h1>Aces tennis — books FR vs FanDuel</h1>
         <p className="lead">
-          Lance la comparaison <strong>live</strong> depuis ton telephone (~25 s). Necessite un runner EU (Oracle gratuit).
+          Compare les lignes <strong>aces</strong> (Unibet, Betclic, Winamax) avec FanDuel en live (~25 s).
         </p>
       </header>
 
@@ -159,25 +170,32 @@ export function Dashboard() {
           <strong>{status?.status ?? "idle"}</strong>
         </div>
         <div>
-          <span className="meta-label">Comparables</span>
+          <span className="meta-label" title="Nombre de lignes aces alignees entre un book FR et FanDuel">
+            Lignes comparees
+          </span>
           <strong>{payload?.comparable_count ?? 0}</strong>
         </div>
         <div>
-          <span className="meta-label">FR &gt; FanDuel</span>
+          <span
+            className="meta-label"
+            title="Lignes ou la cote FR est strictement superieure a FanDuel"
+          >
+            FR paie mieux
+          </span>
           <strong>{payload?.fr_higher_count ?? 0}</strong>
         </div>
       </section>
 
       <ResultsTable
-        title="1. Toutes les cotes comparables"
+        title="Toutes les lignes aces comparees"
         rows={payload?.comparables ?? []}
         emptyMessage="Aucun resultat pour le moment. Lance une comparaison."
       />
 
       <ResultsTable
-        title="2. Cotes FR superieures a FanDuel"
+        title="Lignes ou le book FR paie mieux que FanDuel"
         rows={frHigherRows}
-        emptyMessage="Aucune cote FR superieure a FanDuel sur ce run."
+        emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
       />
     </main>
   );

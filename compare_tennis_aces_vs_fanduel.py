@@ -8,7 +8,7 @@ import json
 import logging
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -626,7 +626,7 @@ def _export_results(results: list[dict[str, Any]], output: Path | None) -> Path:
 
     payload = {
         "source": "tennis_aces_comparable",
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "comparable_count": len(comparable_rows),
         "fr_higher_count": len(fr_higher_rows),
         "comparables": comparable_rows,

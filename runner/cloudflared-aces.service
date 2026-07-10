@@ -1,12 +1,12 @@
 [Unit]
 Description=Cloudflare quick tunnel to aces runner
 After=network-online.target aces-runner.service
-Wants=network-online.target
-Requires=aces-runner.service
+Wants=network-online.target aces-runner.service
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/cloudflared tunnel --url http://127.0.0.1:8787 --logfile /var/log/cloudflared-aces.log --loglevel info
+ExecStartPost=/bin/bash -c 'for i in $(seq 1 30); do url=$(grep -oE "https://[a-z0-9-]+\\.trycloudflare\\.com" /var/log/cloudflared-aces.log | tail -1); if [ -n "$url" ]; then echo "$url" > /opt/testacevalue/runner/data/public_url.txt; break; fi; sleep 1; done'
 Restart=always
 RestartSec=5
 

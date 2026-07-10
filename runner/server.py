@@ -53,7 +53,7 @@ def run_compare(match_filter: str) -> None:
             cwd=str(ROOT),
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=180,
             check=False,
         )
         if proc.returncode != 0:
@@ -61,6 +61,12 @@ def run_compare(match_filter: str) -> None:
             write_status("error", f"Echec live compare.\n{detail}", match_filter=match_filter)
             return
         write_status("success", "Comparaison live terminee.", match_filter=match_filter)
+    except subprocess.TimeoutExpired:
+        write_status(
+            "error",
+            "Comparaison live interrompue apres 3 minutes (timeout).",
+            match_filter=match_filter,
+        )
     except Exception as exc:
         write_status("error", f"Exception runner: {exc}", match_filter=match_filter)
     finally:
