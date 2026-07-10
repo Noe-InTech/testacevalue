@@ -64,23 +64,21 @@ export function Dashboard() {
   }, [busy, refresh]);
 
   const waitForCompletion = useCallback(
-    async (startedAt: number) => {
-      const deadline = Date.now() + 3 * 60 * 1000;
+    async () => {
+      const deadline = Date.now() + 5 * 60 * 1000;
       let lastCount = 0;
+      let stalePolls = 0;
+
       while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const data = await refresh();
         const currentStatus = data.status?.status;
         const rowCount = data.payload?.comparable_count ?? 0;
-        const generatedAt = data.payload?.generated_at
-          ? new Date(data.payload.generated_at).getTime()
-          : 0;
-        const updatedAt = data.status?.updated_at
-          ? new Date(data.status.updated_at).getTime()
-          : 0;
+        const isFinalPayload = data.payload?.partial === false;
 
         if (rowCount > lastCount) {
           lastCount = rowCount;
+          stalePolls = 0;
           setInfo(`${rowCount} ligne(s) affichee(s), comparaison en cours...`);
         } else if (currentStatus === "running") {
           setInfo(data.status?.message || "Comparaison en cours...");
@@ -93,16 +91,33 @@ export function Dashboard() {
         }
 
         if (currentStatus === "error") {
+          if (rowCount > 0) {
+            setInfo(`${rowCount} ligne(s) affichees (comparaison partielle).`);
+            return;
+          }
           throw new Error(data.status?.message || "La comparaison a echoue.");
         }
 
-        if (currentStatus === "success") {
-          if (generatedAt >= startedAt - 5000 || updatedAt >= startedAt - 5000) {
+        if (currentStatus === "success" || isFinalPayload) {
+          return;
+        }
+
+        if (rowCount > 0) {
+          stalePolls += 1;
+          if (stalePolls >= 20 && currentStatus !== "running") {
+            setInfo(`${rowCount} ligne(s) affichees.`);
             return;
           }
         }
       }
-      throw new Error("Delai depasse (~3 min). Recharge la page.");
+
+      const finalData = await refresh();
+      const finalCount = finalData.payload?.comparable_count ?? 0;
+      if (finalCount > 0) {
+        setInfo(`${finalCount} ligne(s) affichees (delai max atteint).`);
+        return;
+      }
+      throw new Error("Delai depasse (~5 min). Recharge la page.");
     },
     [refresh],
   );
@@ -129,7 +144,6 @@ export function Dashboard() {
     setInfo("Lancement en cours...");
 
     try {
-      const startedAt = Date.now();
       const response = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,8 +154,8 @@ export function Dashboard() {
         throw new Error(data.error || "Echec du declenchement.");
       }
 
-      setInfo("Scrape live en cours... (~25 s)");
-      await waitForCompletion(startedAt);
+      setInfo("Scrape live en cours...");
+      await waitForCompletion();
       setInfo("Comparaison terminee.");
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
