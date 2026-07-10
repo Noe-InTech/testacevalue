@@ -1,6 +1,9 @@
 {
-  "status": "idle",
-  "message": "Aucune comparaison lancee. Configure RUNNER_URL sur Vercel (tunnel Cloudflare).",
+  "status": "success",
+  "message": "Comparaison terminee (mode live).",
   "match_filter": "",
-  "updated_at": ""
+  "updated_at": "2026-07-10T08:43:25.201013+00:00",
+  "generated_at": "2026-07-10T08:43:25.132430",
+  "comparable_count": 9,
+  "fr_higher_count": 1
 }
