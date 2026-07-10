@@ -45,7 +45,16 @@ def run_compare(match_filter: str) -> None:
     global RUNNING
     try:
         write_status("running", "Comparaison live en cours...", match_filter=match_filter)
-        cmd = [sys.executable, str(ROOT / "compare_tennis_aces_vs_fanduel.py"), "-o", str(RESULT_JSON.with_suffix(".csv"))]
+        cmd = [
+            sys.executable,
+            str(ROOT / "compare_tennis_aces_vs_fanduel.py"),
+            "-o",
+            str(RESULT_JSON.with_suffix(".csv")),
+            "--progress-json",
+            str(RESULT_JSON),
+            "--status-json",
+            str(STATUS_JSON),
+        ]
         if match_filter:
             cmd.extend(["--match", match_filter])
         proc = subprocess.run(
@@ -58,9 +67,13 @@ def run_compare(match_filter: str) -> None:
         )
         if proc.returncode != 0:
             detail = (proc.stderr or proc.stdout or "Erreur inconnue.")[-2000:]
-            write_status("error", f"Echec live compare.\n{detail}", match_filter=match_filter)
+            current = read_json(STATUS_JSON, {})
+            if current.get("status") != "error":
+                write_status("error", f"Echec live compare.\n{detail}", match_filter=match_filter)
             return
-        write_status("success", "Comparaison live terminee.", match_filter=match_filter)
+        current = read_json(STATUS_JSON, {})
+        if current.get("status") != "success":
+            write_status("success", "Comparaison live terminee.", match_filter=match_filter)
     except subprocess.TimeoutExpired:
         write_status(
             "error",

@@ -42,20 +42,32 @@ export function Dashboard() {
     const data = await response.json();
     setPayload(data.payload ?? null);
     setStatus(data.status ?? null);
-    return data as { payload: AcesPayload | null; status: RunStatus | null };
+    return data as {
+      payload: AcesPayload | null;
+      status: RunStatus | null;
+      source?: string;
+    };
   }, []);
 
   useEffect(() => {
-    refresh().catch((exc) => setError(exc instanceof Error ? exc.message : "Erreur inconnue."));
-  }, [refresh]);
+    if (!busy) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      refresh().catch(() => undefined);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [busy, refresh]);
 
   const waitForCompletion = useCallback(
     async (startedAt: number) => {
       const deadline = Date.now() + 3 * 60 * 1000;
+      let lastCount = 0;
       while (Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         const data = await refresh();
         const currentStatus = data.status?.status;
+        const rowCount = data.payload?.comparable_count ?? 0;
         const generatedAt = data.payload?.generated_at
           ? new Date(data.payload.generated_at).getTime()
           : 0;
@@ -63,7 +75,14 @@ export function Dashboard() {
           ? new Date(data.status.updated_at).getTime()
           : 0;
 
-        if ((data as { source?: string }).source === "runner-unreachable") {
+        if (rowCount > lastCount) {
+          lastCount = rowCount;
+          setInfo(`${rowCount} ligne(s) affichee(s), comparaison en cours...`);
+        } else if (currentStatus === "running") {
+          setInfo(data.status?.message || "Comparaison en cours...");
+        }
+
+        if (data.source === "runner-unreachable") {
           throw new Error(
             "Runner EU injoignable. Mets a jour RUNNER_URL sur Vercel (URL Cloudflare).",
           );
@@ -94,7 +113,16 @@ export function Dashboard() {
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
     setBusy(true);
-    setInfo("Lancement en cours... (~30 s)");
+    setPayload({
+      source: "tennis_aces_comparable",
+      generated_at: "",
+      partial: true,
+      comparable_count: 0,
+      fr_higher_count: 0,
+      comparables: [],
+      fr_higher_comparables: [],
+    });
+    setInfo("Lancement en cours...");
 
     try {
       const startedAt = Date.now();
@@ -167,7 +195,10 @@ export function Dashboard() {
         </div>
         <div>
           <span className="meta-label">Statut</span>
-          <strong>{status?.status ?? "idle"}</strong>
+          <strong>
+            {status?.status ?? "idle"}
+            {payload?.partial ? " (partiel)" : ""}
+          </strong>
         </div>
         <div>
           <span className="meta-label" title="Nombre de lignes aces alignees entre un book FR et FanDuel">

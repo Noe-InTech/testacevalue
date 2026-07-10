@@ -10,7 +10,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from fanduel_client import (
     ACES_EVENT_TABS,
@@ -567,6 +567,59 @@ def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("best_side") == "fr"]
 
 
+def build_results_payload(results: list[dict[str, Any]], *, partial: bool) -> dict[str, Any]:
+    comparable_rows = collect_comparable_rows(results)
+    fr_higher_rows = collect_fr_higher_rows(comparable_rows)
+    return {
+        "source": "tennis_aces_comparable",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "partial": partial,
+        "comparable_count": len(comparable_rows),
+        "fr_higher_count": len(fr_higher_rows),
+        "comparables": comparable_rows,
+        "fr_higher_comparables": fr_higher_rows,
+    }
+
+
+def write_progress_json(
+    path: Path | None,
+    results: list[dict[str, Any]],
+    *,
+    partial: bool,
+) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(build_results_payload(results, partial=partial), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def write_run_status_file(
+    path: Path | None,
+    status: str,
+    message: str,
+    *,
+    match_filter: str = "",
+    results: list[dict[str, Any]] | None = None,
+) -> None:
+    if path is None:
+        return
+    payload: dict[str, Any] = {
+        "status": status,
+        "message": message,
+        "match_filter": match_filter,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if results is not None:
+        rows = collect_comparable_rows(results)
+        payload["comparable_count"] = len(rows)
+        payload["fr_higher_count"] = len(collect_fr_higher_rows(rows))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def comparable_row_to_csv(row: dict[str, Any]) -> dict[str, str]:
     return {
         "match": str(row.get("match", "")),
@@ -661,14 +714,7 @@ def _export_results(results: list[dict[str, Any]], output: Path | None) -> Path:
     json_path = csv_path.with_suffix(".json")
     md_path = csv_path.with_suffix(".md")
 
-    payload = {
-        "source": "tennis_aces_comparable",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "comparable_count": len(comparable_rows),
-        "fr_higher_count": len(fr_higher_rows),
-        "comparables": comparable_rows,
-        "fr_higher_comparables": fr_higher_rows,
-    }
+    payload = build_results_payload(results, partial=False)
     write_comparable_csv(csv_path, comparable_rows)
     write_comparable_markdown(md_path, comparable_rows)
     with json_path.open("w", encoding="utf-8") as handle:
@@ -705,11 +751,15 @@ def _compare_anchors(
     fanduel_event_list: list[Any],
     match_meta_by_key: dict[str, dict[str, Any]] | None = None,
     fr_map_by_key: dict[str, dict[str, dict[str, Any]]] | None = None,
+    on_progress: Callable[[list[dict[str, Any]], str], None] | None = None,
 ) -> list[dict[str, Any]]:
     fanduel = FanDuelClient()
     pending: list[tuple[dict[str, Any], dict[str, dict[str, Any]], Any, dict[str, dict[str, Any]] | None]] = []
     results: list[dict[str, Any]] = []
 
+    def notify(message: str) -> None:
+        if on_progress is not None:
+            on_progress(results, message)
     for anchor in anchors:
         home = anchor["home_player"]
         away = anchor["away_player"]
@@ -748,6 +798,7 @@ def _compare_anchors(
             )
             results.append(compared)
             log.info("%s | 0 comparable(s) (pas d'aces O/U FR alignables)", compared["match"])
+            notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
             continue
 
         fanduel_meta = find_fanduel_event(home, away, fanduel_event_list)
@@ -760,6 +811,7 @@ def _compare_anchors(
             )
             results.append(compared)
             log.info("%s | 0 comparable(s) (FanDuel introuvable)", compared["match"])
+            notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
             continue
         pending.append((match_meta, book_events, fanduel_meta, fr_map))
 
@@ -792,10 +844,35 @@ def _compare_anchors(
                     compared["match"],
                     compared["comparable_ace_count"],
                 )
+                notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
     return results
 
 
-def run_live_compare(output: Path | None = None, *, match_filter: str = "") -> Path:
+def run_live_compare(
+    output: Path | None = None,
+    *,
+    match_filter: str = "",
+    progress_json: Path | None = None,
+    status_json: Path | None = None,
+) -> Path:
+    def on_progress(results: list[dict[str, Any]], message: str) -> None:
+        write_progress_json(progress_json, results, partial=True)
+        write_run_status_file(
+            status_json,
+            "running",
+            message,
+            match_filter=match_filter,
+            results=results,
+        )
+
+    write_run_status_file(
+        status_json,
+        "running",
+        "Chargement des cotes FR et FanDuel...",
+        match_filter=match_filter,
+    )
+    write_progress_json(progress_json, [], partial=True)
+
     (
         anchors,
         unibet_payloads,
@@ -804,6 +881,12 @@ def run_live_compare(output: Path | None = None, *, match_filter: str = "") -> P
         fanduel_event_list,
         winamax_links,
     ) = fetch_live_aces_book_data(match_filter=match_filter)
+    write_run_status_file(
+        status_json,
+        "running",
+        f"{len(anchors)} match(s) trouve(s) — comparaison FanDuel...",
+        match_filter=match_filter,
+    )
     results = _compare_anchors(
         anchors,
         unibet_payloads=unibet_payloads,
@@ -811,8 +894,18 @@ def run_live_compare(output: Path | None = None, *, match_filter: str = "") -> P
         winamax_links=winamax_links,
         winamax_payloads=winamax_payloads,
         fanduel_event_list=fanduel_event_list,
+        on_progress=on_progress,
     )
-    return _export_results(results, output)
+    csv_path = _export_results(results, output)
+    write_progress_json(progress_json, results, partial=False)
+    write_run_status_file(
+        status_json,
+        "success",
+        "Comparaison live terminee.",
+        match_filter=match_filter,
+        results=results,
+    )
+    return csv_path
 
 
 def run_from_scan_json(
@@ -893,8 +986,23 @@ if __name__ == "__main__":
         metavar="TEXT",
         help="Filtrer un match (ex: fery, sinner)",
     )
+    parser.add_argument(
+        "--progress-json",
+        type=Path,
+        help="Ecrit les resultats partiels au fil de l'eau (JSON)",
+    )
+    parser.add_argument(
+        "--status-json",
+        type=Path,
+        help="Met a jour le statut du run (JSON)",
+    )
     args = parser.parse_args()
     if args.scan_json:
         run_from_scan_json(args.scan_json, args.output, match_filter=args.match or "")
     else:
-        run_live_compare(args.output, match_filter=args.match or "")
+        run_live_compare(
+            args.output,
+            match_filter=args.match or "",
+            progress_json=args.progress_json,
+            status_json=args.status_json,
+        )

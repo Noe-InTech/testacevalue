@@ -15,6 +15,7 @@ export interface ComparableRow {
 export interface AcesPayload {
   source: string;
   generated_at: string;
+  partial?: boolean;
   comparable_count: number;
   fr_higher_count: number;
   comparables: ComparableRow[];
