@@ -222,10 +222,17 @@ def fetch_live_aces_book_data(
         fut_winamax_links = pool.submit(winamax.list_singles_tennis_matches)
         fut_fanduel_list = pool.submit(_discover_fanduel_singles, fanduel)
 
-        unibet_meta = fut_unibet_meta.result()
-        betclic_links = fut_betclic_links.result()
-        winamax_links = fut_winamax_links.result()
-        fanduel_event_list = fut_fanduel_list.result()
+        def _safe_future_result(future: Any, label: str, fallback: Any) -> Any:
+            try:
+                return future.result()
+            except Exception as exc:
+                log.warning("%s indisponible (live): %s", label, exc)
+                return fallback
+
+        unibet_meta = _safe_future_result(fut_unibet_meta, "Unibet", [])
+        betclic_links = _safe_future_result(fut_betclic_links, "Betclic", [])
+        winamax_links = _safe_future_result(fut_winamax_links, "Winamax", [])
+        fanduel_event_list = _safe_future_result(fut_fanduel_list, "FanDuel", [])
 
     betclic_events: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=min(8, max(1, len(betclic_links)))) as pool:
