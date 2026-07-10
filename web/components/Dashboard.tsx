@@ -59,7 +59,7 @@ export function Dashboard() {
     }
     const timer = window.setInterval(() => {
       refresh().catch(() => undefined);
-    }, 1000);
+    }, 500);
     return () => window.clearInterval(timer);
   }, [busy, refresh]);
 
@@ -68,7 +68,7 @@ export function Dashboard() {
       const deadline = Date.now() + 3 * 60 * 1000;
       let lastCount = 0;
       while (Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 500));
         const data = await refresh();
         const currentStatus = data.status?.status;
         const rowCount = data.payload?.comparable_count ?? 0;
@@ -196,6 +196,10 @@ export function Dashboard() {
         <div>
           <span className="meta-label">Derniere mise a jour</span>
           <strong>{formatTimestamp(payload?.generated_at)}</strong>
+        </div>
+        <div>
+          <span className="meta-label">Etape</span>
+          <strong>{status?.message ?? "—"}</strong>
         </div>
         <div>
           <span className="meta-label">Statut</span>
