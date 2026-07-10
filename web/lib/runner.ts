@@ -18,15 +18,27 @@ export async function triggerRunner(match: string): Promise<Response> {
     );
   }
 
-  const response = await fetch(`${baseUrl}/api/trigger`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Runner-Secret": secret,
-    },
-    body: JSON.stringify({ match }),
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/api/trigger`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Runner-Secret": secret,
+      },
+      body: JSON.stringify({ match }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "connexion impossible";
+    return new Response(
+      JSON.stringify({
+        error: `Runner EU injoignable (${detail}). RUNNER_URL doit etre l'URL Cloudflare https://....trycloudflare.com.`,
+      }),
+      { status: 502, headers: { "Content-Type": "application/json" } },
+    );
+  }
 
   const data = await response.json().catch(() => ({}));
   return new Response(JSON.stringify(data), {
@@ -43,7 +55,10 @@ export async function fetchRunnerResults(): Promise<{
   if (!baseUrl) {
     return null;
   }
-  const response = await fetch(`${baseUrl}/api/results`, { cache: "no-store" });
+  const response = await fetch(`${baseUrl}/api/results`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
+  });
   if (!response.ok) {
     return null;
   }

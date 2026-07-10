@@ -16,6 +16,22 @@ async function readLocalJson<T>(filename: string): Promise<T | null> {
   }
 }
 
+const idlePayload: AcesPayload = {
+  source: "tennis_aces_comparable",
+  generated_at: "",
+  comparable_count: 0,
+  fr_higher_count: 0,
+  comparables: [],
+  fr_higher_comparables: [],
+};
+
+const runnerUnreachableStatus: RunStatus = {
+  status: "error",
+  message:
+    "Runner EU injoignable depuis Vercel. Verifie RUNNER_URL (URL Cloudflare https://....trycloudflare.com, pas l'IP Oracle) puis redeploy.",
+  updated_at: new Date().toISOString(),
+};
+
 export async function GET() {
   if (runnerEnabled()) {
     const runnerData = await fetchRunnerResults();
@@ -27,6 +43,13 @@ export async function GET() {
         fetched_at: new Date().toISOString(),
       });
     }
+
+    return NextResponse.json({
+      payload: idlePayload,
+      status: runnerUnreachableStatus,
+      source: "runner-unreachable",
+      fetched_at: new Date().toISOString(),
+    });
   }
 
   const [payload, status] = await Promise.all([

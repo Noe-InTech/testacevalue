@@ -1,6 +1,6 @@
 {
-  "status": "error",
-  "message": "Echec. En mode live, les books FR bloquent souvent l'IP GitHub. Essaie mode scan-json.",
-  "match_filter": "sinner",
-  "updated_at": "2026-07-10T08:36:24.518040+00:00"
+  "status": "idle",
+  "message": "Aucune comparaison lancee. Configure RUNNER_URL sur Vercel (tunnel Cloudflare).",
+  "match_filter": "",
+  "updated_at": ""
 }
