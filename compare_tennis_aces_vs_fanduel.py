@@ -41,6 +41,7 @@ from tennis_market_mapping import (
     map_fanduel_aces_market_to_compare_key,
     players_match,
 )
+from value_engine import remove_vig_multiplicative
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,7 +51,7 @@ logging.basicConfig(
 log = logging.getLogger("compare_aces_fanduel")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-BETCLIC_ACES_GRPC = ("ca_ten_ptss",)
+BETCLIC_ACES_GRPC = ("ca_ten_ptss", "ca_ten_main", "ca_ten_sets")
 COMPARABLE_ACE_PREFIXES = ("aces_total|", "aces_player|")
 BOOK_NORMALIZERS = {
     "unibet": normalize_unibet_market,
@@ -66,11 +67,91 @@ COMPARABLE_CSV_FIELDS = [
     "issue_fr",
     "cote_fr",
     "bookmaker_fr",
+    "cote_fr_contraire",
     "cote_us_fanduel_ml",
+    "cote_us_fanduel_contraire",
     "cote_fr_fanduel",
+    "cote_fr_fanduel_contraire",
+    "prob_fair_fanduel",
+    "ev_percent",
     "ecart_fr_moins_fd",
     "meilleur_cote",
 ]
+
+
+def opposite_ou_outcome(outcome: str) -> str | None:
+    if outcome == "Over":
+        return "Under"
+    if outcome == "Under":
+        return "Over"
+    return None
+
+
+def format_ev_percent(ev_fraction: float) -> str:
+    return f"{ev_fraction * 100:+.1f}%".replace(".", ",")
+
+
+def compute_paired_value_fields(
+    *,
+    outcome: str,
+    fr_payload: dict[str, Any],
+    fr_market: dict[str, Any],
+    fd_market: dict[str, Any],
+) -> dict[str, Any]:
+    """Calcule cotes contraires et EV via paire Over/Under FanDuel (sans vig)."""
+    opposite = opposite_ou_outcome(outcome)
+    fields: dict[str, Any] = {
+        "cote_fr_contraire": "",
+        "bookmaker_fr_contraire": "",
+        "cote_us_fanduel_contraire": "",
+        "cote_fr_fanduel_contraire": "",
+        "prob_fair_fanduel": "",
+        "ev_percent": "",
+        "ev_percent_raw": None,
+        "paire_fd_complete": False,
+        "issue_fr_contraire": "",
+    }
+    if not opposite:
+        return fields
+
+    fields["issue_fr_contraire"] = aces_outcome_label_fr(opposite)
+    fr_opposite = fr_market["outcomes"].get(opposite)
+    if fr_opposite:
+        fields["cote_fr_contraire"] = format_french_decimal(float(fr_opposite["odds"]))
+        fields["bookmaker_fr_contraire"] = fr_opposite.get("bookmaker_label", "")
+
+    fd_side = fd_market["outcomes"].get(outcome)
+    fd_opposite = fd_market["outcomes"].get(opposite)
+    if fd_opposite:
+        opp_american = fd_opposite.get("american")
+        opp_decimal = fd_opposite.get("decimal_fr")
+        fields["cote_us_fanduel_contraire"] = format_american_moneyline(opp_american)
+        if opp_decimal is not None:
+            fields["cote_fr_fanduel_contraire"] = format_french_decimal(float(opp_decimal))
+
+    if not fd_side or not fd_opposite:
+        return fields
+
+    over_bundle = fd_market["outcomes"].get("Over")
+    under_bundle = fd_market["outcomes"].get("Under")
+    if not over_bundle or not under_bundle:
+        return fields
+    if over_bundle.get("decimal_fr") is None or under_bundle.get("decimal_fr") is None:
+        return fields
+
+    odds_pair = {
+        "Over": float(over_bundle["decimal_fr"]),
+        "Under": float(under_bundle["decimal_fr"]),
+    }
+    fair = remove_vig_multiplicative(odds_pair)
+    fair_prob = fair.get(outcome, 0.0)
+    fields["prob_fair_fanduel"] = f"{fair_prob * 100:.1f}%".replace(".", ",")
+    fields["paire_fd_complete"] = True
+    fr_odds = float(fr_payload["odds"])
+    ev = fair_prob * fr_odds - 1.0
+    fields["ev_percent"] = format_ev_percent(ev)
+    fields["ev_percent_raw"] = round(ev * 100, 2)
+    return fields
 
 
 def aces_outcome_label_fr(outcome: str) -> str:
@@ -155,6 +236,10 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
 
 def has_comparable_fr_aces(fr_map: dict[str, dict[str, Any]]) -> bool:
     return any(key.startswith(COMPARABLE_ACE_PREFIXES) for key in fr_map)
+
+
+def has_any_fr_aces(fr_map: dict[str, dict[str, Any]]) -> bool:
+    return bool(fr_map)
 
 
 def build_best_fr_normalized_map_from_quotes(
@@ -501,6 +586,12 @@ def compare_normalized_aces(
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_decimal_fr": float(fd_bundle["decimal_fr"]),
+                        **compute_paired_value_fields(
+                            outcome=outcome,
+                            fr_payload=fr_payload,
+                            fr_market=fr_market,
+                            fd_market=fd_market,
+                        ),
                     }
                 )
             )
@@ -620,6 +711,18 @@ def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any
     return rows
 
 
+def collect_value_rows(rows: list[dict[str, Any]], *, min_ev_percent: float = 0.0) -> list[dict[str, Any]]:
+    eligible = [
+        row
+        for row in rows
+        if row.get("paire_fd_complete") and row.get("ev_percent_raw") is not None
+    ]
+    eligible.sort(key=lambda row: float(row["ev_percent_raw"]), reverse=True)
+    if min_ev_percent > 0:
+        return [row for row in eligible if float(row["ev_percent_raw"]) > min_ev_percent]
+    return eligible
+
+
 def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("best_side") == "fr"]
 
@@ -627,6 +730,7 @@ def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_results_payload(results: list[dict[str, Any]], *, partial: bool) -> dict[str, Any]:
     comparable_rows = collect_comparable_rows(results)
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
+    value_rows = collect_value_rows(comparable_rows, min_ev_percent=0.0)
     fr_only_rows = collect_fr_only_rows(results)
     return {
         "source": "tennis_aces_comparable",
@@ -634,9 +738,11 @@ def build_results_payload(results: list[dict[str, Any]], *, partial: bool) -> di
         "partial": partial,
         "comparable_count": len(comparable_rows),
         "fr_higher_count": len(fr_higher_rows),
+        "value_count": len(value_rows),
         "fr_only_count": len(fr_only_rows),
         "comparables": comparable_rows,
         "fr_higher_comparables": fr_higher_rows,
+        "value_comparables": value_rows,
         "fr_only_comparables": fr_only_rows,
     }
 
@@ -822,23 +928,7 @@ def _compare_anchor_live(
             log.warning("Winamax ignore %s: %s", match_key, exc)
 
     fr_map = build_best_fr_normalized_map(book_events, home=home, away=away) if book_events else {}
-    if not has_comparable_fr_aces(fr_map):
-        compared = compare_match_to_fanduel(match_meta, None, book_events, fr_map=fr_map)
-        compared["match"] = match_key
-        return compared
-
-    fanduel_meta = find_fanduel_event(home, away, fanduel_event_list)
-    if not fanduel_meta:
-        compared = compare_match_to_fanduel(match_meta, None, book_events, fr_map=fr_map)
-        compared["match"] = match_key
-        return compared
-
-    try:
-        fanduel_event = fanduel.build_event_payload(fanduel_meta, tabs=ACES_EVENT_TABS)
-    except Exception as exc:
-        log.warning("FanDuel ignore %s: %s", match_key, exc)
-        fanduel_event = None
-
+    fanduel_event = fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list)
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
     return compared
@@ -927,6 +1017,7 @@ def write_run_status_file(
         rows = collect_comparable_rows(results)
         payload["comparable_count"] = len(rows)
         payload["fr_higher_count"] = len(collect_fr_higher_rows(rows))
+        payload["value_count"] = len(collect_value_rows(rows))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -941,7 +1032,12 @@ def comparable_row_to_csv(row: dict[str, Any]) -> dict[str, str]:
         "cote_fr": str(row.get("cote_fr", "")),
         "bookmaker_fr": str(row.get("bookmaker_fr", "")),
         "cote_us_fanduel_ml": str(row.get("cote_us_fanduel_ml", "")),
+        "cote_us_fanduel_contraire": str(row.get("cote_us_fanduel_contraire", "")),
         "cote_fr_fanduel": str(row.get("cote_fr_fanduel", "")),
+        "cote_fr_fanduel_contraire": str(row.get("cote_fr_fanduel_contraire", "")),
+        "cote_fr_contraire": str(row.get("cote_fr_contraire", "")),
+        "prob_fair_fanduel": str(row.get("prob_fair_fanduel", "")),
+        "ev_percent": str(row.get("ev_percent", "")),
         "ecart_fr_moins_fd": str(row.get("ecart_fr_moins_fd", "")),
         "meilleur_cote": str(row.get("meilleur_cote", "")),
     }
@@ -1052,6 +1148,22 @@ def find_fanduel_event(
     return None
 
 
+def fetch_fanduel_event_payload(
+    fanduel: FanDuelClient,
+    home: str,
+    away: str,
+    fanduel_event_list: list[Any],
+) -> dict[str, Any] | None:
+    fanduel_meta = find_fanduel_event(home, away, fanduel_event_list)
+    if not fanduel_meta:
+        return None
+    try:
+        return fanduel.build_event_payload(fanduel_meta, tabs=ACES_EVENT_TABS)
+    except Exception as exc:
+        log.warning("FanDuel ignore %s vs %s: %s", home, away, exc)
+        return None
+
+
 def _compare_anchors(
     anchors: list[dict[str, Any]],
     *,
@@ -1100,18 +1212,6 @@ def _compare_anchors(
         elif fr_map is None:
             fr_map = {}
 
-        if not has_comparable_fr_aces(fr_map):
-            compared = compare_match_to_fanduel(
-                match_meta,
-                None,
-                book_events,
-                fr_map=fr_map,
-            )
-            results.append(compared)
-            log.info("%s | 0 comparable(s) (pas d'aces O/U FR alignables)", compared["match"])
-            notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
-            continue
-
         fanduel_meta = find_fanduel_event(home, away, fanduel_event_list)
         if not fanduel_meta:
             compared = compare_match_to_fanduel(
@@ -1121,8 +1221,11 @@ def _compare_anchors(
                 fr_map=fr_map,
             )
             results.append(compared)
-            log.info("%s | 0 comparable(s) (FanDuel introuvable)", compared["match"])
-            notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
+            log.info("%s | %d comparable(s) (FanDuel introuvable)", compared["match"], compared["comparable_ace_count"])
+            notify(
+                f"{compared['match']} — {compared['comparable_ace_count']} comparee(s)"
+                f", {compared.get('fr_only_ace_count', 0)} FR seul"
+            )
             continue
         pending.append((match_meta, book_events, fanduel_meta, fr_map))
 

@@ -2,12 +2,21 @@ export interface ComparableRow {
   match: string;
   ligne_aces_fr?: string;
   issue_fr: string;
+  issue_fr_contraire?: string;
   marche_fr: string;
   marche_fanduel: string;
   cote_fr: string;
   bookmaker_fr: string;
+  cote_fr_contraire?: string;
+  bookmaker_fr_contraire?: string;
   cote_us_fanduel_ml: string;
+  cote_us_fanduel_contraire?: string;
   cote_fr_fanduel: string;
+  cote_fr_fanduel_contraire?: string;
+  prob_fair_fanduel?: string;
+  ev_percent?: string;
+  ev_percent_raw?: number | null;
+  paire_fd_complete?: boolean;
   ecart_fr_moins_fd: string;
   meilleur_cote: string;
 }
@@ -18,9 +27,11 @@ export interface AcesPayload {
   partial?: boolean;
   comparable_count: number;
   fr_higher_count: number;
+  value_count?: number;
   fr_only_count?: number;
   comparables: ComparableRow[];
   fr_higher_comparables: ComparableRow[];
+  value_comparables?: ComparableRow[];
   fr_only_comparables?: ComparableRow[];
 }
 
@@ -32,6 +43,7 @@ export interface RunStatus {
   generated_at?: string;
   comparable_count?: number;
   fr_higher_count?: number;
+  value_count?: number;
 }
 
 function ligneAcesLabel(row: ComparableRow): string {
@@ -67,16 +79,36 @@ export const TABLE_COLUMNS: {
     label: "Cote FR",
     hint: "Meilleure cote decimale chez Unibet, Betclic ou Winamax",
   },
-  { key: "bookmaker_fr", label: "Bookmaker", hint: "Bookmaker FR retenu pour cette ligne" },
+  { key: "bookmaker_fr", label: "Book FR", hint: "Bookmaker FR retenu pour ce cote" },
+  {
+    key: "cote_fr_contraire",
+    label: "FR contraire",
+    hint: "Cote FR du cote oppose (Under si Over, etc.)",
+  },
   {
     key: "cote_us_fanduel_ml",
-    label: "FanDuel (US)",
-    hint: "Cote FanDuel au format americain (moneyline)",
+    label: "FD (US)",
+    hint: "Cote FanDuel moneyline pour ce cote",
+  },
+  {
+    key: "cote_us_fanduel_contraire",
+    label: "FD contraire (US)",
+    hint: "Cote FanDuel US du cote oppose — necessaire pour calculer la fair prob",
   },
   {
     key: "cote_fr_fanduel",
-    label: "FanDuel (FR)",
-    hint: "Meme cote FanDuel convertie en decimal FR (2 decimales)",
+    label: "FD (FR)",
+    hint: "Cote FanDuel convertie en decimal FR",
+  },
+  {
+    key: "prob_fair_fanduel",
+    label: "Prob. fair",
+    hint: "Probabilite implicite sans vig, derivee de la paire Over/Under FanDuel",
+  },
+  {
+    key: "ev_percent",
+    label: "EV %",
+    hint: "Expected value : prob. fair FanDuel x cote FR - 1",
   },
   {
     key: "ecart_fr_moins_fd",
@@ -86,6 +118,6 @@ export const TABLE_COLUMNS: {
   {
     key: "meilleur_cote",
     label: "Qui paie mieux",
-    hint: "Book FR ou FanDuel selon la cote la plus haute",
+    hint: "Book FR ou FanDuel selon la cote la plus haute (brut)",
   },
 ];

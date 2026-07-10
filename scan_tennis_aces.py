@@ -26,7 +26,7 @@ logging.basicConfig(
 log = logging.getLogger("scan_tennis_aces")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-BETCLIC_ACES_GRPC = ("ca_ten_ptss",)
+BETCLIC_ACES_GRPC = ("ca_ten_ptss", "ca_ten_main", "ca_ten_sets")
 BOOK_LABELS = {
     "unibet": "Unibet",
     "betclic": "Betclic",

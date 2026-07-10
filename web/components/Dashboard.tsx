@@ -168,6 +168,7 @@ export function Dashboard() {
     () => payload?.fr_higher_comparables ?? [],
     [payload],
   );
+  const valueRows = useMemo(() => payload?.value_comparables ?? [], [payload]);
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
 
   return (
@@ -239,12 +240,27 @@ export function Dashboard() {
           <strong>{payload?.fr_higher_count ?? 0}</strong>
         </div>
         <div>
+          <span
+            className="meta-label"
+            title="Lignes avec paire Over/Under FanDuel complete et EV positif"
+          >
+            Values (EV+)
+          </span>
+          <strong>{payload?.value_count ?? 0}</strong>
+        </div>
+        <div>
           <span className="meta-label" title="Lignes aces FR sans equivalent FanDuel sur la meme ligne">
             FR sans FD
           </span>
           <strong>{payload?.fr_only_count ?? 0}</strong>
         </div>
       </section>
+
+      <ResultsTable
+        title="Values — EV positif (paire Over/Under FanDuel requise)"
+        rows={valueRows}
+        emptyMessage="Aucune value detectee. Il faut la cote US et son contraire chez FanDuel."
+      />
 
       <ResultsTable
         title="Toutes les lignes aces comparees"
