@@ -1,5 +1,6 @@
 export interface ComparableRow {
   match: string;
+  ligne_aces_fr?: string;
   issue_fr: string;
   marche_fr: string;
   marche_fanduel: string;
@@ -30,12 +31,33 @@ export interface RunStatus {
   fr_higher_count?: number;
 }
 
-export const TABLE_COLUMNS: { key: keyof ComparableRow; label: string; hint: string }[] = [
+function ligneAcesLabel(row: ComparableRow): string {
+  if (row.ligne_aces_fr?.trim()) {
+    return row.ligne_aces_fr;
+  }
+  if (row.marche_fr?.trim() && row.issue_fr?.trim()) {
+    return `${row.issue_fr} — ${row.marche_fr}`;
+  }
+  return row.marche_fr || row.issue_fr || "—";
+}
+
+export const TABLE_COLUMNS: {
+  key: keyof ComparableRow | "ligne_aces";
+  label: string;
+  hint: string;
+  format?: (row: ComparableRow) => string;
+}[] = [
   { key: "match", label: "Match", hint: "Joueur A vs joueur B" },
   {
-    key: "issue_fr",
-    label: "Plus / Moins",
-    hint: "Sens de la ligne aces comparee (ex. Plus de 9,5 aces)",
+    key: "ligne_aces",
+    label: "Pari aces",
+    hint: "Ligne comparee : seuil, joueur concerne, Plus ou Moins",
+    format: ligneAcesLabel,
+  },
+  {
+    key: "marche_fanduel",
+    label: "Equiv. FanDuel",
+    hint: "Meme marche chez FanDuel (libelle anglais)",
   },
   {
     key: "cote_fr",

@@ -37,7 +37,7 @@ export function ResultsTable({ title, rows, emptyMessage }: ResultsTableProps) {
                       data-label={column.label}
                       className={column.key === "meilleur_cote" ? "side" : undefined}
                     >
-                      {row[column.key]}
+                      {column.format ? column.format(row) : row[column.key as keyof ComparableRow]}
                     </td>
                   ))}
                 </tr>

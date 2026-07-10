@@ -58,9 +58,10 @@ BOOK_NORMALIZERS = {
 ACE_FAMILIES = {"aces_total", "aces_player", "aces_h2h"}
 COMPARABLE_CSV_FIELDS = [
     "match",
-    "issue_fr",
+    "ligne_aces_fr",
     "marche_fr",
     "marche_fanduel",
+    "issue_fr",
     "cote_fr",
     "bookmaker_fr",
     "cote_us_fanduel_ml",
@@ -78,6 +79,40 @@ def aces_outcome_label_fr(outcome: str) -> str:
         "under": "Moins",
     }
     return mapping.get(outcome, outcome)
+
+
+def _player_label_from_token(token: str) -> str:
+    cleaned = token.replace("_", " ").strip()
+    if not cleaned:
+        return token
+    return cleaned[0].upper() + cleaned[1:]
+
+
+def format_ligne_aces_fr(row: dict[str, Any]) -> str:
+    """Libelle lisible du pari aces (ex. Plus de 14,5 aces — Zverev)."""
+    issue = aces_outcome_label_fr(str(row.get("outcome", "")))
+    compare_key = str(row.get("compare_key", ""))
+    parts = compare_key.split("|")
+    family = parts[0] if parts else ""
+
+    if family == "aces_player" and len(parts) >= 3:
+        player = _player_label_from_token(parts[1])
+        line = parts[2].replace(".", ",")
+        if issue == "Plus":
+            return f"Plus de {line} aces — {player}"
+        if issue == "Moins":
+            return f"Moins de {line} aces — {player}"
+    if family == "aces_total" and len(parts) >= 2:
+        line = parts[1].replace(".", ",")
+        if issue == "Plus":
+            return f"Plus de {line} aces — match"
+        if issue == "Moins":
+            return f"Moins de {line} aces — match"
+
+    marche = str(row.get("fr_market_label") or row.get("marche_fr", "")).strip()
+    if marche and issue:
+        return f"{issue} — {marche}"
+    return marche or issue or compare_key
 
 
 def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -111,6 +146,7 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
         "issue_fr": aces_outcome_label_fr(str(row.get("outcome", ""))),
         "marche_fr": row.get("fr_market_label", ""),
         "marche_fanduel": row.get("fanduel_market_label", ""),
+        "ligne_aces_fr": format_ligne_aces_fr(row),
     }
     return enriched
 
@@ -534,6 +570,7 @@ def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def comparable_row_to_csv(row: dict[str, Any]) -> dict[str, str]:
     return {
         "match": str(row.get("match", "")),
+        "ligne_aces_fr": str(row.get("ligne_aces_fr", "")),
         "issue_fr": str(row.get("issue_fr", "")),
         "marche_fr": str(row.get("marche_fr", "")),
         "marche_fanduel": str(row.get("marche_fanduel", "")),
@@ -581,15 +618,15 @@ def write_comparable_markdown(path: Path, rows: list[dict[str, Any]]) -> None:
         "",
         "## 1. Toutes les cotes comparables",
         "",
-        "| Match | Issue | Marche FR | Marche FanDuel | Cote FR | Book FR | ML US FanDuel | Cote FR FanDuel | Ecart | Meilleur |",
-        "| --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: | --- |",
+        "| Match | Pari aces (FR) | Equiv. FanDuel | Cote FR | Book FR | ML US FanDuel | Cote FR FanDuel | Ecart | Meilleur |",
+        "| --- | --- | --- | ---: | --- | ---: | ---: | ---: | --- |",
     ]
     if not rows:
-        lines.append("| *(aucune)* | | | | | | | | | |")
+        lines.append("| *(aucune)* | | | | | | | | |")
     for row in rows:
         lines.append(
-            f"| {row.get('match', '')} | {row.get('issue_fr', '')} | "
-            f"{row.get('marche_fr', '')} | {row.get('marche_fanduel', '')} | "
+            f"| {row.get('match', '')} | {row.get('ligne_aces_fr', row.get('issue_fr', ''))} | "
+            f"{row.get('marche_fanduel', '')} | "
             f"{row.get('cote_fr', '')} | {row.get('bookmaker_fr', '')} | "
             f"{row.get('cote_us_fanduel_ml', '')} | {row.get('cote_fr_fanduel', '')} | "
             f"{row.get('ecart_fr_moins_fd', '')} | {row.get('meilleur_cote', '')} |"
@@ -599,16 +636,16 @@ def write_comparable_markdown(path: Path, rows: list[dict[str, Any]]) -> None:
             "",
             "## 2. Cotes FR superieures a FanDuel",
             "",
-            "| Match | Issue | Marche FR | Marche FanDuel | Cote FR | Book FR | ML US FanDuel | Cote FR FanDuel | Ecart |",
-            "| --- | --- | --- | --- | ---: | --- | ---: | ---: | ---: |",
+            "| Match | Pari aces (FR) | Equiv. FanDuel | Cote FR | Book FR | ML US FanDuel | Cote FR FanDuel | Ecart |",
+            "| --- | --- | --- | ---: | --- | ---: | ---: | ---: |",
         ]
     )
     if not fr_higher_rows:
-        lines.append("| *(aucune)* | | | | | | | | |")
+        lines.append("| *(aucune)* | | | | | | | |")
     for row in fr_higher_rows:
         lines.append(
-            f"| {row.get('match', '')} | {row.get('issue_fr', '')} | "
-            f"{row.get('marche_fr', '')} | {row.get('marche_fanduel', '')} | "
+            f"| {row.get('match', '')} | {row.get('ligne_aces_fr', row.get('issue_fr', ''))} | "
+            f"{row.get('marche_fanduel', '')} | "
             f"{row.get('cote_fr', '')} | {row.get('bookmaker_fr', '')} | "
             f"{row.get('cote_us_fanduel_ml', '')} | {row.get('cote_fr_fanduel', '')} | "
             f"{row.get('ecart_fr_moins_fd', '')} |"
