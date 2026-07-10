@@ -18,8 +18,10 @@ export interface AcesPayload {
   partial?: boolean;
   comparable_count: number;
   fr_higher_count: number;
+  fr_only_count?: number;
   comparables: ComparableRow[];
   fr_higher_comparables: ComparableRow[];
+  fr_only_comparables?: ComparableRow[];
 }
 
 export interface RunStatus {

@@ -43,7 +43,7 @@ EVENT_TABS = (
     "same-game-parlay-",
 )
 
-ACES_EVENT_TABS = ("popular",)
+ACES_EVENT_TABS = ("popular", "all-markets")
 
 
 @dataclass(frozen=True)

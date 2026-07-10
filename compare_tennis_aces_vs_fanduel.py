@@ -15,6 +15,7 @@ from typing import Any, Callable
 
 from fanduel_client import (
     ACES_EVENT_TABS,
+    DEFAULT_TENNIS_PAGE_CANDIDATES,
     FanDuelClient,
     format_american_moneyline,
     format_french_decimal,
@@ -227,9 +228,9 @@ def _fetch_betclic_aces_event(betclic: Any, url: str) -> dict[str, Any]:
 
 
 def _discover_fanduel_singles(fanduel: FanDuelClient) -> list[Any]:
-    page_ids = fanduel.discover_tennis_page_ids(
-        ("wimbledon", "wimbledon-simples-hommes", "wimbledon-simples-dames")
-    )
+    page_ids = fanduel.discover_tennis_page_ids(DEFAULT_TENNIS_PAGE_CANDIDATES)
+    if not page_ids:
+        page_ids = ("tennis",)
     return [event for event in fanduel.list_tennis_events(page_ids) if not event.is_doubles]
 
 
@@ -506,6 +507,48 @@ def compare_normalized_aces(
     return rows
 
 
+def collect_fr_only_aces(
+    fr_map: dict[str, dict[str, Any]],
+    fd_map: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Lignes aces FR sans equivalent FanDuel aligne (meme ligne / meme sens)."""
+    rows: list[dict[str, Any]] = []
+    for compare_key, fr_market in fr_map.items():
+        if not compare_key.startswith(COMPARABLE_ACE_PREFIXES):
+            continue
+        fd_market = fd_map.get(compare_key)
+        for outcome, fr_payload in fr_market["outcomes"].items():
+            if fd_market and outcome in fd_market.get("outcomes", {}):
+                continue
+            row = {
+                "compare_key": compare_key,
+                "market_family": fr_market["market_family"],
+                "outcome": outcome,
+                "fr_market_label": fr_market["market_label_raw"],
+                "fanduel_market_label": "",
+                "best_fr_odds": float(fr_payload["odds"]),
+                "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                "cote_fr": format_french_decimal(float(fr_payload["odds"])),
+                "bookmaker_fr": fr_payload["bookmaker_label"],
+                "cote_us_fanduel_ml": "",
+                "cote_fr_fanduel": "",
+                "ecart_fr_moins_fd": "",
+                "meilleur_cote": "FR seul",
+                "issue_fr": aces_outcome_label_fr(str(outcome)),
+                "marche_fr": fr_market["market_label_raw"],
+                "marche_fanduel": "",
+                "ligne_aces_fr": format_ligne_aces_fr(
+                    {
+                        "compare_key": compare_key,
+                        "outcome": outcome,
+                        "fr_market_label": fr_market["market_label_raw"],
+                    }
+                ),
+            }
+            rows.append(row)
+    return rows
+
+
 def compare_match_to_fanduel(
     match_meta: dict[str, Any],
     fanduel_event: dict[str, Any] | None,
@@ -522,7 +565,10 @@ def compare_match_to_fanduel(
         fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
     fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
     comparable = compare_normalized_aces(fr_map, fd_map)
+    fr_only = collect_fr_only_aces(fr_map, fd_map)
     for row in comparable:
+        row["match"] = match_meta["match"]
+    for row in fr_only:
         row["match"] = match_meta["match"]
     fr_higher = [row for row in comparable if row["best_side"] == "fr"]
 
@@ -546,6 +592,8 @@ def compare_match_to_fanduel(
         "comparable_ace_count": len(comparable),
         "fr_higher_than_fanduel_count": len(fr_higher),
         "comparable_aces": comparable,
+        "fr_only_aces": fr_only,
+        "fr_only_ace_count": len(fr_only),
         "raw_best_fr_vs_fanduel": {
             "best_fr": fr_best,
             "best_fanduel": fd_best,
@@ -554,6 +602,14 @@ def compare_match_to_fanduel(
             "note": "Comparaison brute: marches aces potentiellement differents.",
         },
     }
+
+
+def collect_fr_only_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for row in result.get("fr_only_aces", []):
+            rows.append({"match": result["match"], **row})
+    return rows
 
 
 def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -571,14 +627,17 @@ def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_results_payload(results: list[dict[str, Any]], *, partial: bool) -> dict[str, Any]:
     comparable_rows = collect_comparable_rows(results)
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
+    fr_only_rows = collect_fr_only_rows(results)
     return {
         "source": "tennis_aces_comparable",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "partial": partial,
         "comparable_count": len(comparable_rows),
         "fr_higher_count": len(fr_higher_rows),
+        "fr_only_count": len(fr_only_rows),
         "comparables": comparable_rows,
         "fr_higher_comparables": fr_higher_rows,
+        "fr_only_comparables": fr_only_rows,
     }
 
 
@@ -662,6 +721,7 @@ def fetch_live_listings(
         fanduel_event_list = _safe_future_result(fut_fanduel_list, "FanDuel", [])
 
     anchors = discover_anchor_events(unibet_meta, [], winamax_links)
+    anchors = _merge_fanduel_anchors(anchors, fanduel_event_list)
     if match_filter:
         anchors = [anchor for anchor in anchors if anchor_matches_filter(anchor, match_filter)]
 
@@ -672,6 +732,41 @@ def fetch_live_listings(
         ",".join(BETCLIC_ACES_GRPC),
     )
     return anchors, betclic_links, unibet_meta, winamax_links, fanduel_event_list
+
+
+def _merge_fanduel_anchors(
+    anchors: list[dict[str, Any]],
+    fanduel_event_list: list[Any],
+) -> list[dict[str, Any]]:
+    merged = list(anchors)
+    for event in fanduel_event_list:
+        home = event.home_player
+        away = event.away_player
+        if not home or not away:
+            continue
+        found = False
+        for anchor in merged:
+            if players_match(home, anchor["home_player"]) and players_match(away, anchor["away_player"]):
+                anchor.setdefault("sources", set()).add("fanduel")
+                found = True
+                break
+            if players_match(home, anchor["away_player"]) and players_match(away, anchor["home_player"]):
+                anchor.setdefault("sources", set()).add("fanduel")
+                found = True
+                break
+        if found:
+            continue
+        merged.append(
+            {
+                "home_player": home,
+                "away_player": away,
+                "name": f"{home} - {away}",
+                "sources": {"fanduel"},
+                "urls": {},
+                "competition": "",
+            }
+        )
+    return merged
 
 
 def _compare_anchor_live(
@@ -805,7 +900,10 @@ def _compare_anchors_parallel(
                 compared["match"],
                 compared["comparable_ace_count"],
             )
-            notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
+            notify(
+                f"{compared['match']} — {compared['comparable_ace_count']} comparee(s)"
+                f", {compared.get('fr_only_ace_count', 0)} FR seul"
+            )
     return results
 
 
@@ -1057,7 +1155,10 @@ def _compare_anchors(
                     compared["match"],
                     compared["comparable_ace_count"],
                 )
-                notify(f"{compared['match']} — {compared['comparable_ace_count']} ligne(s)")
+                notify(
+                    f"{compared['match']} — {compared['comparable_ace_count']} comparee(s)"
+                    f", {compared.get('fr_only_ace_count', 0)} FR seul"
+                )
     return results
 
 

@@ -168,6 +168,7 @@ export function Dashboard() {
     () => payload?.fr_higher_comparables ?? [],
     [payload],
   );
+  const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
 
   return (
     <main className="page">
@@ -237,6 +238,12 @@ export function Dashboard() {
           </span>
           <strong>{payload?.fr_higher_count ?? 0}</strong>
         </div>
+        <div>
+          <span className="meta-label" title="Lignes aces FR sans equivalent FanDuel sur la meme ligne">
+            FR sans FD
+          </span>
+          <strong>{payload?.fr_only_count ?? 0}</strong>
+        </div>
       </section>
 
       <ResultsTable
@@ -249,6 +256,12 @@ export function Dashboard() {
         title="Lignes ou le book FR paie mieux que FanDuel"
         rows={frHigherRows}
         emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
+      />
+
+      <ResultsTable
+        title="Lignes aces FR sans equivalent FanDuel (meme seuil)"
+        rows={frOnlyRows}
+        emptyMessage="Toutes les lignes FR ont un equivalent FanDuel, ou pas de marche aces FR."
       />
     </main>
   );
