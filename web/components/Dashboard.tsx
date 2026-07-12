@@ -178,7 +178,25 @@ export function Dashboard() {
   );
   const valueRows = useMemo(() => payload?.value_comparables ?? [], [payload]);
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
+  const fdOnlyRows = useMemo(() => payload?.fd_only_comparables ?? [], [payload]);
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
+  const overlapHint = useMemo(() => {
+    if ((payload?.comparable_count ?? 0) > 0) {
+      return "";
+    }
+    const fdEvents = payload?.fd_ace_event_count ?? 0;
+    const frEvents = payload?.fr_ace_event_count ?? 0;
+    if (fdEvents > 0 && frEvents === 0) {
+      return "FanDuel propose des aces match, mais les books FR n'ont pas (ou plus) de lignes match en live sur ces matchs.";
+    }
+    if (fdEvents === 0 && frEvents > 0) {
+      return "Des lignes aces existent cote FR, mais FanDuel ne les propose pas sur ces matchs (souvent ITF/ATP secondaire).";
+    }
+    if (fdEvents > 0 && frEvents > 0) {
+      return "FR et FanDuel ont des aces, mais pas sur les memes matchs ou pas aux memes seuils.";
+    }
+    return "";
+  }, [payload]);
 
   return (
     <main className="page">
@@ -274,7 +292,19 @@ export function Dashboard() {
           </span>
           <strong>{payload?.fr_only_count ?? 0}</strong>
         </div>
+        <div>
+          <span className="meta-label" title="Lignes FanDuel sans equivalent FR sur la meme ligne">
+            FD sans FR
+          </span>
+          <strong>{payload?.fd_only_count ?? 0}</strong>
+        </div>
       </section>
+
+      {overlapHint ? (
+        <section className="panel">
+          <p className="hint">{overlapHint}</p>
+        </section>
+      ) : null}
 
       {matchProgress.length > 0 ? (
         <section className="panel">
@@ -288,7 +318,10 @@ export function Dashboard() {
                 <tr>
                   <th>Match</th>
                   <th>Comparees</th>
+                  <th>Lignes FR</th>
+                  <th>Lignes FD</th>
                   <th>FR seul</th>
+                  <th>FD seul</th>
                   <th>FanDuel</th>
                 </tr>
               </thead>
@@ -297,7 +330,10 @@ export function Dashboard() {
                   <tr key={row.match}>
                     <td data-label="Match">{row.match}</td>
                     <td data-label="Comparees">{row.comparable_count}</td>
+                    <td data-label="Lignes FR">{row.fr_ace_market_count ?? 0}</td>
+                    <td data-label="Lignes FD">{row.fd_ace_market_count ?? 0}</td>
                     <td data-label="FR seul">{row.fr_only_count}</td>
+                    <td data-label="FD seul">{row.fd_only_count ?? 0}</td>
                     <td data-label="FanDuel">{row.fanduel_found ? "oui" : "non"}</td>
                   </tr>
                 ))}
@@ -329,6 +365,12 @@ export function Dashboard() {
         title="Lignes aces FR sans equivalent FanDuel (meme seuil)"
         rows={frOnlyRows}
         emptyMessage="Toutes les lignes FR ont un equivalent FanDuel, ou pas de marche aces FR."
+      />
+
+      <ResultsTable
+        title="Lignes aces FanDuel sans equivalent FR (meme seuil)"
+        rows={fdOnlyRows}
+        emptyMessage="Toutes les lignes FanDuel ont un equivalent FR, ou pas de marche aces FanDuel."
       />
     </main>
   );

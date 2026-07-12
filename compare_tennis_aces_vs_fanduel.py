@@ -646,6 +646,18 @@ def _parse_aces_line_key(compare_key: str) -> tuple[str, str, float | None]:
     return family, "", None
 
 
+def _ace_player_token_match(token_a: str, token_b: str) -> bool:
+    if token_a == token_b:
+        return True
+    if players_match(token_a.replace("_", " "), token_b.replace("_", " ")):
+        return True
+    if len(token_a) >= 4 and len(token_b) >= 4 and (
+        token_a.startswith(token_b) or token_b.startswith(token_a)
+    ):
+        return True
+    return False
+
+
 def _find_fd_market_near_line(
     fr_compare_key: str,
     fd_map: dict[str, dict[str, Any]],
@@ -667,7 +679,7 @@ def _find_fd_market_near_line(
         fd_family, fd_token, fd_line = _parse_aces_line_key(fd_key)
         if fd_family != family or fd_line is None:
             continue
-        if family == "aces_player" and token != fd_token:
+        if family == "aces_player" and not _ace_player_token_match(token, fd_token):
             continue
         delta = abs(fd_line - line)
         if delta > max_delta:
@@ -777,6 +789,53 @@ def collect_fr_only_aces(
     return rows
 
 
+def collect_fd_only_aces(
+    fr_map: dict[str, dict[str, Any]],
+    fd_map: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Lignes FanDuel sans equivalent FR aligne (meme ligne / meme sens)."""
+    rows: list[dict[str, Any]] = []
+    for compare_key, fd_market in fd_map.items():
+        if not compare_key.startswith(COMPARABLE_ACE_PREFIXES):
+            continue
+        fr_market = fr_map.get(compare_key)
+        if not fr_market:
+            _fr_key, fr_market, _delta = _find_fd_market_near_line(compare_key, fr_map)
+        for outcome, fd_bundle in fd_market.get("outcomes", {}).items():
+            if fr_market and outcome in fr_market.get("outcomes", {}):
+                continue
+            decimal_fr = fd_bundle.get("decimal_fr")
+            if decimal_fr is None:
+                continue
+            row = {
+                "compare_key": compare_key,
+                "market_family": compare_key.split("|", 1)[0],
+                "outcome": outcome,
+                "fr_market_label": "",
+                "fanduel_market_label": _fanduel_display_label(fd_market, outcome),
+                "best_fr_odds": None,
+                "best_fr_bookmaker": "",
+                "cote_fr": "",
+                "bookmaker_fr": "",
+                "cote_us_fanduel_ml": format_american_moneyline(fd_bundle.get("american")),
+                "cote_fr_fanduel": format_french_decimal(float(decimal_fr)),
+                "ecart_fr_moins_fd": "",
+                "meilleur_cote": "FanDuel seul",
+                "issue_fr": aces_outcome_label_fr(str(outcome)),
+                "marche_fr": "",
+                "marche_fanduel": _fanduel_display_label(fd_market, outcome),
+                "ligne_aces_fr": format_ligne_aces_fr(
+                    {
+                        "compare_key": compare_key,
+                        "outcome": outcome,
+                        "fr_market_label": "",
+                    }
+                ),
+            }
+            rows.append(row)
+    return rows
+
+
 def compare_match_to_fanduel(
     match_meta: dict[str, Any],
     fanduel_event: dict[str, Any] | None,
@@ -794,9 +853,12 @@ def compare_match_to_fanduel(
     fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
     comparable = compare_normalized_aces(fr_map, fd_map)
     fr_only = collect_fr_only_aces(fr_map, fd_map)
+    fd_only = collect_fd_only_aces(fr_map, fd_map)
     for row in comparable:
         row["match"] = match_meta["match"]
     for row in fr_only:
+        row["match"] = match_meta["match"]
+    for row in fd_only:
         row["match"] = match_meta["match"]
     fr_higher = [row for row in comparable if row["best_side"] == "fr"]
 
@@ -822,6 +884,10 @@ def compare_match_to_fanduel(
         "comparable_aces": comparable,
         "fr_only_aces": fr_only,
         "fr_only_ace_count": len(fr_only),
+        "fd_only_aces": fd_only,
+        "fd_only_ace_count": len(fd_only),
+        "fr_ace_market_count": len(fr_map),
+        "fd_ace_market_count": len(fd_map),
         "raw_best_fr_vs_fanduel": {
             "best_fr": fr_best,
             "best_fanduel": fd_best,
@@ -864,6 +930,14 @@ def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("best_side") == "fr"]
 
 
+def collect_fd_only_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for row in result.get("fd_only_aces", []):
+            rows.append({"match": result["match"], **row})
+    return rows
+
+
 def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for result in results:
@@ -872,6 +946,9 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "match": result.get("match", ""),
                 "comparable_count": int(result.get("comparable_ace_count", 0)),
                 "fr_only_count": int(result.get("fr_only_ace_count", 0)),
+                "fd_only_count": int(result.get("fd_only_ace_count", 0)),
+                "fr_ace_market_count": int(result.get("fr_ace_market_count", 0)),
+                "fd_ace_market_count": int(result.get("fd_ace_market_count", 0)),
                 "fanduel_found": bool(result.get("fanduel_event_id")),
             }
         )
@@ -888,7 +965,10 @@ def build_results_payload(
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
     value_rows = collect_value_rows(comparable_rows, min_ev_percent=0.0)
     fr_only_rows = collect_fr_only_rows(results)
+    fd_only_rows = collect_fd_only_rows(results)
     match_progress = build_match_progress(results)
+    fd_ace_events = sum(1 for result in results if int(result.get("fd_ace_market_count", 0)) > 0)
+    fr_ace_events = sum(1 for result in results if int(result.get("fr_ace_market_count", 0)) > 0)
     return {
         "source": "tennis_aces_comparable",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -899,10 +979,14 @@ def build_results_payload(
         "fr_higher_count": len(fr_higher_rows),
         "value_count": len(value_rows),
         "fr_only_count": len(fr_only_rows),
+        "fd_only_count": len(fd_only_rows),
+        "fd_ace_event_count": fd_ace_events,
+        "fr_ace_event_count": fr_ace_events,
         "comparables": comparable_rows,
         "fr_higher_comparables": fr_higher_rows,
         "value_comparables": value_rows,
         "fr_only_comparables": fr_only_rows,
+        "fd_only_comparables": fd_only_rows,
         "match_progress": match_progress,
     }
 

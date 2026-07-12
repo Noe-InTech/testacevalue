@@ -673,6 +673,49 @@ def normalize_betclic_market(
         return markets
 
     if "ace" in lower:
+        period = extract_set_period(raw_label)
+        if not period or period == "match":
+            player_total = re.match(
+                r"^(?:1er set|2eme set|2e set|match)\s*-\s*(.+?)\s*-\s*nombre total d['\u2019]aces$",
+                raw_label,
+                flags=re.I,
+            )
+            if player_total:
+                player_name = match_player_name(
+                    player_total.group(1).strip(),
+                    home_player,
+                    away_player,
+                )
+                for line, outcome_map in group_over_under_outcomes(outcomes).items():
+                    market = build_market(
+                        f"aces_player|{player_key(player_name)}|{line}",
+                        "aces_player",
+                        raw_label,
+                        outcome_map,
+                        market_scope="player",
+                        player_name=player_name,
+                        line=line,
+                        period="match",
+                    )
+                    if market:
+                        markets.append(market)
+                return markets
+
+            if re.search(r"nombre total d['\u2019]aces", lower):
+                for line, outcome_map in group_over_under_outcomes(outcomes).items():
+                    market = build_market(
+                        f"aces_total|{line}",
+                        "aces_total",
+                        raw_label,
+                        outcome_map,
+                        market_scope="match",
+                        line=line,
+                        period="match",
+                    )
+                    if market:
+                        markets.append(market)
+                return markets
+
         player_match = re.search(r"-\s*([^-]+?)\s*-\s*match", raw_label, flags=re.I)
         if "plus / moins" in lower and player_match:
             player_name = match_player_name(player_match.group(1).strip(), home_player, away_player)

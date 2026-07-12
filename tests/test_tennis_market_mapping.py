@@ -8,6 +8,7 @@ from tennis_market_mapping import (
     map_fanduel_market_to_compare_key,
     players_match,
 )
+from tennis_books_mapping import normalize_betclic_market
 
 
 class TennisMarketMappingTests(unittest.TestCase):
@@ -72,6 +73,25 @@ class TennisMarketMappingTests(unittest.TestCase):
         self.assertTrue(players_match("P.CarrenoBusta", "Pablo Carreno Busta"))
         self.assertTrue(players_match("Grammatikopou", "Valentini Grammatikopoulou"))
         self.assertFalse(players_match("J.Sinner", "Carlos Alcaraz"))
+
+    def test_betclic_ace_tier_labels(self) -> None:
+        markets = normalize_betclic_market(
+            "1er set - Jannik Sinner - Nombre total d'aces",
+            [("+ de 5,5", 1.45), ("+ de 6,5", 2.1)],
+            "Jannik Sinner",
+            "Alexander Zverev",
+        )
+        self.assertEqual(markets, [])
+
+        markets = normalize_betclic_market(
+            "Match - Alexander Zverev - Nombre total d'aces",
+            [("+ de 14,5", 1.8), ("+ de 15,5", 2.0)],
+            "Jannik Sinner",
+            "Alexander Zverev",
+        )
+        self.assertEqual(len(markets), 2)
+        self.assertEqual(markets[0].compare_key, "aces_player|zverev|14.5")
+        self.assertEqual(markets[0].outcomes[0].label, "Over")
 
 
 if __name__ == "__main__":

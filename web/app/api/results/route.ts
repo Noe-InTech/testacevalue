@@ -25,10 +25,12 @@ const idlePayload: AcesPayload = {
   fr_higher_count: 0,
   value_count: 0,
   fr_only_count: 0,
+  fd_only_count: 0,
   comparables: [],
   fr_higher_comparables: [],
   value_comparables: [],
   fr_only_comparables: [],
+  fd_only_comparables: [],
   match_progress: [],
 };
 

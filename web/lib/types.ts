@@ -25,6 +25,9 @@ export interface MatchProgressRow {
   match: string;
   comparable_count: number;
   fr_only_count: number;
+  fd_only_count?: number;
+  fr_ace_market_count?: number;
+  fd_ace_market_count?: number;
   fanduel_found: boolean;
 }
 
@@ -38,10 +41,14 @@ export interface AcesPayload {
   fr_higher_count: number;
   value_count?: number;
   fr_only_count?: number;
+  fd_only_count?: number;
+  fd_ace_event_count?: number;
+  fr_ace_event_count?: number;
   comparables: ComparableRow[];
   fr_higher_comparables: ComparableRow[];
   value_comparables?: ComparableRow[];
   fr_only_comparables?: ComparableRow[];
+  fd_only_comparables?: ComparableRow[];
   match_progress?: MatchProgressRow[];
 }
 
