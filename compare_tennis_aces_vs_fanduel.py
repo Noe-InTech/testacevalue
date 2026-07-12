@@ -36,6 +36,7 @@ from tennis_books_mapping import (
     normalize_unibet_market,
     normalize_winamax_market,
     normalized_market_to_dict,
+    strip_accents,
 )
 from tennis_market_mapping import (
     align_fr_outcome_to_fanduel,
@@ -480,6 +481,19 @@ def extract_fanduel_ace_quotes(event: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _skip_fr_ace_market_label(label_lower: str) -> bool:
+    lower = strip_accents(label_lower)
+    if any(token in lower for token in (" jeu", "face a face", "face-a-face")):
+        return True
+    if any(token in lower for token in ("1er set", "2e set", "2eme set", "3e set")):
+        return True
+    if "joueur" in lower and "set" in lower:
+        return True
+    if "live" in lower and "- match" not in lower:
+        return True
+    return False
+
+
 def build_best_fr_normalized_map(
     book_events: dict[str, dict[str, Any]],
     *,
@@ -504,11 +518,11 @@ def build_best_fr_normalized_map(
                 if item.market_family not in ACE_FAMILIES:
                     continue
                 label_lower = label.lower()
-                if any(token in label_lower for token in ("1er set", "2e set", "set ", " jeu", "live")):
+                if _skip_fr_ace_market_label(label_lower):
                     continue
                 if item.compare_key.startswith("aces_total|"):
                     try:
-                        if float(item.compare_key.split("|", 1)[1]) < 8.0:
+                        if float(item.compare_key.split("|", 1)[1]) < 4.0:
                             continue
                     except ValueError:
                         pass
@@ -662,7 +676,7 @@ def _find_fd_market_near_line(
     fr_compare_key: str,
     fd_map: dict[str, dict[str, Any]],
     *,
-    max_delta: float = 1.0,
+    max_delta: float = 2.0,
 ) -> tuple[str | None, dict[str, Any] | None, float | None]:
     exact = fd_map.get(fr_compare_key)
     if exact:
@@ -1179,8 +1193,20 @@ def _compare_anchor_live(
         except Exception as exc:
             log.warning("Winamax ignore %s: %s", match_key, exc)
 
-    fr_map = build_best_fr_normalized_map(book_events, home=home, away=away) if book_events else {}
     fanduel_event = fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list)
+    fd_map_preview = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
+    fr_map = build_best_fr_normalized_map(book_events, home=home, away=away) if book_events else {}
+
+    if fd_map_preview and not fr_map and betclic_link:
+        try:
+            book_events["betclic"] = betclic.build_event_payload(
+                betclic_link.url,
+                grpc_categories=None,
+            )
+            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+        except Exception as exc:
+            log.warning("Betclic (full) ignore %s: %s", match_key, exc)
+
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
     return compared

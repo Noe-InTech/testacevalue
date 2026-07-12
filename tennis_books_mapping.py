@@ -319,6 +319,35 @@ def normalize_unibet_market(
         return markets
 
     if "ace" in lower:
+        inline_player = re.match(
+            r"plus / moins \(aces\) - (.+?) ([\d,.]+)\s*-\s*match\s*$",
+            lower,
+        )
+        if inline_player:
+            player_name = match_player_name(inline_player.group(1).strip(), home_player, away_player)
+            line = format_line(parse_french_number(inline_player.group(2)))
+            outcome_map = {
+                normalize_ou_label(raw): float(odds)
+                for raw, odds in outcomes
+                if odds is not None
+            }
+            market = build_market(
+                f"aces_player|{player_key(player_name)}|{line}",
+                "aces_player",
+                raw_label,
+                outcome_map,
+                market_scope="player",
+                player_name=player_name,
+                line=line,
+                period="match",
+            )
+            if market:
+                markets.append(market)
+            return markets
+
+        if "joueur" in lower and "set" in lower:
+            return markets
+
         player_match = re.search(r"-\s*([^-]+?)\s*-\s*match", raw_label, flags=re.I)
         if "plus / moins" in lower and player_match:
             player_name = match_player_name(player_match.group(1).strip(), home_player, away_player)

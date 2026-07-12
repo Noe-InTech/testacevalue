@@ -221,10 +221,49 @@ class UnibetClient:
         html = self.get_event_html(event_url)
         return self.extract_event_markets_from_html(html)
 
+    @staticmethod
+    def _is_live_event_url(url: str) -> bool:
+        return "/paris-en-direct/" in url
+
+    def derive_prematch_urls(self, url: str) -> list[str]:
+        match = re.search(r"/paris-en-direct/(\d+)/([^/?#]+)", url)
+        if not match:
+            return []
+        event_id, slug = match.group(1), match.group(2)
+        candidates: list[str] = []
+        for competition_path in self.list_tennis_competition_paths():
+            candidates.append(f"{self.base_url}{competition_path}/{event_id}/{slug}")
+        return candidates
+
+    def event_fetch_urls(self, event_meta: dict[str, Any]) -> list[str]:
+        ordered: list[str] = []
+        for raw in list(event_meta.get("urls") or []) + [str(event_meta.get("url", ""))]:
+            url = str(raw or "").strip()
+            if not url or url in ordered:
+                continue
+            ordered.append(url)
+        for url in list(ordered):
+            if self._is_live_event_url(url):
+                for candidate in self.derive_prematch_urls(url):
+                    if candidate not in ordered:
+                        ordered.append(candidate)
+        return sorted(ordered, key=lambda url: (1 if self._is_live_event_url(url) else 0, url))
+
     def build_event_payload(self, event_meta: dict[str, Any]) -> dict[str, Any]:
-        markets = self.get_event_markets(event_meta["url"])
+        merged: dict[str, UnibetMarket] = {}
+        fetch_urls = self.event_fetch_urls(event_meta)
+        for url in fetch_urls:
+            try:
+                for market in self.get_event_markets(url):
+                    existing = merged.get(market.label)
+                    if existing is None or len(market.outcomes) > len(existing.outcomes):
+                        merged[market.label] = market
+            except RuntimeError:
+                continue
+        markets = list(merged.values())
         return {
-            "url": event_meta["url"],
+            "url": event_meta.get("url", fetch_urls[0] if fetch_urls else ""),
+            "fetch_urls": fetch_urls,
             "name": event_meta.get("name", ""),
             "home_player": event_meta.get("home", ""),
             "away_player": event_meta.get("away", ""),
@@ -349,8 +388,16 @@ class UnibetClient:
                 return
             key = f"{home}|{away}".lower()
             existing = events_by_key.get(key)
-            if existing is None or self._event_url_priority(url) > self._event_url_priority(existing["url"]):
-                events_by_key[key] = item
+            if existing is None:
+                events_by_key[key] = {**item, "urls": [url]}
+                return
+            urls = existing.setdefault("urls", [existing.get("url", "")])
+            if url and url not in urls:
+                urls.append(url)
+            if self._event_url_priority(url) > self._event_url_priority(existing.get("url", "")):
+                for field in ("url", "name", "start_date", "competition", "is_live"):
+                    if field in item:
+                        existing[field] = item[field]
 
         self._ingest_listing_path(path, ingest)
         for competition_path in self.list_tennis_competition_paths(path):
@@ -366,5 +413,5 @@ class UnibetClient:
         if "/atp/" in url or "/wta/" in url:
             score += 10
         if "/paris-en-direct/" in url:
-            score += 20
+            score += 5
         return score, -len(url)

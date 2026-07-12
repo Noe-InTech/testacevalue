@@ -93,6 +93,17 @@ class TennisMarketMappingTests(unittest.TestCase):
         self.assertEqual(markets[0].compare_key, "aces_player|zverev|14.5")
         self.assertEqual(markets[0].outcomes[0].label, "Over")
 
+    def test_unibet_grouped_set_player_aces_not_match_total(self) -> None:
+        from tennis_books_mapping import normalize_unibet_market
+
+        markets = normalize_unibet_market(
+            "Plus / Moins Ace(s) - Joueur - 2ème Set",
+            [("Plus 3,5", 1.18), ("Moins 3,5", 3.0), ("Plus 3,5", 1.1), ("Moins 3,5", 3.65)],
+            "J.Sinner",
+            "A.Zverev",
+        )
+        self.assertEqual(markets, [])
+
 
 if __name__ == "__main__":
     unittest.main()
