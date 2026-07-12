@@ -14,11 +14,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 from fanduel_client import (
-    ACES_EVENT_TABS,
+    FANDUEL_PROPS_TABS,
     DEFAULT_TENNIS_PAGE_CANDIDATES,
     FanDuelClient,
     format_american_moneyline,
     format_french_decimal,
+    merge_event_market_payloads,
     runner_decimal_odds,
     runner_fanduel_price_bundle,
 )
@@ -1241,9 +1242,10 @@ def _compare_anchor_live(
     betclic_link = find_betclic_link_for_players(betclic_links, home, away)
     if betclic_link:
         try:
+            # Fetch complet : tie-breaks / breaks hors ca_ten_ptss, aces set Betclic SSR.
             book_events["betclic"] = betclic.build_event_payload(
                 betclic_link.url,
-                grpc_categories=BETCLIC_ACES_GRPC,
+                grpc_categories=None,
             )
         except Exception as exc:
             log.warning("Betclic ignore %s: %s", match_key, exc)
@@ -1258,18 +1260,7 @@ def _compare_anchor_live(
             log.warning("Winamax ignore %s: %s", match_key, exc)
 
     fanduel_event = fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list)
-    fd_map_preview = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
     fr_map = build_best_fr_normalized_map(book_events, home=home, away=away) if book_events else {}
-
-    if fd_map_preview and not fr_map and betclic_link:
-        try:
-            book_events["betclic"] = betclic.build_event_payload(
-                betclic_link.url,
-                grpc_categories=None,
-            )
-            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-        except Exception as exc:
-            log.warning("Betclic (full) ignore %s: %s", match_key, exc)
 
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
@@ -1514,10 +1505,26 @@ def fetch_fanduel_event_payload(
     if not fanduel_meta:
         return None
     try:
-        return fanduel.build_event_payload(fanduel_meta, tabs=ACES_EVENT_TABS)
+        payload = fanduel.build_event_payload(fanduel_meta, tabs=FANDUEL_PROPS_TABS)
     except Exception as exc:
         log.warning("FanDuel ignore %s vs %s: %s", home, away, exc)
         return None
+
+    ace_count = sum(
+        1
+        for market in payload.get("markets", [])
+        if is_aces_market(str(market.get("marketName", "")))
+    )
+    if ace_count == 0:
+        try:
+            extra = fanduel.build_event_payload(
+                fanduel_meta,
+                tabs=("set-betting", "same-game-parlay-", "all-markets"),
+            )
+            payload = merge_event_market_payloads(payload, extra)
+        except Exception as exc:
+            log.warning("FanDuel extra tabs ignore %s vs %s: %s", home, away, exc)
+    return payload
 
 
 def _compare_anchors(
@@ -1591,7 +1598,7 @@ def _compare_anchors(
                 pool.submit(
                     fanduel.build_event_payload,
                     fanduel_meta,
-                    tabs=ACES_EVENT_TABS,
+                    tabs=FANDUEL_PROPS_TABS,
                 ): (match_meta, book_events, fanduel_meta, fr_map)
                 for match_meta, book_events, fanduel_meta, fr_map in pending
             }

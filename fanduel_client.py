@@ -45,7 +45,9 @@ EVENT_TABS = (
 )
 
 TENNIS_EVENT_TYPE_ID = "2"
-ACES_EVENT_TABS = ("popular", "all-markets", "game-lines", "same-game-parlay-")
+# set-betting requis pour Set N Aces / Set N Total Aces (regression si absent).
+ACES_EVENT_TABS = EVENT_TABS
+FANDUEL_PROPS_TABS = EVENT_TABS
 
 
 @dataclass(frozen=True)
@@ -375,3 +377,39 @@ class FanDuelClient:
             "market_count": len(markets),
             "markets": markets,
         }
+
+
+def merge_event_market_payloads(
+    base: dict[str, Any],
+    extra: dict[str, Any],
+) -> dict[str, Any]:
+    """Fusionne les marches FanDuel (par marketId) issus de plusieurs onglets."""
+    merged = dict(base)
+    markets: list[dict[str, Any]] = list(base.get("markets") or [])
+    index: dict[Any, dict[str, Any]] = {}
+    for market in markets:
+        market_id = market.get("marketId")
+        if market_id is not None:
+            index[market_id] = market
+
+    for market in extra.get("markets") or []:
+        market_id = market.get("marketId")
+        if market_id is None:
+            markets.append(market)
+            continue
+        existing = index.get(market_id)
+        if existing is None:
+            markets.append(market)
+            index[market_id] = market
+            continue
+        runner_ids = {
+            runner.get("selectionId"): runner for runner in existing.get("runners", [])
+        }
+        for runner in market.get("runners", []):
+            selection_id = runner.get("selectionId")
+            if selection_id not in runner_ids:
+                existing.setdefault("runners", []).append(runner)
+
+    merged["markets"] = markets
+    merged["market_count"] = len(markets)
+    return merged
