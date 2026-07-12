@@ -1,6 +1,7 @@
 import unittest
 
 from compare_tennis_breaks import build_combined_payload, format_ligne_breaks_fr
+from scan_tennis_aces import is_breaks_market
 
 
 class CompareTennisBreaksTests(unittest.TestCase):
@@ -35,6 +36,14 @@ class CompareTennisBreaksTests(unittest.TestCase):
         self.assertEqual(payload["aces"]["comparable_count"], 0)
         self.assertEqual(payload["breaks"]["comparable_count"], 0)
         self.assertEqual(payload["matches_done"], 1)
+
+    def test_yes_no_set_tiebreak_is_not_break_market(self) -> None:
+        self.assertFalse(
+            is_breaks_market("Y aura-t-il un Tie-break dans le set ? - 1er Set")
+        )
+
+    def test_ou_tiebreak_match_is_break_market(self) -> None:
+        self.assertTrue(is_breaks_market("Plus / Moins tie-break - Match"))
 
 
 if __name__ == "__main__":

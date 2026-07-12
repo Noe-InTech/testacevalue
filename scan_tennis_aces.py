@@ -50,6 +50,10 @@ def is_breaks_market(label: str) -> bool:
     lower = strip_accents(label).lower()
     if "face a face" in lower or "face-a-face" in lower:
         return False
+    if "y aura-t-il" in lower and ("tie-break" in lower or "tie break" in lower):
+        return False
+    if "tie-break dans le set" in lower or "tie break dans le set" in lower:
+        return False
     if "break points" in lower and "break(s)" not in lower and "breaks" not in lower:
         return False
     return BREAK_MARKET_RE.search(lower) is not None

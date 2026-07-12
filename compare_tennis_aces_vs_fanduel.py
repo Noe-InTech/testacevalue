@@ -1206,6 +1206,30 @@ def _merge_fanduel_anchors(
     return merged
 
 
+def _needs_full_betclic_payload(
+    *,
+    betclic_payload: dict[str, Any] | None,
+    fr_map: dict[str, dict[str, Any]],
+    fd_map: dict[str, dict[str, Any]],
+    fr_break_map: dict[str, dict[str, Any]],
+    fd_break_map: dict[str, dict[str, Any]],
+) -> bool:
+    """Betclic SSR (hors gRPC) peut porter les aces set / tie-break O/U."""
+    if not betclic_payload:
+        return False
+    fd_props = bool(fd_map) or bool(fd_break_map)
+    fr_props = bool(fr_map) or bool(fr_break_map)
+    if fd_props and not fr_props:
+        return True
+    if fr_props and any(key.startswith("aces_set_") for key in fr_map) and not fd_map:
+        return True
+    if int(betclic_payload.get("grpc_category_hits", 0)) == 0 and int(
+        betclic_payload.get("ssr_market_count", 0)
+    ) == 0:
+        return True
+    return False
+
+
 def _compare_anchor_live(
     anchor: dict[str, Any],
     *,
@@ -1240,13 +1264,14 @@ def _compare_anchor_live(
             log.warning("Unibet ignore %s: %s", match_key, exc)
 
     betclic_link = find_betclic_link_for_players(betclic_links, home, away)
+    betclic_payload: dict[str, Any] | None = None
     if betclic_link:
         try:
-            # Fetch complet : tie-breaks / breaks hors ca_ten_ptss, aces set Betclic SSR.
-            book_events["betclic"] = betclic.build_event_payload(
+            betclic_payload = betclic.build_event_payload(
                 betclic_link.url,
-                grpc_categories=None,
+                grpc_categories=BETCLIC_ACES_GRPC,
             )
+            book_events["betclic"] = betclic_payload
         except Exception as exc:
             log.warning("Betclic ignore %s: %s", match_key, exc)
 
@@ -1260,12 +1285,37 @@ def _compare_anchor_live(
             log.warning("Winamax ignore %s: %s", match_key, exc)
 
     fanduel_event = fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list)
+    fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
     fr_map = build_best_fr_normalized_map(book_events, home=home, away=away) if book_events else {}
+
+    from compare_tennis_breaks import (
+        attach_breaks_to_anchor_result,
+        build_best_fr_breaks_map,
+        build_fanduel_breaks_normalized_map,
+    )
+
+    fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away) if book_events else {}
+    fd_break_map = build_fanduel_breaks_normalized_map(fanduel_event) if fanduel_event else {}
+
+    if betclic_link and _needs_full_betclic_payload(
+        betclic_payload=betclic_payload,
+        fr_map=fr_map,
+        fd_map=fd_map,
+        fr_break_map=fr_break_map,
+        fd_break_map=fd_break_map,
+    ):
+        try:
+            book_events["betclic"] = betclic.build_event_payload(
+                betclic_link.url,
+                grpc_categories=None,
+            )
+            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away)
+        except Exception as exc:
+            log.warning("Betclic (full) ignore %s: %s", match_key, exc)
 
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
-
-    from compare_tennis_breaks import attach_breaks_to_anchor_result
 
     return attach_breaks_to_anchor_result(
         compared,

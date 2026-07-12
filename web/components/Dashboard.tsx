@@ -214,8 +214,14 @@ export function Dashboard() {
     const label = marketTab === "breaks" ? "breaks / tie-breaks" : "aces";
     const fdEvents = payload?.fd_event_count ?? payload?.fd_ace_event_count ?? 0;
     const frEvents = payload?.fr_event_count ?? payload?.fr_ace_event_count ?? 0;
+    if (marketTab === "aces" && fdEvents === 0 && (payload?.fr_only_count ?? 0) > 0) {
+      return "FanDuel ne propose aucun marche aces sur le calendrier actuel. Les lignes FR restent visibles en « FR seul » jusqu'a ce qu'un match ait des aces FD (ex. tableau principal ATP/WTA).";
+    }
+    if (marketTab === "breaks" && fdEvents > 0 && frEvents === 0) {
+      return "FanDuel propose des tie-breaks O/U, mais les books FR n'ont pas ce marche ce soir (souvent seulement « Y aura-t-il un tie-break dans le set ? »).";
+    }
     if (fdEvents > 0 && frEvents === 0) {
-      return `FanDuel propose des ${label}, mais les books FR n'ont pas de lignes sur ces matchs.`;
+      return `FanDuel propose des ${label}, mais les books FR n'ont pas de lignes comparables sur ces matchs.`;
     }
     if (fdEvents === 0 && frEvents > 0) {
       return `Des lignes ${label} existent cote FR, mais FanDuel ne les propose pas sur ces matchs.`;
