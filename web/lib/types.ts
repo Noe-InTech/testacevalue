@@ -1,6 +1,7 @@
 export interface ComparableRow {
   match: string;
   ligne_aces_fr?: string;
+  ligne_breaks_fr?: string;
   issue_fr: string;
   issue_fr_contraire?: string;
   marche_fr: string;
@@ -28,10 +29,12 @@ export interface MatchProgressRow {
   fd_only_count?: number;
   fr_ace_market_count?: number;
   fd_ace_market_count?: number;
+  fr_market_count?: number;
+  fd_market_count?: number;
   fanduel_found: boolean;
 }
 
-export interface AcesPayload {
+export interface MarketPayload {
   source: string;
   generated_at: string;
   partial?: boolean;
@@ -44,6 +47,8 @@ export interface AcesPayload {
   fd_only_count?: number;
   fd_ace_event_count?: number;
   fr_ace_event_count?: number;
+  fd_event_count?: number;
+  fr_event_count?: number;
   comparables: ComparableRow[];
   fr_higher_comparables: ComparableRow[];
   value_comparables?: ComparableRow[];
@@ -51,6 +56,18 @@ export interface AcesPayload {
   fd_only_comparables?: ComparableRow[];
   match_progress?: MatchProgressRow[];
 }
+
+export interface CombinedPropsPayload {
+  source: string;
+  generated_at: string;
+  partial?: boolean;
+  anchors_total?: number;
+  matches_done?: number;
+  aces: MarketPayload;
+  breaks: MarketPayload;
+}
+
+export type AcesPayload = MarketPayload;
 
 export interface RunStatus {
   status: "idle" | "running" | "success" | "error";
@@ -66,9 +83,59 @@ export interface RunStatus {
   fr_only_count?: number;
 }
 
-function ligneAcesLabel(row: ComparableRow): string {
-  if (row.ligne_aces_fr?.trim()) {
-    return row.ligne_aces_fr;
+export type ApiPayload = MarketPayload | CombinedPropsPayload;
+
+export function isCombinedPayload(payload: ApiPayload | null): payload is CombinedPropsPayload {
+  return Boolean(payload && "aces" in payload && "breaks" in payload);
+}
+
+export function pickMarketPayload(
+  payload: ApiPayload | null,
+  market: "aces" | "breaks",
+): MarketPayload | null {
+  if (!payload) {
+    return null;
+  }
+  if (isCombinedPayload(payload)) {
+    return market === "aces" ? payload.aces : payload.breaks;
+  }
+  return market === "aces" ? payload : null;
+}
+
+export function getPayloadProgressSnapshot(payload: ApiPayload | null) {
+  if (!payload) {
+    return {
+      comparable_count: 0,
+      fr_only_count: 0,
+      partial: true,
+      matches_done: 0,
+      anchors_total: 0,
+    };
+  }
+  if (isCombinedPayload(payload)) {
+    const aces = payload.aces;
+    return {
+      comparable_count: aces.comparable_count,
+      fr_only_count: aces.fr_only_count ?? 0,
+      partial: payload.partial ?? aces.partial ?? true,
+      matches_done: payload.matches_done ?? aces.matches_done ?? 0,
+      anchors_total: payload.anchors_total ?? aces.anchors_total ?? 0,
+    };
+  }
+  return {
+    comparable_count: payload.comparable_count,
+    fr_only_count: payload.fr_only_count ?? 0,
+    partial: payload.partial ?? true,
+    matches_done: payload.matches_done ?? 0,
+    anchors_total: payload.anchors_total ?? 0,
+  };
+}
+
+function ligneLabel(row: ComparableRow, marketKind: "aces" | "breaks"): string {
+  const key = marketKind === "breaks" ? "ligne_breaks_fr" : "ligne_aces_fr";
+  const explicit = row[key]?.trim();
+  if (explicit) {
+    return explicit;
   }
   if (row.marche_fr?.trim() && row.issue_fr?.trim()) {
     return `${row.issue_fr} — ${row.marche_fr}`;
@@ -76,68 +143,73 @@ function ligneAcesLabel(row: ComparableRow): string {
   return row.marche_fr || row.issue_fr || "—";
 }
 
-export const TABLE_COLUMNS: {
-  key: keyof ComparableRow | "ligne_aces";
-  label: string;
-  hint: string;
-  format?: (row: ComparableRow) => string;
-}[] = [
-  { key: "match", label: "Match", hint: "Joueur A vs joueur B" },
-  {
-    key: "ligne_aces",
-    label: "Pari aces",
-    hint: "Ligne comparee : seuil, joueur concerne, Plus ou Moins",
-    format: ligneAcesLabel,
-  },
-  {
-    key: "marche_fanduel",
-    label: "Equiv. FanDuel",
-    hint: "Meme marche chez FanDuel (libelle anglais)",
-  },
-  {
-    key: "cote_fr",
-    label: "Cote FR",
-    hint: "Meilleure cote decimale chez Unibet, Betclic ou Winamax",
-  },
-  { key: "bookmaker_fr", label: "Book FR", hint: "Bookmaker FR retenu pour ce cote" },
-  {
-    key: "cote_fr_contraire",
-    label: "FR contraire",
-    hint: "Cote FR du cote oppose (Under si Over, etc.)",
-  },
-  {
-    key: "cote_us_fanduel_ml",
-    label: "FD (US)",
-    hint: "Cote FanDuel moneyline pour ce cote",
-  },
-  {
-    key: "cote_us_fanduel_contraire",
-    label: "FD contraire (US)",
-    hint: "Cote FanDuel US du cote oppose — necessaire pour calculer la fair prob",
-  },
-  {
-    key: "cote_fr_fanduel",
-    label: "FD (FR)",
-    hint: "Cote FanDuel convertie en decimal FR",
-  },
-  {
-    key: "prob_fair_fanduel",
-    label: "Prob. fair",
-    hint: "Probabilite implicite sans vig, derivee de la paire Over/Under FanDuel",
-  },
-  {
-    key: "ev_percent",
-    label: "EV %",
-    hint: "Expected value : prob. fair FanDuel x cote FR - 1",
-  },
-  {
-    key: "ecart_fr_moins_fd",
-    label: "Ecart",
-    hint: "Cote FR moins cote FanDuel (FR). Positif = FR plus haut",
-  },
-  {
-    key: "meilleur_cote",
-    label: "Qui paie mieux",
-    hint: "Book FR ou FanDuel selon la cote la plus haute (brut)",
-  },
-];
+export function getTableColumns(marketKind: "aces" | "breaks") {
+  const pariLabel = marketKind === "breaks" ? "Pari breaks" : "Pari aces";
+  const lineKey = marketKind === "breaks" ? "ligne_breaks" : "ligne_aces";
+
+  return [
+    { key: "match" as const, label: "Match", hint: "Joueur A vs joueur B" },
+    {
+      key: lineKey as "match",
+      label: pariLabel,
+      hint: "Ligne comparee : seuil, joueur concerne, Plus ou Moins",
+      format: (row: ComparableRow) => ligneLabel(row, marketKind),
+    },
+    {
+      key: "marche_fanduel" as const,
+      label: "Equiv. FanDuel",
+      hint: "Meme marche chez FanDuel (libelle anglais)",
+    },
+    {
+      key: "cote_fr" as const,
+      label: "Cote FR",
+      hint: "Meilleure cote decimale chez Unibet, Betclic ou Winamax",
+    },
+    { key: "bookmaker_fr" as const, label: "Book FR", hint: "Bookmaker FR retenu pour ce cote" },
+    {
+      key: "cote_fr_contraire" as const,
+      label: "FR contraire",
+      hint:
+        "Cote FR du cote oppose (Under si Over). Vide si le book ne propose qu'un seul sens (+ de X,Y Betclic, tiers live, ou cote suspendue).",
+    },
+    {
+      key: "cote_us_fanduel_ml" as const,
+      label: "FD (US)",
+      hint: "Cote FanDuel moneyline pour ce cote",
+    },
+    {
+      key: "cote_us_fanduel_contraire" as const,
+      label: "FD contraire (US)",
+      hint: "Cote FanDuel US du cote oppose — necessaire pour calculer la fair prob",
+    },
+    {
+      key: "cote_fr_fanduel" as const,
+      label: "FD (FR)",
+      hint: "Cote FanDuel convertie en decimal FR",
+    },
+    {
+      key: "prob_fair_fanduel" as const,
+      label: "Prob. fair",
+      hint: "Probabilite implicite sans vig, derivee de la paire Over/Under FanDuel",
+    },
+    {
+      key: "ev_percent" as const,
+      label: "EV %",
+      hint: "Expected value : prob. fair FanDuel x cote FR - 1",
+    },
+    {
+      key: "ecart_fr_moins_fd" as const,
+      label: "Ecart",
+      hint: "Cote FR moins cote FanDuel (FR). Positif = FR plus haut",
+    },
+    {
+      key: "meilleur_cote" as const,
+      label: "Qui paie mieux",
+      hint: "Book FR ou FanDuel selon la cote la plus haute (brut)",
+    },
+  ];
+}
+
+export const TABLE_COLUMNS = getTableColumns("aces");
+
+export type TableColumn = ReturnType<typeof getTableColumns>[number];

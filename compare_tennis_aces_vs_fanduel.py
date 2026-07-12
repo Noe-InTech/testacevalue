@@ -1069,19 +1069,23 @@ def write_progress_json(
     *,
     partial: bool,
     anchors_total: int | None = None,
+    combined: bool = False,
 ) -> None:
     if path is None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
+    if combined:
+        from compare_tennis_breaks import build_combined_payload
+
+        payload = build_combined_payload(
+            results, partial=partial, anchors_total=anchors_total
+        )
+    else:
+        payload = build_results_payload(
+            results, partial=partial, anchors_total=anchors_total
+        )
     tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(
-        json.dumps(
-            build_results_payload(results, partial=partial, anchors_total=anchors_total),
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp_path.replace(path)
 
 
@@ -1269,7 +1273,16 @@ def _compare_anchor_live(
 
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
-    return compared
+
+    from compare_tennis_breaks import attach_breaks_to_anchor_result
+
+    return attach_breaks_to_anchor_result(
+        compared,
+        fanduel_event=fanduel_event,
+        book_events=book_events,
+        home=home,
+        away=away,
+    )
 
 
 def _compare_anchors_parallel(
@@ -1614,6 +1627,7 @@ def run_live_compare(
     match_filter: str = "",
     progress_json: Path | None = None,
     status_json: Path | None = None,
+    combined: bool = False,
 ) -> Path:
     anchors_total = 0
 
@@ -1623,6 +1637,7 @@ def run_live_compare(
             results,
             partial=True,
             anchors_total=anchors_total,
+            combined=combined,
         )
         write_run_status_file(
             status_json,
@@ -1639,7 +1654,7 @@ def run_live_compare(
         "Chargement des matchs tennis...",
         match_filter=match_filter,
     )
-    write_progress_json(progress_json, [], partial=True)
+    write_progress_json(progress_json, [], partial=True, combined=combined)
 
     def on_listing_status(message: str) -> None:
         write_run_status_file(status_json, "running", message, match_filter=match_filter)
@@ -1656,7 +1671,9 @@ def run_live_compare(
         match_filter=match_filter,
         anchors_total=anchors_total,
     )
-    write_progress_json(progress_json, [], partial=True, anchors_total=anchors_total)
+    write_progress_json(
+        progress_json, [], partial=True, anchors_total=anchors_total, combined=combined
+    )
     results = _compare_anchors_parallel(
         anchors,
         betclic_links=betclic_links,
@@ -1666,7 +1683,9 @@ def run_live_compare(
         on_progress=on_progress,
     )
     csv_path = _export_results(results, output)
-    write_progress_json(progress_json, results, partial=False, anchors_total=anchors_total)
+    write_progress_json(
+        progress_json, results, partial=False, anchors_total=anchors_total, combined=combined
+    )
     write_run_status_file(
         status_json,
         "success",
@@ -1766,6 +1785,11 @@ if __name__ == "__main__":
         type=Path,
         help="Met a jour le statut du run (JSON)",
     )
+    parser.add_argument(
+        "--combined",
+        action="store_true",
+        help="Inclure aces + breaks dans le JSON (sections aces/breaks)",
+    )
     args = parser.parse_args()
     if args.scan_json:
         run_from_scan_json(args.scan_json, args.output, match_filter=args.match or "")
@@ -1775,4 +1799,5 @@ if __name__ == "__main__":
             match_filter=args.match or "",
             progress_json=args.progress_json,
             status_json=args.status_json,
+            combined=args.combined,
         )

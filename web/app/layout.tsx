@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
 
-import { Dashboard } from "@/components/Dashboard";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aces FR vs FanDuel",
-  description: "Compare les cotes aces des books FR contre FanDuel.",
+  title: "Aces & breaks FR vs FanDuel",
+  description: "Compare les cotes aces et breaks des books FR contre FanDuel.",
 };
 
 export const viewport: Viewport = {

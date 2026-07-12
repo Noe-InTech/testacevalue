@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { fetchGithubJson } from "@/lib/github";
 import { fetchRunnerResults, runnerEnabled } from "@/lib/runner";
-import type { AcesPayload, RunStatus } from "@/lib/types";
+import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
 
 async function readLocalJson<T>(filename: string): Promise<T | null> {
   try {
@@ -16,22 +16,34 @@ async function readLocalJson<T>(filename: string): Promise<T | null> {
   }
 }
 
-const idlePayload: AcesPayload = {
-  source: "tennis_aces_comparable",
+function emptyMarketPayload(source: string): MarketPayload {
+  return {
+    source,
+    generated_at: "",
+    anchors_total: 0,
+    matches_done: 0,
+    comparable_count: 0,
+    fr_higher_count: 0,
+    value_count: 0,
+    fr_only_count: 0,
+    fd_only_count: 0,
+    comparables: [],
+    fr_higher_comparables: [],
+    value_comparables: [],
+    fr_only_comparables: [],
+    fd_only_comparables: [],
+    match_progress: [],
+  };
+}
+
+const idlePayload: ApiPayload = {
+  source: "tennis_props_comparable",
   generated_at: "",
+  partial: true,
   anchors_total: 0,
   matches_done: 0,
-  comparable_count: 0,
-  fr_higher_count: 0,
-  value_count: 0,
-  fr_only_count: 0,
-  fd_only_count: 0,
-  comparables: [],
-  fr_higher_comparables: [],
-  value_comparables: [],
-  fr_only_comparables: [],
-  fd_only_comparables: [],
-  match_progress: [],
+  aces: emptyMarketPayload("tennis_aces_comparable"),
+  breaks: emptyMarketPayload("tennis_breaks_comparable"),
 };
 
 const runnerUnreachableStatus: RunStatus = {
@@ -62,11 +74,11 @@ export async function GET() {
   }
 
   const [payload, status] = await Promise.all([
-    fetchGithubJson<AcesPayload>("web/public/latest_aces.json"),
+    fetchGithubJson<ApiPayload>("web/public/latest_aces.json"),
     fetchGithubJson<RunStatus>("web/public/run_status.json"),
   ]);
 
-  const localPayload = payload ?? (await readLocalJson<AcesPayload>("latest_aces.json"));
+  const localPayload = payload ?? (await readLocalJson<ApiPayload>("latest_aces.json"));
   const localStatus = status ?? (await readLocalJson<RunStatus>("run_status.json"));
 
   return NextResponse.json({

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
-import type { AcesPayload, RunStatus } from "@/lib/types";
+import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
+import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
 
@@ -21,7 +23,11 @@ function formatTimestamp(value?: string): string {
 export function Dashboard() {
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
-  const [payload, setPayload] = useState<AcesPayload | null>(null);
+  const [marketTab, setMarketTab] = useState<"aces" | "breaks">("aces");
+  const [progressSearch, setProgressSearch] = useState("");
+  const [frOnlySearch, setFrOnlySearch] = useState("");
+  const [fdOnlySearch, setFdOnlySearch] = useState("");
+  const [rawPayload, setRawPayload] = useState<ApiPayload | null>(null);
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -40,10 +46,10 @@ export function Dashboard() {
       throw new Error("Impossible de charger les resultats.");
     }
     const data = await response.json();
-    setPayload(data.payload ?? null);
+    setRawPayload(data.payload ?? null);
     setStatus(data.status ?? null);
     return data as {
-      payload: AcesPayload | null;
+      payload: ApiPayload | null;
       status: RunStatus | null;
       source?: string;
     };
@@ -72,15 +78,14 @@ export function Dashboard() {
       while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const data = await refresh();
+        const progress = getPayloadProgressSnapshot(data.payload);
         const currentStatus = data.status?.status;
-        const comparableCount = data.payload?.comparable_count ?? 0;
-        const frOnlyCount = data.payload?.fr_only_count ?? 0;
+        const comparableCount = progress.comparable_count;
+        const frOnlyCount = progress.fr_only_count;
         const totalRows = comparableCount + frOnlyCount;
-        const matchesDone =
-          data.status?.matches_done ?? data.payload?.matches_done ?? 0;
-        const anchorsTotal =
-          data.status?.anchors_total ?? data.payload?.anchors_total ?? 0;
-        const isFinalPayload = data.payload?.partial === false;
+        const matchesDone = data.status?.matches_done ?? progress.matches_done;
+        const anchorsTotal = data.status?.anchors_total ?? progress.anchors_total;
+        const isFinalPayload = progress.partial === false;
 
         if (matchesDone > lastMatches || totalRows > lastRows) {
           lastMatches = matchesDone;
@@ -118,10 +123,9 @@ export function Dashboard() {
       }
 
       const finalData = await refresh();
-      const finalRows =
-        (finalData.payload?.comparable_count ?? 0) +
-        (finalData.payload?.fr_only_count ?? 0);
-      if (finalRows > 0 || (finalData.status?.matches_done ?? 0) > 0) {
+      const finalProgress = getPayloadProgressSnapshot(finalData.payload);
+      const finalRows = finalProgress.comparable_count + finalProgress.fr_only_count;
+      if (finalRows > 0 || (finalData.status?.matches_done ?? finalProgress.matches_done) > 0) {
         setInfo(`${finalRows} ligne(s) affichees (delai max atteint).`);
         return;
       }
@@ -140,7 +144,7 @@ export function Dashboard() {
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
     setBusy(true);
-    setPayload({
+    setRawPayload({
       source: "tennis_aces_comparable",
       generated_at: "",
       partial: true,
@@ -172,6 +176,21 @@ export function Dashboard() {
     }
   };
 
+  const acesPayload = useMemo(
+    () => pickMarketPayload(rawPayload, "aces"),
+    [rawPayload],
+  );
+  const breaksPayload = useMemo(
+    () => pickMarketPayload(rawPayload, "breaks"),
+    [rawPayload],
+  );
+  const payload = useMemo(
+    () => (marketTab === "aces" ? acesPayload : breaksPayload),
+    [marketTab, acesPayload, breaksPayload],
+  );
+  const combined = useMemo(() => isCombinedPayload(rawPayload), [rawPayload]);
+  const rootMeta = rawPayload;
+
   const frHigherRows = useMemo(
     () => payload?.fr_higher_comparables ?? [],
     [payload],
@@ -180,31 +199,41 @@ export function Dashboard() {
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
   const fdOnlyRows = useMemo(() => payload?.fd_only_comparables ?? [], [payload]);
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
+  const filteredProgress = useMemo(() => {
+    const needle = progressSearch.trim().toLowerCase();
+    if (!needle) {
+      return matchProgress;
+    }
+    return matchProgress.filter((row) => row.match.toLowerCase().includes(needle));
+  }, [matchProgress, progressSearch]);
+
   const overlapHint = useMemo(() => {
     if ((payload?.comparable_count ?? 0) > 0) {
       return "";
     }
-    const fdEvents = payload?.fd_ace_event_count ?? 0;
-    const frEvents = payload?.fr_ace_event_count ?? 0;
+    const label = marketTab === "breaks" ? "breaks / tie-breaks" : "aces";
+    const fdEvents = payload?.fd_event_count ?? payload?.fd_ace_event_count ?? 0;
+    const frEvents = payload?.fr_event_count ?? payload?.fr_ace_event_count ?? 0;
     if (fdEvents > 0 && frEvents === 0) {
-      return "FanDuel propose des aces match, mais les books FR n'ont pas de lignes match sur ces matchs (live ou prematch).";
+      return `FanDuel propose des ${label}, mais les books FR n'ont pas de lignes sur ces matchs.`;
     }
     if (fdEvents === 0 && frEvents > 0) {
-      return "Des lignes aces existent cote FR, mais FanDuel ne les propose pas sur ces matchs (souvent ITF/ATP secondaire).";
+      return `Des lignes ${label} existent cote FR, mais FanDuel ne les propose pas sur ces matchs.`;
     }
     if (fdEvents > 0 && frEvents > 0) {
-      return "FR et FanDuel ont des aces, mais pas sur les memes matchs ou pas aux memes seuils.";
+      return `FR et FanDuel ont des ${label}, mais pas sur les memes matchs ou pas aux memes seuils.`;
     }
     return "";
-  }, [payload]);
+  }, [payload, marketTab]);
 
   return (
     <main className="page">
       <header className="hero">
-        <p className="eyebrow">Tennis aces</p>
-        <h1>Aces tennis — books FR vs FanDuel</h1>
+        <p className="eyebrow">Tennis props</p>
+        <h1>Aces & breaks — books FR vs FanDuel</h1>
         <p className="lead">
-          Compare les lignes <strong>aces</strong> (Unibet, Betclic, Winamax) avec FanDuel — prematch et matchs en cours (~25 s).
+          Compare les lignes <strong>aces</strong> et <strong>breaks</strong> (Unibet, Betclic,
+          Winamax) avec FanDuel — prematch et matchs en cours (~25 s).
         </p>
       </header>
 
@@ -235,10 +264,31 @@ export function Dashboard() {
         {error ? <p className="error">{error}</p> : null}
       </section>
 
+      <div className="market-tabs">
+        <button
+          type="button"
+          className={`market-tab${marketTab === "aces" ? " active" : ""}`}
+          onClick={() => setMarketTab("aces")}
+        >
+          Aces
+          {combined ? ` (${acesPayload?.comparable_count ?? 0})` : ""}
+        </button>
+        <button
+          type="button"
+          className={`market-tab${marketTab === "breaks" ? " active" : ""}`}
+          onClick={() => setMarketTab("breaks")}
+          disabled={!combined}
+          title={combined ? "" : "Breaks disponibles apres redeploiement runner"}
+        >
+          Breaks
+          {combined ? ` (${breaksPayload?.comparable_count ?? 0})` : ""}
+        </button>
+      </div>
+
       <section className="panel meta">
         <div>
           <span className="meta-label">Derniere mise a jour</span>
-          <strong>{formatTimestamp(payload?.generated_at)}</strong>
+          <strong>{formatTimestamp(rootMeta?.generated_at)}</strong>
         </div>
         <div>
           <span className="meta-label">Etape</span>
@@ -263,8 +313,8 @@ export function Dashboard() {
           </strong>
         </div>
         <div>
-          <span className="meta-label" title="Nombre de lignes aces alignees entre un book FR et FanDuel">
-            Lignes comparees
+          <span className="meta-label" title="Lignes alignees entre un book FR et FanDuel">
+            Lignes comparees ({marketTab})
           </span>
           <strong>{payload?.comparable_count ?? 0}</strong>
         </div>
@@ -287,7 +337,7 @@ export function Dashboard() {
           <strong>{payload?.value_count ?? 0}</strong>
         </div>
         <div>
-          <span className="meta-label" title="Lignes aces FR sans equivalent FanDuel sur la meme ligne">
+          <span className="meta-label" title="Lignes FR sans equivalent FanDuel sur la meme ligne">
             FR sans FD
           </span>
           <strong>{payload?.fr_only_count ?? 0}</strong>
@@ -307,11 +357,16 @@ export function Dashboard() {
       ) : null}
 
       {matchProgress.length > 0 ? (
-        <section className="panel">
-          <div className="panel-header">
-            <h2>Avancement par match</h2>
-            <span className="badge">{matchProgress.length}</span>
-          </div>
+        <CollapsibleSection
+          title="Avancement par match"
+          badge={filteredProgress.length}
+          defaultOpen={false}
+          search={{
+            value: progressSearch,
+            onChange: setProgressSearch,
+            placeholder: "Filtrer par joueur ou match...",
+          }}
+        >
           <div className="table-wrap">
             <table>
               <thead>
@@ -326,12 +381,16 @@ export function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {matchProgress.map((row) => (
+                {filteredProgress.map((row) => (
                   <tr key={row.match}>
                     <td data-label="Match">{row.match}</td>
                     <td data-label="Comparees">{row.comparable_count}</td>
-                    <td data-label="Lignes FR">{row.fr_ace_market_count ?? 0}</td>
-                    <td data-label="Lignes FD">{row.fd_ace_market_count ?? 0}</td>
+                    <td data-label="Lignes FR">
+                      {row.fr_market_count ?? row.fr_ace_market_count ?? 0}
+                    </td>
+                    <td data-label="Lignes FD">
+                      {row.fd_market_count ?? row.fd_ace_market_count ?? 0}
+                    </td>
                     <td data-label="FR seul">{row.fr_only_count}</td>
                     <td data-label="FD seul">{row.fd_only_count ?? 0}</td>
                     <td data-label="FanDuel">{row.fanduel_found ? "oui" : "non"}</td>
@@ -340,38 +399,73 @@ export function Dashboard() {
               </tbody>
             </table>
           </div>
-        </section>
+        </CollapsibleSection>
       ) : null}
 
       <ResultsTable
         title="Values — EV positif (paire Over/Under FanDuel requise)"
         rows={valueRows}
+        marketKind={marketTab}
         emptyMessage="Aucune value detectee. Il faut la cote US et son contraire chez FanDuel."
       />
 
       <ResultsTable
-        title="Toutes les lignes aces comparees"
+        title={`Toutes les lignes ${marketTab} comparees`}
         rows={payload?.comparables ?? []}
+        marketKind={marketTab}
         emptyMessage="Aucun resultat pour le moment. Lance une comparaison."
       />
 
       <ResultsTable
         title="Lignes ou le book FR paie mieux que FanDuel"
         rows={frHigherRows}
+        marketKind={marketTab}
         emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
       />
 
-      <ResultsTable
-        title="Lignes aces FR sans equivalent FanDuel (meme seuil)"
-        rows={frOnlyRows}
-        emptyMessage="Toutes les lignes FR ont un equivalent FanDuel, ou pas de marche aces FR."
-      />
+      <CollapsibleSection
+        title={`Lignes ${marketTab} FR sans equivalent FanDuel (meme seuil)`}
+        badge={frOnlyRows.length}
+        defaultOpen={false}
+        search={{
+          value: frOnlySearch,
+          onChange: setFrOnlySearch,
+          placeholder: "Match, book, ligne...",
+        }}
+      >
+        <p className="hint-box">
+          La colonne <strong>FR contraire</strong> reste vide si le book ne publie qu&apos;un sens
+          (ex. Betclic « + de X,Y » sans Under, ou cote oppose suspendue en live).
+        </p>
+        <ResultsTable
+          title=""
+          rows={frOnlyRows}
+          marketKind={marketTab}
+          searchQuery={frOnlySearch}
+          embedded
+          emptyMessage={`Toutes les lignes FR ont un equivalent FanDuel, ou pas de marche ${marketTab} FR.`}
+        />
+      </CollapsibleSection>
 
-      <ResultsTable
-        title="Lignes aces FanDuel sans equivalent FR (meme seuil)"
-        rows={fdOnlyRows}
-        emptyMessage="Toutes les lignes FanDuel ont un equivalent FR, ou pas de marche aces FanDuel."
-      />
+      <CollapsibleSection
+        title={`Lignes ${marketTab} FanDuel sans equivalent FR (meme seuil)`}
+        badge={fdOnlyRows.length}
+        defaultOpen={false}
+        search={{
+          value: fdOnlySearch,
+          onChange: setFdOnlySearch,
+          placeholder: "Match, marche FanDuel...",
+        }}
+      >
+        <ResultsTable
+          title=""
+          rows={fdOnlyRows}
+          marketKind={marketTab}
+          searchQuery={fdOnlySearch}
+          embedded
+          emptyMessage={`Toutes les lignes FanDuel ont un equivalent FR, ou pas de marche ${marketTab} FanDuel.`}
+        />
+      </CollapsibleSection>
     </main>
   );
 }

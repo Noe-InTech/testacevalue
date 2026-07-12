@@ -3,8 +3,10 @@ import unittest
 from tennis_market_mapping import (
     coteur_handicap_outcome_label,
     extract_total_line_from_market_name,
+    fanduel_breaks_runner_outcome,
     fanduel_runner_label,
     map_coteur_to_fanduel,
+    map_fanduel_breaks_market_to_compare_key,
     map_fanduel_market_to_compare_key,
     players_match,
 )
@@ -105,6 +107,52 @@ class TennisMarketMappingTests(unittest.TestCase):
             "A.Zverev",
         )
         self.assertEqual(markets, [])
+
+    def test_map_fanduel_breaks_market_to_compare_key(self) -> None:
+        home, away = "Jannik Sinner", "Carlos Alcaraz"
+        self.assertEqual(
+            map_fanduel_breaks_market_to_compare_key(
+                {"marketName": "Total Breaks 5.5", "runners": []},
+                home,
+                away,
+            ),
+            "breaks_total|5.5",
+        )
+        self.assertEqual(
+            map_fanduel_breaks_market_to_compare_key(
+                {"marketName": "Total Tie Breaks 1.5", "runners": []},
+                home,
+                away,
+            ),
+            "tie_break_match|1.5",
+        )
+        self.assertEqual(
+            map_fanduel_breaks_market_to_compare_key(
+                {"marketName": "Total Jannik Sinner Breaks 3.5", "runners": []},
+                home,
+                away,
+            ),
+            "breaks_player|sinner|3.5",
+        )
+        self.assertEqual(
+            map_fanduel_breaks_market_to_compare_key(
+                {"marketName": "Service Break Number 1", "runners": []},
+                home,
+                away,
+            ),
+            "first_break",
+        )
+
+    def test_fanduel_breaks_runner_outcome(self) -> None:
+        market = {"marketName": "Total Breaks 5.5", "runners": []}
+        self.assertEqual(
+            fanduel_breaks_runner_outcome(market, "Over 5.5", "breaks_total|5.5"),
+            "Over",
+        )
+        self.assertEqual(
+            fanduel_breaks_runner_outcome(market, "Under 5.5", "breaks_total|5.5"),
+            "Under",
+        )
 
 
 if __name__ == "__main__":

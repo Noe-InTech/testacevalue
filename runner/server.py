@@ -54,6 +54,7 @@ def run_compare(match_filter: str) -> None:
             str(RESULT_JSON),
             "--status-json",
             str(STATUS_JSON),
+            "--combined",
         ]
         if match_filter:
             cmd.extend(["--match", match_filter])

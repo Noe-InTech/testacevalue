@@ -380,6 +380,67 @@ def map_fanduel_aces_market_to_compare_key(
     return None
 
 
+def map_fanduel_breaks_market_to_compare_key(
+    market: dict[str, Any],
+    home_player: str,
+    away_player: str,
+) -> str | None:
+    name = str(market.get("marketName", "")).strip()
+    lower = name.lower()
+    line = extract_total_line_from_market_name(name)
+
+    if re.fullmatch(r"total tie breaks [\d.]+", lower) and line:
+        return f"tie_break_match|{line}"
+    if re.fullmatch(r"total breaks [\d.]+", lower) and line:
+        return f"breaks_total|{line}"
+    player_total = re.match(r"^total (.+?) breaks [\d.]+$", name, flags=re.I)
+    if player_total and line:
+        player_name = player_total.group(1).strip()
+        if players_match(player_name, home_player):
+            player_token = _book_player_key(home_player)
+        elif players_match(player_name, away_player):
+            player_token = _book_player_key(away_player)
+        else:
+            player_token = _book_player_key(player_name)
+        return f"breaks_player|{player_token}|{line}"
+    if lower == "total breaks in the match":
+        return "breaks_total_tiers"
+    if lower.startswith("service break number"):
+        return "first_break"
+    if lower.endswith(" breaks") and "total" not in lower and not lower.startswith("set "):
+        player_name = name[: -len(" Breaks")].strip()
+        if players_match(player_name, home_player):
+            player_token = _book_player_key(home_player)
+        elif players_match(player_name, away_player):
+            player_token = _book_player_key(away_player)
+        else:
+            player_token = _book_player_key(player_name)
+        return f"breaks_player_tiers|{player_token}"
+    return None
+
+
+def fanduel_breaks_runner_outcome(
+    market: dict[str, Any],
+    runner_name: str,
+    compare_key: str | None,
+) -> str:
+    name = runner_name.strip()
+    lower = name.lower()
+    if compare_key and compare_key.startswith(
+        ("breaks_total|", "breaks_player|", "tie_break_match|")
+    ):
+        if lower.startswith("over"):
+            return "Over"
+        if lower.startswith("under"):
+            return "Under"
+    if compare_key == "first_break":
+        return name
+    tier = re.match(r"(\d+)\+", lower)
+    if tier:
+        return f"{tier.group(1)}+"
+    return name
+
+
 def fanduel_aces_runner_outcome(
     market: dict[str, Any],
     runner_name: str,
@@ -433,6 +494,12 @@ def align_fr_outcome_to_fanduel(
         if lower.startswith("moins"):
             return "Under"
     if family == "aces_player":
+        lower = outcome.lower()
+        if lower.startswith("plus"):
+            return "Over"
+        if lower.startswith("moins"):
+            return "Under"
+    if family == "breaks_player":
         lower = outcome.lower()
         if lower.startswith("plus"):
             return "Over"

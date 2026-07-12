@@ -33,6 +33,10 @@ BOOK_LABELS = {
     "winamax": "Winamax",
 }
 ACE_MARKET_RE = re.compile(r"(?<![a-z])aces?(?![a-z])", re.I)
+BREAK_MARKET_RE = re.compile(
+    r"(?<![a-z])breaks?(?![a-z])|tie[- ]?break|balle de break|service break",
+    re.I,
+)
 
 
 def is_aces_market(label: str) -> bool:
@@ -40,6 +44,15 @@ def is_aces_market(label: str) -> bool:
     if "face a face" in lower or "face-a-face" in lower:
         return False
     return ACE_MARKET_RE.search(lower) is not None
+
+
+def is_breaks_market(label: str) -> bool:
+    lower = strip_accents(label).lower()
+    if "face a face" in lower or "face-a-face" in lower:
+        return False
+    if "break points" in lower and "break(s)" not in lower and "breaks" not in lower:
+        return False
+    return BREAK_MARKET_RE.search(lower) is not None
 
 
 def players_from_betclic_slug(slug: str) -> tuple[str, str] | None:
