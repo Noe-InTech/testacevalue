@@ -33,9 +33,16 @@ COTEUR_TO_FANDUEL_BASE: dict[str, str | None] = {
 }
 
 
+def _split_compound_tokens(name: str) -> str:
+    """CarrenoBusta -> Carreno Busta pour matcher Unibet sans espace."""
+    spaced = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
+    return re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", spaced)
+
+
 def player_tokens(name: str) -> set[str]:
+    cleaned = _split_compound_tokens(name)
     cleaned = (
-        unicodedata.normalize("NFKD", name)
+        unicodedata.normalize("NFKD", cleaned)
         .encode("ascii", "ignore")
         .decode("ascii")
         .lower()
@@ -45,11 +52,14 @@ def player_tokens(name: str) -> set[str]:
         .replace("-", " ")
     )
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
-    tokens = {
-        token
-        for token in cleaned.split()
-        if len(token) >= 3 and token not in {"junior", "senior"}
-    }
+    tokens: set[str] = set()
+    for token in cleaned.split():
+        if token in {"junior", "senior"}:
+            continue
+        if len(token) >= 3:
+            tokens.add(token)
+        elif len(token) == 2 and token.isalpha():
+            tokens.add(token)
     return tokens
 
 
@@ -61,7 +71,15 @@ def normalize_player(name: str) -> str:
 def players_match(name_a: str, name_b: str) -> bool:
     tokens_a = player_tokens(name_a)
     tokens_b = player_tokens(name_b)
-    return bool(tokens_a & tokens_b)
+    if tokens_a & tokens_b:
+        return True
+    for token_a in tokens_a:
+        for token_b in tokens_b:
+            if len(token_a) >= 6 and len(token_b) >= 6 and (
+                token_a.startswith(token_b) or token_b.startswith(token_a)
+            ):
+                return True
+    return False
 
 
 def coteur_special_line(typename: str, special: str) -> float | str | None:

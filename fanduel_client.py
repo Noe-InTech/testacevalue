@@ -204,41 +204,57 @@ class FanDuelClient:
     def list_competition_tennis_events(self, competition_id: str) -> list[FanDuelEvent]:
         payload = self._get(
             "/api/competition-page",
-            {"page": "COMPETITION", "competitionId": str(competition_id)},
+            {
+                "page": "COMPETITION",
+                "competitionId": str(competition_id),
+                "eventTypeId": TENNIS_EVENT_TYPE_ID,
+            },
         )
         return self._events_from_payload(payload)
 
+    def _absorb_singles(self, merged: dict[str, FanDuelEvent], events: Iterable[FanDuelEvent]) -> None:
+        for event in events:
+            if event.is_doubles:
+                continue
+            merged[event.event_id] = event
+
+    def _absorb_competitions_from_payload(
+        self,
+        merged: dict[str, FanDuelEvent],
+        payload: dict[str, Any],
+    ) -> None:
+        self._absorb_singles(merged, self._events_from_payload(payload))
+        competitions = (payload.get("attachments") or {}).get("competitions") or {}
+        for comp_id in competitions:
+            try:
+                self._absorb_singles(merged, self.list_competition_tennis_events(str(comp_id)))
+            except RuntimeError:
+                continue
+
     def list_all_tennis_events(self) -> list[FanDuelEvent]:
-        """In-play + competitions actives + pages CUSTOM (ATP/WTA tour en cours)."""
+        """In-play + page SPORT (toutes competitions) + pages CUSTOM."""
         merged: dict[str, FanDuelEvent] = {}
 
-        def absorb(events: Iterable[FanDuelEvent]) -> None:
-            for event in events:
-                if event.is_doubles:
-                    continue
-                merged[event.event_id] = event
-
         try:
-            payload = self._get(
+            inplay_payload = self._get(
                 "/api/in-play",
                 {"eventTypeId": TENNIS_EVENT_TYPE_ID, "tab": "all"},
             )
-            absorb(self._events_from_payload(payload))
-            avb_card = (
-                ((payload.get("layout") or {}).get("cards") or {}).get("AVB_EVENT") or {}
+            self._absorb_competitions_from_payload(merged, inplay_payload)
+        except RuntimeError:
+            pass
+
+        try:
+            sport_payload = self._get(
+                "/api/content-managed-page",
+                {"page": "SPORT", "eventTypeId": TENNIS_EVENT_TYPE_ID},
             )
-            comp_ids = avb_card.get("competitions") or []
-            for comp_id in comp_ids:
-                try:
-                    absorb(self.list_competition_tennis_events(str(comp_id)))
-                except RuntimeError:
-                    continue
+            self._absorb_competitions_from_payload(merged, sport_payload)
         except RuntimeError:
             pass
 
         page_ids = self.discover_tennis_page_ids(DEFAULT_TENNIS_PAGE_CANDIDATES)
-        for event in self.list_tennis_events(page_ids):
-            absorb([event])
+        self._absorb_singles(merged, self.list_tennis_events(page_ids))
 
         return list(merged.values())
 

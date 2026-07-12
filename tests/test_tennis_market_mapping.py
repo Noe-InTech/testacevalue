@@ -6,6 +6,7 @@ from tennis_market_mapping import (
     fanduel_runner_label,
     map_coteur_to_fanduel,
     map_fanduel_market_to_compare_key,
+    players_match,
 )
 
 
@@ -64,6 +65,13 @@ class TennisMarketMappingTests(unittest.TestCase):
             fanduel_runner_label("set_handicap|1.5", "Sinner (-1.5)", "Sinner", "Djokovic"),
             "Sinner (-1.5)",
         )
+
+    def test_players_match_initials_and_compound_names(self) -> None:
+        self.assertTrue(players_match("A.Blinkova", "Alina Blinkova"))
+        self.assertTrue(players_match("A.Li", "Ann Li"))
+        self.assertTrue(players_match("P.CarrenoBusta", "Pablo Carreno Busta"))
+        self.assertTrue(players_match("Grammatikopou", "Valentini Grammatikopoulou"))
+        self.assertFalse(players_match("J.Sinner", "Carlos Alcaraz"))
 
 
 if __name__ == "__main__":
