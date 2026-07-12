@@ -21,11 +21,11 @@ from tennis_market_mapping import (
     fanduel_breaks_runner_outcome,
     format_numeric_line,
     map_fanduel_breaks_market_to_compare_key,
+    players_match,
 )
 
 from compare_tennis_aces_vs_fanduel import (
     BOOK_NORMALIZERS,
-    _find_fd_market_near_line,
     aces_outcome_label_fr,
     collect_fr_higher_rows,
     collect_value_rows,
@@ -33,8 +33,96 @@ from compare_tennis_aces_vs_fanduel import (
     enrich_comparable_row,
 )
 
-COMPARABLE_BREAK_PREFIXES = ("breaks_total|", "breaks_player|", "tie_break_match|")
-BREAK_FAMILIES = frozenset({"breaks_total", "breaks_player", "tie_break_match", "first_break"})
+COMPARABLE_BREAK_PREFIXES = (
+    "breaks_total|",
+    "breaks_player|",
+    "tie_break_match|",
+    "tie_break_set|",
+)
+COMPARABLE_BREAK_EXACT_KEYS = frozenset({"first_break"})
+BREAK_FAMILIES = frozenset(
+    {"breaks_total", "breaks_player", "tie_break_match", "tie_break_set", "first_break"}
+)
+
+
+def is_comparable_break_key(compare_key: str) -> bool:
+    if compare_key in COMPARABLE_BREAK_EXACT_KEYS:
+        return True
+    return compare_key.startswith(COMPARABLE_BREAK_PREFIXES)
+
+
+def _parse_break_line_key(compare_key: str) -> tuple[str, str, float | None]:
+    parts = compare_key.split("|")
+    family = parts[0] if parts else ""
+    if family == "breaks_total" and len(parts) >= 2:
+        try:
+            return family, "", float(parts[1])
+        except ValueError:
+            return family, "", None
+    if family == "breaks_player" and len(parts) >= 3:
+        try:
+            return family, parts[1], float(parts[2])
+        except ValueError:
+            return family, parts[1], None
+    if family == "tie_break_match" and len(parts) >= 2:
+        try:
+            return family, "", float(parts[1])
+        except ValueError:
+            return family, "", None
+    if family == "tie_break_set" and len(parts) >= 2:
+        return family, parts[1], None
+    return family, "", None
+
+
+def _break_player_token_match(token_a: str, token_b: str) -> bool:
+    if token_a == token_b:
+        return True
+    if players_match(token_a.replace("_", " "), token_b.replace("_", " ")):
+        return True
+    if len(token_a) >= 4 and len(token_b) >= 4 and (
+        token_a.startswith(token_b) or token_b.startswith(token_a)
+    ):
+        return True
+    return False
+
+
+def _find_break_market_near_line(
+    fr_compare_key: str,
+    fd_map: dict[str, dict[str, Any]],
+    *,
+    max_delta: float = 2.0,
+) -> tuple[str | None, dict[str, Any] | None, float | None]:
+    exact = fd_map.get(fr_compare_key)
+    if exact:
+        return fr_compare_key, exact, 0.0
+
+    family, token, line = _parse_break_line_key(fr_compare_key)
+    if line is None and family not in {"tie_break_set"}:
+        return None, None, None
+
+    best_key: str | None = None
+    best_market: dict[str, Any] | None = None
+    best_delta: float | None = None
+    for fd_key, fd_market in fd_map.items():
+        fd_family, fd_token, fd_line = _parse_break_line_key(fd_key)
+        if fd_family != family:
+            continue
+        if family == "tie_break_set":
+            if fd_token == token:
+                return fd_key, fd_market, 0.0
+            continue
+        if fd_line is None or line is None:
+            continue
+        if family == "breaks_player" and not _break_player_token_match(token, fd_token):
+            continue
+        delta = abs(fd_line - line)
+        if delta > max_delta:
+            continue
+        if best_delta is None or delta < best_delta:
+            best_key = fd_key
+            best_market = fd_market
+            best_delta = delta
+    return best_key, best_market, best_delta
 
 
 def _skip_fr_break_market_label(label_lower: str) -> bool:
@@ -62,6 +150,11 @@ def format_ligne_breaks_fr(row: dict[str, Any]) -> str:
     if family == "tie_break_match" and len(parts) >= 2:
         line = parts[1].replace(".", ",")
         return f"{issue} de {line} tie-break(s) — match"
+    if family == "tie_break_set" and len(parts) >= 2:
+        return f"{issue} — tie-break set {parts[1]}"
+    if family == "first_break":
+        player = str(row.get("outcome", "")).strip()
+        return f"Premier break — {player}" if player else "Premier break"
 
     marche = str(row.get("fr_market_label") or row.get("marche_fr", "")).strip()
     if marche and issue:
@@ -91,8 +184,6 @@ def build_best_fr_breaks_map(
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
             for item in normalizer(label, outcomes, home, away):
                 if item.market_family not in BREAK_FAMILIES:
-                    continue
-                if item.market_family == "first_break":
                     continue
                 if _skip_fr_break_market_label(label.lower()):
                     continue
@@ -156,7 +247,49 @@ def build_fanduel_breaks_normalized_map(event: dict[str, Any]) -> dict[str, dict
         if not label or not is_breaks_market(label):
             continue
         compare_key = map_fanduel_breaks_market_to_compare_key(market, home, away)
-        if not compare_key or compare_key == "first_break":
+        if not compare_key:
+            continue
+
+        if compare_key == "first_break":
+            outcomes: dict[str, dict[str, Any]] = {}
+            for runner in market.get("runners", []):
+                if runner.get("runnerStatus") not in (None, "ACTIVE"):
+                    continue
+                price_bundle = runner_fanduel_price_bundle(runner)
+                if price_bundle.get("decimal_fr") is None:
+                    continue
+                runner_name = str(runner.get("runnerName", "")).strip()
+                aligned = align_fr_outcome_to_fanduel(
+                    runner_name, compare_key, home, away
+                )
+                outcomes[aligned] = price_bundle
+            if outcomes:
+                variant_map[compare_key] = {
+                    "compare_key": compare_key,
+                    "market_label": label,
+                    "outcomes": outcomes,
+                    "fd_line_source": "player",
+                }
+            continue
+
+        if compare_key.startswith("tie_break_set|"):
+            outcomes = {}
+            for runner in market.get("runners", []):
+                if runner.get("runnerStatus") not in (None, "ACTIVE"):
+                    continue
+                price_bundle = runner_fanduel_price_bundle(runner)
+                if price_bundle.get("decimal_fr") is None:
+                    continue
+                runner_name = str(runner.get("runnerName", "")).strip()
+                aligned = fanduel_breaks_runner_outcome(market, runner_name, compare_key)
+                outcomes[aligned] = price_bundle
+            if outcomes:
+                variant_map[compare_key] = {
+                    "compare_key": compare_key,
+                    "market_label": label,
+                    "outcomes": outcomes,
+                    "fd_line_source": "yes_no",
+                }
             continue
 
         if compare_key.startswith(("breaks_total|", "breaks_player|", "tie_break_match|")):
@@ -220,9 +353,9 @@ def compare_normalized_breaks(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for compare_key, fr_market in fr_map.items():
-        if not compare_key.startswith(COMPARABLE_BREAK_PREFIXES):
+        if not is_comparable_break_key(compare_key):
             continue
-        fd_key, fd_market, line_delta = _find_fd_market_near_line(compare_key, fd_map)
+        fd_key, fd_market, line_delta = _find_break_market_near_line(compare_key, fd_map)
         if not fd_market or fd_key is None:
             continue
         for outcome, fr_payload in fr_market["outcomes"].items():
@@ -266,11 +399,11 @@ def collect_fr_only_breaks(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for compare_key, fr_market in fr_map.items():
-        if not compare_key.startswith(COMPARABLE_BREAK_PREFIXES):
+        if not is_comparable_break_key(compare_key):
             continue
         fd_market = fd_map.get(compare_key)
         if not fd_market:
-            _fd_key, fd_market, _delta = _find_fd_market_near_line(compare_key, fd_map)
+            _fd_key, fd_market, _delta = _find_break_market_near_line(compare_key, fd_map)
         for outcome, fr_payload in fr_market["outcomes"].items():
             if fd_market and outcome in fd_market.get("outcomes", {}):
                 continue
@@ -303,11 +436,11 @@ def collect_fd_only_breaks(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for compare_key, fd_market in fd_map.items():
-        if not compare_key.startswith(COMPARABLE_BREAK_PREFIXES):
+        if not is_comparable_break_key(compare_key):
             continue
         fr_market = fr_map.get(compare_key)
         if not fr_market:
-            _fr_key, fr_market, _delta = _find_fd_market_near_line(compare_key, fr_map)
+            _fr_key, fr_market, _delta = _find_break_market_near_line(compare_key, fr_map)
         for outcome, fd_bundle in fd_market.get("outcomes", {}).items():
             if fr_market and outcome in fr_market.get("outcomes", {}):
                 continue

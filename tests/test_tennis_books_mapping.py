@@ -136,6 +136,70 @@ class TennisBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(markets[0].compare_key, "first_break")
 
+    def test_normalize_winamax_tie_break_match(self) -> None:
+        markets = normalize_winamax_market(
+            "Nombre de tie-breaks (1.5)",
+            [("Plus de 1,5", 2.1), ("Moins de 1,5", 1.65)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "tie_break_match|1.5")
+
+    def test_normalize_winamax_tie_break_set(self) -> None:
+        markets = normalize_winamax_market(
+            "Tie-break (1er set)",
+            [("Oui", 1.9), ("Non", 1.85)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "tie_break_set|1")
+        self.assertEqual(set(item.label for item in markets[0].outcomes), {"Oui", "Non"})
+
+    def test_normalize_winamax_breaks_player(self) -> None:
+        markets = normalize_winamax_market(
+            "Nombre de breaks de J. Sinner (3.5)",
+            [("Plus de 3,5 breaks", 1.7), ("Moins de 3,5 breaks", 1.9)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "breaks_player|sinner|3.5")
+
+    def test_normalize_betclic_breaks_total(self) -> None:
+        markets = normalize_betclic_market(
+            "Nombre total de breaks",
+            [("+ de 5,5", 1.8), ("- de 5,5", 1.9)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "breaks_total|5.5")
+
+    def test_normalize_betclic_first_break(self) -> None:
+        markets = normalize_betclic_market(
+            "Premier joueur à réaliser un break",
+            [("Jannik Sinner", 1.4), ("Novak Djokovic", 2.8)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "first_break")
+
+    def test_normalize_betclic_tie_break_set(self) -> None:
+        markets = normalize_betclic_market(
+            "Tie-break - 1er Set",
+            [("Oui", 1.88), ("Non", 1.87)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "tie_break_set|1")
+
+    def test_normalize_unibet_tie_break_set(self) -> None:
+        markets = normalize_unibet_market(
+            "Tie-break - 1er Set",
+            [("Oui", 1.9), ("Non", 1.85)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "tie_break_set|1")
+
 
 if __name__ == "__main__":
     unittest.main()

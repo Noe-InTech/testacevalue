@@ -269,7 +269,7 @@ def normalize_unibet_market(
             markets.append(market)
         return markets
 
-    if "1er joueur" in lower and "break" in lower:
+    if ("1er joueur" in lower or "premier joueur" in lower or "premier break" in lower) and "break" in lower:
         outcome_map = {}
         for raw, odds in outcomes:
             if odds is None:
@@ -687,7 +687,7 @@ def normalize_betclic_market(
             markets.append(market)
         return markets
 
-    if ("1er joueur" in lower or "premier joueur" in lower) and "break" in lower:
+    if ("1er joueur" in lower or "premier joueur" in lower or "premier break" in lower) and "break" in lower:
         outcome_map = {}
         for raw, odds in outcomes:
             if odds is None:
@@ -911,7 +911,7 @@ def normalize_winamax_market(
             markets.append(market)
         return markets
 
-    if "premier joueur" in lower and "break" in lower:
+    if ("premier joueur" in lower or "premier break" in lower) and "break" in lower:
         outcome_map = {}
         for raw, odds in outcomes:
             if odds is None:
@@ -1004,6 +1004,31 @@ def normalize_winamax_market(
         if market:
             markets.append(market)
         return markets
+
+    if "tie-break" in lower or "tie break" in lower:
+        period = extract_set_period(raw_label)
+        set_hint = re.search(r"\b(1er|2e|2eme|3e)\s+set\b", lower)
+        if period.startswith("set") or set_hint:
+            outcome_map = {
+                normalize_ou_label(raw): float(odds)
+                for raw, odds in outcomes
+                if odds is not None
+            }
+            set_number = "1" if period == "set1" else period.replace("set", "") or "1"
+            if set_hint and not period.startswith("set"):
+                set_token = set_hint.group(1)
+                set_number = "1" if set_token == "1er" else set_token.replace("eme", "").replace("e", "")
+            market = build_market(
+                f"tie_break_set|{set_number}",
+                "tie_break_set",
+                raw_label,
+                outcome_map,
+                market_scope="set",
+                period=period or f"set{set_number}",
+            )
+            if market:
+                markets.append(market)
+            return markets
 
     if lower.startswith("nombre de jeux") and " de " not in lower.replace("nombre de jeux", "", 1):
         for line, outcome_map in group_over_under_outcomes(outcomes).items():

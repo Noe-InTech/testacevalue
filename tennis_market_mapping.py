@@ -405,8 +405,14 @@ def map_fanduel_breaks_market_to_compare_key(
         return f"breaks_player|{player_token}|{line}"
     if lower == "total breaks in the match":
         return "breaks_total_tiers"
-    if lower.startswith("service break number"):
+    if re.fullmatch(r"service break number 1", lower):
         return "first_break"
+    set_tie = re.match(r"^set (\d+) tie break$", lower)
+    if set_tie:
+        return f"tie_break_set|{set_tie.group(1)}"
+    set_tie_in = re.match(r"^tie break in set (\d+)$", lower)
+    if set_tie_in:
+        return f"tie_break_set|{set_tie_in.group(1)}"
     if lower.endswith(" breaks") and "total" not in lower and not lower.startswith("set "):
         player_name = name[: -len(" Breaks")].strip()
         if players_match(player_name, home_player):
@@ -433,6 +439,11 @@ def fanduel_breaks_runner_outcome(
             return "Over"
         if lower.startswith("under"):
             return "Under"
+    if compare_key and compare_key.startswith("tie_break_set|"):
+        if lower == "yes":
+            return "Oui"
+        if lower == "no":
+            return "Non"
     if compare_key == "first_break":
         return name
     tier = re.match(r"(\d+)\+", lower)
@@ -506,5 +517,7 @@ def align_fr_outcome_to_fanduel(
         if lower.startswith("moins"):
             return "Under"
     if family == "both_win_set":
+        return {"Oui": "Oui", "Non": "Non", "Yes": "Oui", "No": "Non"}.get(outcome, outcome)
+    if family == "tie_break_set":
         return {"Oui": "Oui", "Non": "Non", "Yes": "Oui", "No": "Non"}.get(outcome, outcome)
     return outcome

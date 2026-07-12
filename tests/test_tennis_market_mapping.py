@@ -142,6 +142,21 @@ class TennisMarketMappingTests(unittest.TestCase):
             ),
             "first_break",
         )
+        self.assertIsNone(
+            map_fanduel_breaks_market_to_compare_key(
+                {"marketName": "Service Break Number 2", "runners": []},
+                home,
+                away,
+            )
+        )
+        self.assertEqual(
+            map_fanduel_breaks_market_to_compare_key(
+                {"marketName": "Set 1 Tie Break", "runners": []},
+                home,
+                away,
+            ),
+            "tie_break_set|1",
+        )
 
     def test_fanduel_breaks_runner_outcome(self) -> None:
         market = {"marketName": "Total Breaks 5.5", "runners": []}

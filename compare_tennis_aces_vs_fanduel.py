@@ -94,6 +94,10 @@ def opposite_ou_outcome(outcome: str) -> str | None:
         return "Under"
     if outcome == "Under":
         return "Over"
+    if outcome == "Oui":
+        return "Non"
+    if outcome == "Non":
+        return "Oui"
     return None
 
 
@@ -148,6 +152,9 @@ def compute_paired_value_fields(
     over_bundle = fd_market["outcomes"].get("Over")
     under_bundle = fd_market["outcomes"].get("Under")
     if not over_bundle or not under_bundle:
+        over_bundle = over_bundle or fd_market["outcomes"].get("Oui")
+        under_bundle = under_bundle or fd_market["outcomes"].get("Non")
+    if not over_bundle or not under_bundle:
         return fields
     if over_bundle.get("decimal_fr") is None or under_bundle.get("decimal_fr") is None:
         return fields
@@ -157,7 +164,14 @@ def compute_paired_value_fields(
         "Under": float(under_bundle["decimal_fr"]),
     }
     fair = remove_vig_multiplicative(odds_pair)
-    fair_prob = fair.get(outcome, 0.0)
+    fair_key = outcome
+    if outcome in {"Oui", "Non"}:
+        fair_key = "Over" if outcome == "Oui" else "Under"
+    elif outcome == "Over":
+        fair_key = "Over"
+    elif outcome == "Under":
+        fair_key = "Under"
+    fair_prob = fair.get(fair_key, 0.0)
     fields["prob_fair_fanduel"] = f"{fair_prob * 100:.1f}%".replace(".", ",")
     fields["paire_fd_complete"] = True
     fr_odds = float(fr_payload["odds"])
