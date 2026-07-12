@@ -54,32 +54,44 @@ export function Dashboard() {
   }, [refresh]);
 
   useEffect(() => {
-    if (!busy) {
+    if (!busy && status?.status !== "running") {
       return;
     }
     const timer = window.setInterval(() => {
       refresh().catch(() => undefined);
     }, 500);
     return () => window.clearInterval(timer);
-  }, [busy, refresh]);
+  }, [busy, status?.status, refresh]);
 
   const waitForCompletion = useCallback(
     async () => {
       const deadline = Date.now() + 5 * 60 * 1000;
-      let lastCount = 0;
-      let stalePolls = 0;
+      let lastRows = 0;
+      let lastMatches = 0;
 
       while (Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const data = await refresh();
         const currentStatus = data.status?.status;
-        const rowCount = data.payload?.comparable_count ?? 0;
+        const comparableCount = data.payload?.comparable_count ?? 0;
+        const frOnlyCount = data.payload?.fr_only_count ?? 0;
+        const totalRows = comparableCount + frOnlyCount;
+        const matchesDone =
+          data.status?.matches_done ?? data.payload?.matches_done ?? 0;
+        const anchorsTotal =
+          data.status?.anchors_total ?? data.payload?.anchors_total ?? 0;
         const isFinalPayload = data.payload?.partial === false;
 
-        if (rowCount > lastCount) {
-          lastCount = rowCount;
-          stalePolls = 0;
-          setInfo(`${rowCount} ligne(s) affichee(s), comparaison en cours...`);
+        if (matchesDone > lastMatches || totalRows > lastRows) {
+          lastMatches = matchesDone;
+          lastRows = totalRows;
+          if (anchorsTotal > 0) {
+            setInfo(
+              `${matchesDone}/${anchorsTotal} match(s) — ${totalRows} ligne(s) affichee(s)...`,
+            );
+          } else {
+            setInfo(`${totalRows} ligne(s) affichee(s), comparaison en cours...`);
+          }
         } else if (currentStatus === "running") {
           setInfo(data.status?.message || "Comparaison en cours...");
         }
@@ -91,8 +103,10 @@ export function Dashboard() {
         }
 
         if (currentStatus === "error") {
-          if (rowCount > 0) {
-            setInfo(`${rowCount} ligne(s) affichees (comparaison partielle).`);
+          if (totalRows > 0 || matchesDone > 0) {
+            setInfo(
+              `${matchesDone}/${anchorsTotal || "?"} match(s), ${totalRows} ligne(s) (partiel).`,
+            );
             return;
           }
           throw new Error(data.status?.message || "La comparaison a echoue.");
@@ -101,20 +115,14 @@ export function Dashboard() {
         if (currentStatus === "success" || isFinalPayload) {
           return;
         }
-
-        if (rowCount > 0) {
-          stalePolls += 1;
-          if (stalePolls >= 20 && currentStatus !== "running") {
-            setInfo(`${rowCount} ligne(s) affichees.`);
-            return;
-          }
-        }
       }
 
       const finalData = await refresh();
-      const finalCount = finalData.payload?.comparable_count ?? 0;
-      if (finalCount > 0) {
-        setInfo(`${finalCount} ligne(s) affichees (delai max atteint).`);
+      const finalRows =
+        (finalData.payload?.comparable_count ?? 0) +
+        (finalData.payload?.fr_only_count ?? 0);
+      if (finalRows > 0 || (finalData.status?.matches_done ?? 0) > 0) {
+        setInfo(`${finalRows} ligne(s) affichees (delai max atteint).`);
         return;
       }
       throw new Error("Delai depasse (~5 min). Recharge la page.");
@@ -170,6 +178,7 @@ export function Dashboard() {
   );
   const valueRows = useMemo(() => payload?.value_comparables ?? [], [payload]);
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
+  const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
 
   return (
     <main className="page">
@@ -225,6 +234,17 @@ export function Dashboard() {
           </strong>
         </div>
         <div>
+          <span className="meta-label" title="Matchs deja compares sur le total decouvert">
+            Matchs
+          </span>
+          <strong>
+            {payload?.matches_done ?? status?.matches_done ?? 0}
+            {payload?.anchors_total || status?.anchors_total
+              ? ` / ${payload?.anchors_total ?? status?.anchors_total}`
+              : ""}
+          </strong>
+        </div>
+        <div>
           <span className="meta-label" title="Nombre de lignes aces alignees entre un book FR et FanDuel">
             Lignes comparees
           </span>
@@ -255,6 +275,37 @@ export function Dashboard() {
           <strong>{payload?.fr_only_count ?? 0}</strong>
         </div>
       </section>
+
+      {matchProgress.length > 0 ? (
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Avancement par match</h2>
+            <span className="badge">{matchProgress.length}</span>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th>Comparees</th>
+                  <th>FR seul</th>
+                  <th>FanDuel</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matchProgress.map((row) => (
+                  <tr key={row.match}>
+                    <td data-label="Match">{row.match}</td>
+                    <td data-label="Comparees">{row.comparable_count}</td>
+                    <td data-label="FR seul">{row.fr_only_count}</td>
+                    <td data-label="FanDuel">{row.fanduel_found ? "oui" : "non"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       <ResultsTable
         title="Values — EV positif (paire Over/Under FanDuel requise)"

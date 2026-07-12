@@ -42,6 +42,86 @@ def is_aces_market(label: str) -> bool:
     return ACE_MARKET_RE.search(lower) is not None
 
 
+def players_from_betclic_slug(slug: str) -> tuple[str, str] | None:
+    body = slug.rsplit("-m", 1)[0]
+    if not re.search(r"-vs-", body, flags=re.I):
+        return None
+    left, right = re.split(r"-vs-", body, maxsplit=1, flags=re.I)
+
+    def humanize(part: str) -> str:
+        tokens = [token for token in part.split("-") if token]
+        if not tokens:
+            return part
+        if len(tokens) >= 2 and all(len(token) == 1 for token in tokens[:-1]):
+            initials = "".join(token.upper() for token in tokens[:-1])
+            return f"{initials}.{tokens[-1].title()}"
+        if len(tokens) == 2 and len(tokens[0]) == 1:
+            return f"{tokens[0].upper()}.{tokens[1].title()}"
+        return " ".join(token.title() for token in tokens)
+
+    home = humanize(left)
+    away = humanize(right)
+    if not home or not away:
+        return None
+    return home, away
+
+
+def discover_anchors_from_betclic_links(links: list[Any]) -> list[dict[str, Any]]:
+    anchors: list[dict[str, Any]] = []
+    for link in links:
+        players = players_from_betclic_slug(link.slug)
+        if not players:
+            continue
+        home, away = players
+        anchors.append(
+            {
+                "home_player": home,
+                "away_player": away,
+                "name": f"{home} - {away}",
+                "sources": {"betclic"},
+                "urls": {"betclic": link.url},
+                "competition": "",
+            }
+        )
+    return anchors
+
+
+def merge_anchor_lists(*anchor_lists: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+
+    def find_anchor(home: str, away: str) -> dict[str, Any] | None:
+        for item in merged:
+            if players_match(home, item["home_player"]) and players_match(away, item["away_player"]):
+                return item
+            if players_match(home, item["away_player"]) and players_match(away, item["home_player"]):
+                return item
+        return None
+
+    for anchors in anchor_lists:
+        for anchor in anchors:
+            home = anchor["home_player"]
+            away = anchor["away_player"]
+            item = find_anchor(home, away)
+            if item is None:
+                merged.append(
+                    {
+                        "home_player": home,
+                        "away_player": away,
+                        "name": anchor.get("name") or f"{home} - {away}",
+                        "sources": set(anchor.get("sources") or []),
+                        "urls": dict(anchor.get("urls") or {}),
+                        "competition": anchor.get("competition", ""),
+                    }
+                )
+                continue
+            item["sources"].update(anchor.get("sources") or [])
+            item["urls"].update(anchor.get("urls") or {})
+            if anchor.get("competition") and not item.get("competition"):
+                item["competition"] = anchor["competition"]
+
+    return sorted(merged, key=lambda item: item["name"])
+
+
 def discover_anchor_events(
     unibet_events: list[dict[str, Any]],
     betclic_events: list[dict[str, Any]],

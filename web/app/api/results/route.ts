@@ -19,6 +19,8 @@ async function readLocalJson<T>(filename: string): Promise<T | null> {
 const idlePayload: AcesPayload = {
   source: "tennis_aces_comparable",
   generated_at: "",
+  anchors_total: 0,
+  matches_done: 0,
   comparable_count: 0,
   fr_higher_count: 0,
   value_count: 0,
@@ -27,6 +29,7 @@ const idlePayload: AcesPayload = {
   fr_higher_comparables: [],
   value_comparables: [],
   fr_only_comparables: [],
+  match_progress: [],
 };
 
 const runnerUnreachableStatus: RunStatus = {

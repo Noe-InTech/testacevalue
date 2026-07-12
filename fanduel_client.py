@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterable
 
 import requests
 
@@ -43,6 +43,7 @@ EVENT_TABS = (
     "same-game-parlay-",
 )
 
+TENNIS_EVENT_TYPE_ID = "2"
 ACES_EVENT_TABS = ("popular", "all-markets", "game-lines")
 
 
@@ -152,16 +153,24 @@ class FanDuelClient:
             raise RuntimeError(f"FanDuel API {response.status_code}: {response.text[:200]}")
         return response.json()
 
-    def list_page_events(self, custom_page_id: str) -> list[FanDuelEvent]:
-        payload = self._get(
-            "/api/content-managed-page",
-            {"page": "CUSTOM", "customPageId": custom_page_id},
-        )
+    def _events_from_payload(self, payload: dict[str, Any]) -> list[FanDuelEvent]:
         events = (payload.get("attachments") or {}).get("events") or {}
         results: list[FanDuelEvent] = []
         for event_id, event in events.items():
             name = str(event.get("name", "")).strip()
-            if not name or "Wimbledon 2026" in name:
+            if not name:
+                continue
+            if any(
+                marker in name
+                for marker in (
+                    " US Open ",
+                    "Wimbledon 2026",
+                    "French Open 202",
+                    "Australian Open 202",
+                    " Outright",
+                    " Winner",
+                )
+            ):
                 continue
             home, away = split_event_players(name)
             if not away:
@@ -177,6 +186,61 @@ class FanDuelClient:
                 )
             )
         return results
+
+    def list_page_events(self, custom_page_id: str) -> list[FanDuelEvent]:
+        payload = self._get(
+            "/api/content-managed-page",
+            {"page": "CUSTOM", "customPageId": custom_page_id},
+        )
+        return self._events_from_payload(payload)
+
+    def list_inplay_tennis_events(self, *, tab: str = "all") -> list[FanDuelEvent]:
+        payload = self._get(
+            "/api/in-play",
+            {"eventTypeId": TENNIS_EVENT_TYPE_ID, "tab": tab},
+        )
+        return self._events_from_payload(payload)
+
+    def list_competition_tennis_events(self, competition_id: str) -> list[FanDuelEvent]:
+        payload = self._get(
+            "/api/competition-page",
+            {"page": "COMPETITION", "competitionId": str(competition_id)},
+        )
+        return self._events_from_payload(payload)
+
+    def list_all_tennis_events(self) -> list[FanDuelEvent]:
+        """In-play + competitions actives + pages CUSTOM (ATP/WTA tour en cours)."""
+        merged: dict[str, FanDuelEvent] = {}
+
+        def absorb(events: Iterable[FanDuelEvent]) -> None:
+            for event in events:
+                if event.is_doubles:
+                    continue
+                merged[event.event_id] = event
+
+        try:
+            payload = self._get(
+                "/api/in-play",
+                {"eventTypeId": TENNIS_EVENT_TYPE_ID, "tab": "all"},
+            )
+            absorb(self._events_from_payload(payload))
+            avb_card = (
+                ((payload.get("layout") or {}).get("cards") or {}).get("AVB_EVENT") or {}
+            )
+            comp_ids = avb_card.get("competitions") or []
+            for comp_id in comp_ids:
+                try:
+                    absorb(self.list_competition_tennis_events(str(comp_id)))
+                except RuntimeError:
+                    continue
+        except RuntimeError:
+            pass
+
+        page_ids = self.discover_tennis_page_ids(DEFAULT_TENNIS_PAGE_CANDIDATES)
+        for event in self.list_tennis_events(page_ids):
+            absorb([event])
+
+        return list(merged.values())
 
     def page_has_events(self, custom_page_id: str) -> bool:
         try:

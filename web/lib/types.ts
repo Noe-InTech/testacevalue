@@ -21,10 +21,19 @@ export interface ComparableRow {
   meilleur_cote: string;
 }
 
+export interface MatchProgressRow {
+  match: string;
+  comparable_count: number;
+  fr_only_count: number;
+  fanduel_found: boolean;
+}
+
 export interface AcesPayload {
   source: string;
   generated_at: string;
   partial?: boolean;
+  anchors_total?: number;
+  matches_done?: number;
   comparable_count: number;
   fr_higher_count: number;
   value_count?: number;
@@ -33,6 +42,7 @@ export interface AcesPayload {
   fr_higher_comparables: ComparableRow[];
   value_comparables?: ComparableRow[];
   fr_only_comparables?: ComparableRow[];
+  match_progress?: MatchProgressRow[];
 }
 
 export interface RunStatus {
@@ -41,9 +51,12 @@ export interface RunStatus {
   match_filter?: string;
   updated_at?: string;
   generated_at?: string;
+  anchors_total?: number;
+  matches_done?: number;
   comparable_count?: number;
   fr_higher_count?: number;
   value_count?: number;
+  fr_only_count?: number;
 }
 
 function ligneAcesLabel(row: ComparableRow): string {

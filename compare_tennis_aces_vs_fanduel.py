@@ -25,8 +25,10 @@ from fanduel_client import (
 from scan_tennis_aces import (
     BOOK_LABELS,
     discover_anchor_events,
+    discover_anchors_from_betclic_links,
     find_event_by_players,
     is_aces_market,
+    merge_anchor_lists,
     pick_best_quote,
 )
 from tennis_books_mapping import (
@@ -313,10 +315,7 @@ def _fetch_betclic_aces_event(betclic: Any, url: str) -> dict[str, Any]:
 
 
 def _discover_fanduel_singles(fanduel: FanDuelClient) -> list[Any]:
-    page_ids = fanduel.discover_tennis_page_ids(DEFAULT_TENNIS_PAGE_CANDIDATES)
-    if not page_ids:
-        page_ids = ("tennis",)
-    return [event for event in fanduel.list_tennis_events(page_ids) if not event.is_doubles]
+    return fanduel.list_all_tennis_events()
 
 
 def fetch_live_aces_book_data(
@@ -727,15 +726,37 @@ def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("best_side") == "fr"]
 
 
-def build_results_payload(results: list[dict[str, Any]], *, partial: bool) -> dict[str, Any]:
+def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        rows.append(
+            {
+                "match": result.get("match", ""),
+                "comparable_count": int(result.get("comparable_ace_count", 0)),
+                "fr_only_count": int(result.get("fr_only_ace_count", 0)),
+                "fanduel_found": bool(result.get("fanduel_event_id")),
+            }
+        )
+    return rows
+
+
+def build_results_payload(
+    results: list[dict[str, Any]],
+    *,
+    partial: bool,
+    anchors_total: int | None = None,
+) -> dict[str, Any]:
     comparable_rows = collect_comparable_rows(results)
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
     value_rows = collect_value_rows(comparable_rows, min_ev_percent=0.0)
     fr_only_rows = collect_fr_only_rows(results)
+    match_progress = build_match_progress(results)
     return {
         "source": "tennis_aces_comparable",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "partial": partial,
+        "anchors_total": anchors_total if anchors_total is not None else len(match_progress),
+        "matches_done": len(match_progress),
         "comparable_count": len(comparable_rows),
         "fr_higher_count": len(fr_higher_rows),
         "value_count": len(value_rows),
@@ -744,6 +765,7 @@ def build_results_payload(results: list[dict[str, Any]], *, partial: bool) -> di
         "fr_higher_comparables": fr_higher_rows,
         "value_comparables": value_rows,
         "fr_only_comparables": fr_only_rows,
+        "match_progress": match_progress,
     }
 
 
@@ -752,13 +774,18 @@ def write_progress_json(
     results: list[dict[str, Any]],
     *,
     partial: bool,
+    anchors_total: int | None = None,
 ) -> None:
     if path is None:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     tmp_path.write_text(
-        json.dumps(build_results_payload(results, partial=partial), ensure_ascii=False, indent=2),
+        json.dumps(
+            build_results_payload(results, partial=partial, anchors_total=anchors_total),
+            ensure_ascii=False,
+            indent=2,
+        ),
         encoding="utf-8",
     )
     tmp_path.replace(path)
@@ -826,7 +853,10 @@ def fetch_live_listings(
         winamax_links = _safe_future_result(fut_winamax_links, "Winamax", [])
         fanduel_event_list = _safe_future_result(fut_fanduel_list, "FanDuel", [])
 
-    anchors = discover_anchor_events(unibet_meta, [], winamax_links)
+    anchors = merge_anchor_lists(
+        discover_anchor_events(unibet_meta, [], winamax_links),
+        discover_anchors_from_betclic_links(betclic_links),
+    )
     anchors = _merge_fanduel_anchors(anchors, fanduel_event_list)
     if match_filter:
         anchors = [anchor for anchor in anchors if anchor_matches_filter(anchor, match_filter)]
@@ -960,7 +990,7 @@ def _compare_anchors_parallel(
     if not anchors:
         return results
 
-    with ThreadPoolExecutor(max_workers=min(4, len(anchors))) as pool:
+    with ThreadPoolExecutor(max_workers=min(6, len(anchors))) as pool:
         futures = {
             pool.submit(
                 _compare_anchor_live,
@@ -1004,6 +1034,7 @@ def write_run_status_file(
     *,
     match_filter: str = "",
     results: list[dict[str, Any]] | None = None,
+    anchors_total: int | None = None,
 ) -> None:
     if path is None:
         return
@@ -1013,11 +1044,15 @@ def write_run_status_file(
         "match_filter": match_filter,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
+    if anchors_total is not None:
+        payload["anchors_total"] = anchors_total
     if results is not None:
         rows = collect_comparable_rows(results)
         payload["comparable_count"] = len(rows)
         payload["fr_higher_count"] = len(collect_fr_higher_rows(rows))
         payload["value_count"] = len(collect_value_rows(rows))
+        payload["matches_done"] = len(results)
+        payload["fr_only_count"] = sum(int(item.get("fr_only_ace_count", 0)) for item in results)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -1272,14 +1307,22 @@ def run_live_compare(
     progress_json: Path | None = None,
     status_json: Path | None = None,
 ) -> Path:
+    anchors_total = 0
+
     def on_progress(results: list[dict[str, Any]], message: str) -> None:
-        write_progress_json(progress_json, results, partial=True)
+        write_progress_json(
+            progress_json,
+            results,
+            partial=True,
+            anchors_total=anchors_total,
+        )
         write_run_status_file(
             status_json,
             "running",
             message,
             match_filter=match_filter,
             results=results,
+            anchors_total=anchors_total,
         )
 
     write_run_status_file(
@@ -1297,12 +1340,15 @@ def run_live_compare(
         match_filter=match_filter,
         on_status=on_listing_status,
     )
+    anchors_total = len(anchors)
     write_run_status_file(
         status_json,
         "running",
-        f"{len(anchors)} match(s) — 1er resultat dans ~10 s...",
+        f"{anchors_total} match(s) — resultats au fil de l'eau...",
         match_filter=match_filter,
+        anchors_total=anchors_total,
     )
+    write_progress_json(progress_json, [], partial=True, anchors_total=anchors_total)
     results = _compare_anchors_parallel(
         anchors,
         betclic_links=betclic_links,
@@ -1312,13 +1358,14 @@ def run_live_compare(
         on_progress=on_progress,
     )
     csv_path = _export_results(results, output)
-    write_progress_json(progress_json, results, partial=False)
+    write_progress_json(progress_json, results, partial=False, anchors_total=anchors_total)
     write_run_status_file(
         status_json,
         "success",
-        "Comparaison live terminee.",
+        f"Comparaison terminee — {len(results)}/{anchors_total} match(s).",
         match_filter=match_filter,
         results=results,
+        anchors_total=anchors_total,
     )
     return csv_path
 

@@ -302,6 +302,37 @@ class UnibetClient:
 
         return events
 
+    def list_tennis_competition_paths(self, path: str = "/paris-tennis") -> list[str]:
+        try:
+            html = self.get_tennis_listing_html(path)
+        except RuntimeError:
+            return []
+        paths = {
+            match.group(1).rstrip("/")
+            for match in re.finditer(
+                r'href="(/paris-tennis/(?:atp|wta)/[^"/?#]+)"',
+                html,
+                flags=re.I,
+            )
+        }
+        return sorted(paths)
+
+    def _ingest_listing_path(
+        self,
+        listing_path: str,
+        ingest: Any,
+    ) -> None:
+        try:
+            for item in self.list_tennis_events_from_json_ld(listing_path):
+                ingest(item)
+        except RuntimeError:
+            pass
+        try:
+            for item in self.list_tennis_events_from_html_links(listing_path):
+                ingest(item)
+        except RuntimeError:
+            pass
+
     def list_singles_tennis_events(self, path: str = "/paris-tennis") -> list[dict[str, Any]]:
         events_by_key: dict[str, dict[str, Any]] = {}
 
@@ -321,19 +352,9 @@ class UnibetClient:
             if existing is None or self._event_url_priority(url) > self._event_url_priority(existing["url"]):
                 events_by_key[key] = item
 
-        for item in self.list_tennis_events_from_json_ld(path):
-            ingest(item)
-
-        competition_paths = (
-            "/paris-tennis/atp/wimbledon-h",
-            "/paris-tennis/wta/wimbledon-f",
-            "/paris-tennis/wta/wimbledon-f/",
-        )
-        for competition_path in competition_paths:
-            for item in self.list_tennis_events_from_json_ld(competition_path):
-                ingest(item)
-            for item in self.list_tennis_events_from_html_links(competition_path):
-                ingest(item)
+        self._ingest_listing_path(path, ingest)
+        for competition_path in self.list_tennis_competition_paths(path):
+            self._ingest_listing_path(competition_path, ingest)
 
         return sorted(events_by_key.values(), key=lambda event: event.get("start_date", ""))
 
