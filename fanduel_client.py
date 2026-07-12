@@ -44,7 +44,7 @@ EVENT_TABS = (
 )
 
 TENNIS_EVENT_TYPE_ID = "2"
-ACES_EVENT_TABS = ("popular", "all-markets", "game-lines")
+ACES_EVENT_TABS = ("popular", "all-markets", "game-lines", "same-game-parlay-")
 
 
 @dataclass(frozen=True)

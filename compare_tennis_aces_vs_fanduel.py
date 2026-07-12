@@ -40,6 +40,7 @@ from tennis_books_mapping import (
 from tennis_market_mapping import (
     align_fr_outcome_to_fanduel,
     fanduel_aces_runner_outcome,
+    format_numeric_line,
     map_fanduel_aces_market_to_compare_key,
     players_match,
 )
@@ -132,6 +133,9 @@ def compute_paired_value_fields(
             fields["cote_fr_fanduel_contraire"] = format_french_decimal(float(opp_decimal))
 
     if not fd_side or not fd_opposite:
+        return fields
+
+    if fd_market.get("fd_line_source") == "tier":
         return fields
 
     over_bundle = fd_market["outcomes"].get("Over")
@@ -499,6 +503,15 @@ def build_best_fr_normalized_map(
             for item in normalizer(label, outcomes, home, away):
                 if item.market_family not in ACE_FAMILIES:
                     continue
+                label_lower = label.lower()
+                if any(token in label_lower for token in ("1er set", "2e set", "set ", " jeu", "live")):
+                    continue
+                if item.compare_key.startswith("aces_total|"):
+                    try:
+                        if float(item.compare_key.split("|", 1)[1]) < 8.0:
+                            continue
+                    except ValueError:
+                        pass
                 payload = normalized_market_to_dict(item, home, away)
                 for outcome, odds in payload["outcomes"].items():
                     aligned = align_fr_outcome_to_fanduel(
@@ -527,6 +540,24 @@ def build_best_fr_normalized_map(
     return best
 
 
+def _tier_runner_to_over_line(runner_name: str) -> str | None:
+    """FanDuel '13+' equivaut a Over 12.5 (seuil FR aligne)."""
+    match = re.match(r"(\d+)\+", runner_name.strip().lower())
+    if not match:
+        return None
+    tier = int(match.group(1))
+    return format_numeric_line(tier - 0.5)
+
+
+def _tier_compare_key_to_ou_key(compare_key: str, line: str) -> str | None:
+    if compare_key == "aces_total_tiers":
+        return f"aces_total|{line}"
+    if compare_key.startswith("aces_player_tiers|"):
+        token = compare_key.split("|", 1)[1]
+        return f"aces_player|{token}|{line}"
+    return None
+
+
 def build_fanduel_normalized_map(event: dict[str, Any]) -> dict[str, dict[str, Any]]:
     home = event.get("home_player", "")
     away = event.get("away_player", "")
@@ -534,28 +565,129 @@ def build_fanduel_normalized_map(event: dict[str, Any]) -> dict[str, dict[str, A
 
     for market in event.get("markets", []):
         label = str(market.get("marketName", "")).strip()
-        if not is_aces_market(label):
+        if not label or not is_aces_market(label):
             continue
         compare_key = map_fanduel_aces_market_to_compare_key(market, home, away)
-        if not compare_key or not compare_key.startswith(("aces_total|", "aces_player|")):
+        if not compare_key:
             continue
-        outcomes: dict[str, dict[str, Any]] = {}
+
+        if not compare_key.startswith(("aces_total|", "aces_player|")):
+            if compare_key != "aces_total_tiers" and not compare_key.startswith("aces_player_tiers|"):
+                continue
+
+        if compare_key.startswith(("aces_total|", "aces_player|")):
+            outcomes: dict[str, dict[str, Any]] = {}
+            for runner in market.get("runners", []):
+                if runner.get("runnerStatus") not in (None, "ACTIVE"):
+                    continue
+                price_bundle = runner_fanduel_price_bundle(runner)
+                if price_bundle.get("decimal_fr") is None:
+                    continue
+                runner_name = str(runner.get("runnerName", "")).strip()
+                aligned = fanduel_aces_runner_outcome(market, runner_name, compare_key)
+                outcomes[aligned] = price_bundle
+            if outcomes:
+                variant_map[compare_key] = {
+                    "compare_key": compare_key,
+                    "market_label": label,
+                    "outcomes": outcomes,
+                    "fd_line_source": "ou",
+                }
+            continue
+
         for runner in market.get("runners", []):
             if runner.get("runnerStatus") not in (None, "ACTIVE"):
+                continue
+            runner_name = str(runner.get("runnerName", "")).strip()
+            line = _tier_runner_to_over_line(runner_name)
+            if line is None:
+                continue
+            ou_key = _tier_compare_key_to_ou_key(compare_key, line)
+            if not ou_key:
                 continue
             price_bundle = runner_fanduel_price_bundle(runner)
             if price_bundle.get("decimal_fr") is None:
                 continue
-            runner_name = str(runner.get("runnerName", "")).strip()
-            aligned = fanduel_aces_runner_outcome(market, runner_name, compare_key)
-            outcomes[aligned] = price_bundle
-        if outcomes:
-            variant_map[compare_key] = {
-                "compare_key": compare_key,
-                "market_label": label,
-                "outcomes": outcomes,
+            tier_label = f"{runner_name} (tier FD)"
+            slot = variant_map.setdefault(
+                ou_key,
+                {
+                    "compare_key": ou_key,
+                    "market_label": label,
+                    "outcomes": {},
+                    "fd_line_source": "tier",
+                },
+            )
+            current = slot["outcomes"].get("Over")
+            bundle = {
+                **price_bundle,
+                "fd_tier_runner": runner_name,
+                "fanduel_market_label_tier": tier_label,
             }
+            if current is None or float(bundle["decimal_fr"]) > float(current["decimal_fr"]):
+                slot["outcomes"]["Over"] = bundle
+
     return variant_map
+
+
+def _parse_aces_line_key(compare_key: str) -> tuple[str, str, float | None]:
+    parts = compare_key.split("|")
+    family = parts[0] if parts else ""
+    if family == "aces_total" and len(parts) >= 2:
+        try:
+            return family, "", float(parts[1])
+        except ValueError:
+            return family, "", None
+    if family == "aces_player" and len(parts) >= 3:
+        try:
+            return family, parts[1], float(parts[2])
+        except ValueError:
+            return family, parts[1], None
+    return family, "", None
+
+
+def _find_fd_market_near_line(
+    fr_compare_key: str,
+    fd_map: dict[str, dict[str, Any]],
+    *,
+    max_delta: float = 1.0,
+) -> tuple[str | None, dict[str, Any] | None, float | None]:
+    exact = fd_map.get(fr_compare_key)
+    if exact:
+        return fr_compare_key, exact, 0.0
+
+    family, token, line = _parse_aces_line_key(fr_compare_key)
+    if line is None:
+        return None, None, None
+
+    best_key: str | None = None
+    best_market: dict[str, Any] | None = None
+    best_delta: float | None = None
+    for fd_key, fd_market in fd_map.items():
+        fd_family, fd_token, fd_line = _parse_aces_line_key(fd_key)
+        if fd_family != family or fd_line is None:
+            continue
+        if family == "aces_player" and token != fd_token:
+            continue
+        delta = abs(fd_line - line)
+        if delta > max_delta:
+            continue
+        if best_delta is None or delta < best_delta:
+            best_key = fd_key
+            best_market = fd_market
+            best_delta = delta
+    return best_key, best_market, best_delta
+
+
+def _fanduel_display_label(fd_market: dict[str, Any], outcome: str) -> str:
+    base = str(fd_market.get("market_label", ""))
+    bundle = fd_market.get("outcomes", {}).get(outcome, {})
+    tier_runner = bundle.get("fd_tier_runner")
+    if tier_runner:
+        return f"{base} — {tier_runner} (tier)"
+    if fd_market.get("fd_line_source") == "ou":
+        return base
+    return base
 
 
 def compare_normalized_aces(
@@ -564,8 +696,10 @@ def compare_normalized_aces(
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for compare_key, fr_market in fr_map.items():
-        fd_market = fd_map.get(compare_key)
-        if not fd_market:
+        if not compare_key.startswith(COMPARABLE_ACE_PREFIXES):
+            continue
+        fd_key, fd_market, line_delta = _find_fd_market_near_line(compare_key, fd_map)
+        if not fd_market or fd_key is None:
             continue
         for outcome, fr_payload in fr_market["outcomes"].items():
             fd_bundle = fd_market["outcomes"].get(outcome)
@@ -579,7 +713,9 @@ def compare_normalized_aces(
                         "market_family": fr_market["market_family"],
                         "outcome": outcome,
                         "fr_market_label": fr_market["market_label_raw"],
-                        "fanduel_market_label": fd_market["market_label"],
+                        "fanduel_market_label": _fanduel_display_label(fd_market, outcome),
+                        "fanduel_compare_key": fd_key,
+                        "line_delta": line_delta,
                         "best_fr_odds": fr_odds,
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
@@ -607,6 +743,8 @@ def collect_fr_only_aces(
         if not compare_key.startswith(COMPARABLE_ACE_PREFIXES):
             continue
         fd_market = fd_map.get(compare_key)
+        if not fd_market:
+            _fd_key, fd_market, _delta = _find_fd_market_near_line(compare_key, fd_map)
         for outcome, fr_payload in fr_market["outcomes"].items():
             if fd_market and outcome in fd_market.get("outcomes", {}):
                 continue
