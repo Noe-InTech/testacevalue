@@ -29,6 +29,7 @@ class WinamaxMatchLink:
     away_player: str
     start_date: str
     competition: str
+    status: str = ""
 
 
 @dataclass(frozen=True)
@@ -164,6 +165,7 @@ class WinamaxClient:
             away_player=away_player,
             start_date=str(match.get("matchStart") or match.get("startTime") or ""),
             competition=competition,
+            status=str(match.get("status") or "").strip().upper(),
         )
 
     def list_singles_tennis_matches(self) -> list[WinamaxMatchLink]:

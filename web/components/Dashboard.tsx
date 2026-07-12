@@ -187,7 +187,7 @@ export function Dashboard() {
     const fdEvents = payload?.fd_ace_event_count ?? 0;
     const frEvents = payload?.fr_ace_event_count ?? 0;
     if (fdEvents > 0 && frEvents === 0) {
-      return "FanDuel propose des aces match, mais les books FR n'ont pas (ou plus) de lignes match en live sur ces matchs.";
+      return "FanDuel propose des aces match, mais les books FR n'ont pas de lignes match sur ces matchs (live ou prematch).";
     }
     if (fdEvents === 0 && frEvents > 0) {
       return "Des lignes aces existent cote FR, mais FanDuel ne les propose pas sur ces matchs (souvent ITF/ATP secondaire).";
@@ -204,7 +204,7 @@ export function Dashboard() {
         <p className="eyebrow">Tennis aces</p>
         <h1>Aces tennis — books FR vs FanDuel</h1>
         <p className="lead">
-          Compare les lignes <strong>aces</strong> (Unibet, Betclic, Winamax) avec FanDuel en live (~25 s).
+          Compare les lignes <strong>aces</strong> (Unibet, Betclic, Winamax) avec FanDuel — prematch et matchs en cours (~25 s).
         </p>
       </header>
 
@@ -229,7 +229,7 @@ export function Dashboard() {
           />
         </label>
         <button type="button" onClick={onSubmit} disabled={busy}>
-          {busy ? "Comparaison en cours..." : "Lancer comparaison live"}
+          {busy ? "Comparaison en cours..." : "Lancer comparaison"}
         </button>
         {info ? <p className="info">{info}</p> : null}
         {error ? <p className="error">{error}</p> : null}

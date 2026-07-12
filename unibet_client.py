@@ -217,9 +217,45 @@ class UnibetClient:
                 markets.append(UnibetMarket(label=market_label, outcomes=tuple(outcomes)))
         return markets
 
+    def extract_embedded_markets_from_html(self, html: str) -> list[UnibetMarket]:
+        """Marchés LVS embarqués (live) absents des cartes SSR."""
+        merged: dict[str, UnibetMarket] = {}
+        for match in re.finditer(
+            r'"description":"((?:Plus / Moins \(Aces\)[^"]+|Plus / Moins Ace\(s\)[^"]+))"',
+            html,
+        ):
+            chunk = html[match.start() : match.start() + 2500]
+            description = match.group(1)
+            period_match = re.search(r'"period":"([^"]*)"', chunk)
+            period = period_match.group(1).strip() if period_match else ""
+            label = description if not period or period in description else f"{description} - {period}"
+            outcomes: list[UnibetOutcome] = []
+            for outcome_match in re.finditer(
+                r'"description":"([^"]+)"[^}]*?"price":"([^"]+)"',
+                chunk,
+            ):
+                odds = self._parse_decimal_odds(outcome_match.group(2))
+                if odds is None:
+                    continue
+                outcomes.append(UnibetOutcome(label=outcome_match.group(1), odds=odds))
+            if not outcomes:
+                continue
+            existing = merged.get(label)
+            if existing is None or len(outcomes) > len(existing.outcomes):
+                merged[label] = UnibetMarket(label=label, outcomes=tuple(outcomes))
+        return list(merged.values())
+
+    def extract_all_event_markets_from_html(self, html: str) -> list[UnibetMarket]:
+        merged: dict[str, UnibetMarket] = {}
+        for market in self.extract_event_markets_from_html(html) + self.extract_embedded_markets_from_html(html):
+            existing = merged.get(market.label)
+            if existing is None or len(market.outcomes) > len(existing.outcomes):
+                merged[market.label] = market
+        return list(merged.values())
+
     def get_event_markets(self, event_url: str) -> list[UnibetMarket]:
         html = self.get_event_html(event_url)
-        return self.extract_event_markets_from_html(html)
+        return self.extract_all_event_markets_from_html(html)
 
     @staticmethod
     def _is_live_event_url(url: str) -> bool:
@@ -345,7 +381,7 @@ class UnibetClient:
         try:
             html = self.get_tennis_listing_html(path)
         except RuntimeError:
-            return []
+            html = ""
         paths = {
             match.group(1).rstrip("/")
             for match in re.finditer(
@@ -354,6 +390,16 @@ class UnibetClient:
                 flags=re.I,
             )
         }
+        if paths:
+            return sorted(paths)
+        try:
+            for event in self.list_tennis_events_from_html_links(path):
+                url = str(event.get("url", ""))
+                competition_match = re.search(r"/paris-tennis/((?:atp|wta)/[^/]+)/", url, flags=re.I)
+                if competition_match:
+                    paths.add(f"/paris-tennis/{competition_match.group(1).rstrip('/')}")
+        except RuntimeError:
+            pass
         return sorted(paths)
 
     def _ingest_listing_path(
@@ -404,6 +450,21 @@ class UnibetClient:
             self._ingest_listing_path(competition_path, ingest)
 
         return sorted(events_by_key.values(), key=lambda event: event.get("start_date", ""))
+
+    def list_prematch_singles_tennis_events(self) -> list[dict[str, Any]]:
+        return [event for event in self.list_singles_tennis_events() if not self._event_is_live(event)]
+
+    @staticmethod
+    def _event_is_live(event: dict[str, Any]) -> bool:
+        if event.get("is_live"):
+            return True
+        urls = [str(url) for url in (event.get("urls") or []) if url]
+        primary = str(event.get("url", "")).strip()
+        if primary and primary not in urls:
+            urls.append(primary)
+        if not urls:
+            return False
+        return all("/paris-en-direct/" in url for url in urls)
 
     @staticmethod
     def _event_url_priority(url: str) -> tuple[int, int]:

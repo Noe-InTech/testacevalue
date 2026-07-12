@@ -81,7 +81,9 @@ class TennisMarketMappingTests(unittest.TestCase):
             "Jannik Sinner",
             "Alexander Zverev",
         )
-        self.assertEqual(markets, [])
+        self.assertEqual(len(markets), 2)
+        self.assertEqual(markets[0].compare_key, "aces_set_player|1|sinner|5.5")
+        self.assertEqual(markets[0].outcomes[0].label, "Over")
 
         markets = normalize_betclic_market(
             "Match - Alexander Zverev - Nombre total d'aces",

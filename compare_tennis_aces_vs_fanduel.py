@@ -56,13 +56,18 @@ log = logging.getLogger("compare_aces_fanduel")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 BETCLIC_ACES_GRPC = ("ca_ten_ptss", "ca_ten_main", "ca_ten_sets")
-COMPARABLE_ACE_PREFIXES = ("aces_total|", "aces_player|")
+COMPARABLE_ACE_PREFIXES = (
+    "aces_total|",
+    "aces_player|",
+    "aces_set_total|",
+    "aces_set_player|",
+)
 BOOK_NORMALIZERS = {
     "unibet": normalize_unibet_market,
     "betclic": normalize_betclic_market,
     "winamax": normalize_winamax_market,
 }
-ACE_FAMILIES = {"aces_total", "aces_player", "aces_h2h"}
+ACE_FAMILIES = {"aces_total", "aces_player", "aces_set_total", "aces_set_player", "aces_h2h"}
 COMPARABLE_CSV_FIELDS = [
     "match",
     "ligne_aces_fr",
@@ -320,7 +325,42 @@ def _fetch_betclic_aces_event(betclic: Any, url: str) -> dict[str, Any]:
 
 
 def _discover_fanduel_singles(fanduel: FanDuelClient) -> list[Any]:
+    """In-play + competitions + pages custom (pas uniquement le live)."""
     return fanduel.list_all_tennis_events()
+
+
+def _count_live_anchors(
+    anchors: list[dict[str, Any]],
+    unibet_meta: list[dict[str, Any]],
+    winamax_links: list[Any],
+) -> int:
+    from unibet_client import UnibetClient
+
+    live = 0
+    for anchor in anchors:
+        home = anchor["home_player"]
+        away = anchor["away_player"]
+        for meta in unibet_meta:
+            if not UnibetClient._event_is_live(meta):
+                continue
+            if players_match(home, str(meta.get("home", ""))) and players_match(
+                away, str(meta.get("away", ""))
+            ):
+                live += 1
+                break
+            if players_match(home, str(meta.get("away", ""))) and players_match(
+                away, str(meta.get("home", ""))
+            ):
+                live += 1
+                break
+        else:
+            for link in winamax_links:
+                if str(getattr(link, "status", "") or "").upper() != "LIVE":
+                    continue
+                if players_match(home, link.home_player) and players_match(away, link.away_player):
+                    live += 1
+                    break
+    return live
 
 
 def fetch_live_aces_book_data(
@@ -519,7 +559,8 @@ def build_best_fr_normalized_map(
                     continue
                 label_lower = label.lower()
                 if _skip_fr_ace_market_label(label_lower):
-                    continue
+                    if not item.compare_key.startswith(("aces_set_total|", "aces_set_player|")):
+                        continue
                 if item.compare_key.startswith("aces_total|"):
                     try:
                         if float(item.compare_key.split("|", 1)[1]) < 4.0:
@@ -569,6 +610,9 @@ def _tier_compare_key_to_ou_key(compare_key: str, line: str) -> str | None:
     if compare_key.startswith("aces_player_tiers|"):
         token = compare_key.split("|", 1)[1]
         return f"aces_player|{token}|{line}"
+    if compare_key.startswith("aces_set_tiers|"):
+        set_number = compare_key.split("|", 1)[1]
+        return f"aces_set_total|{set_number}|{line}"
     return None
 
 
@@ -586,7 +630,9 @@ def build_fanduel_normalized_map(event: dict[str, Any]) -> dict[str, dict[str, A
             continue
 
         if not compare_key.startswith(("aces_total|", "aces_player|")):
-            if compare_key != "aces_total_tiers" and not compare_key.startswith("aces_player_tiers|"):
+            if compare_key not in {"aces_total_tiers"} and not compare_key.startswith(
+                ("aces_player_tiers|", "aces_set_tiers|")
+            ):
                 continue
 
         if compare_key.startswith(("aces_total|", "aces_player|")):
@@ -657,6 +703,16 @@ def _parse_aces_line_key(compare_key: str) -> tuple[str, str, float | None]:
             return family, parts[1], float(parts[2])
         except ValueError:
             return family, parts[1], None
+    if family == "aces_set_total" and len(parts) >= 3:
+        try:
+            return family, parts[1], float(parts[2])
+        except ValueError:
+            return family, parts[1], None
+    if family == "aces_set_player" and len(parts) >= 4:
+        try:
+            return family, parts[2], float(parts[3])
+        except ValueError:
+            return family, parts[2], None
     return family, "", None
 
 
@@ -693,7 +749,9 @@ def _find_fd_market_near_line(
         fd_family, fd_token, fd_line = _parse_aces_line_key(fd_key)
         if fd_family != family or fd_line is None:
             continue
-        if family == "aces_player" and not _ace_player_token_match(token, fd_token):
+        if family in {"aces_player", "aces_set_player"} and not _ace_player_token_match(token, fd_token):
+            continue
+        if family == "aces_set_total" and token and fd_token and token != fd_token:
             continue
         delta = abs(fd_line - line)
         if delta > max_delta:
@@ -1097,9 +1155,11 @@ def fetch_live_listings(
     if match_filter:
         anchors = [anchor for anchor in anchors if anchor_matches_filter(anchor, match_filter)]
 
+    live_count = _count_live_anchors(anchors, unibet_meta, winamax_links)
     log.info(
-        "%d match(s) ancres | %d FanDuel | Betclic gRPC=%s",
+        "%d match(s) ancres (dont %d en cours) | %d FanDuel | Betclic gRPC=%s",
         len(anchors),
+        live_count,
         len(fanduel_event_list),
         ",".join(BETCLIC_ACES_GRPC),
     )

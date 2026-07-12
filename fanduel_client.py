@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Iterable
 
 import requests
@@ -257,6 +258,53 @@ class FanDuelClient:
         self._absorb_singles(merged, self.list_tennis_events(page_ids))
 
         return list(merged.values())
+
+    def inplay_tennis_event_ids(self) -> set[str]:
+        try:
+            payload = self._get(
+                "/api/in-play",
+                {"eventTypeId": TENNIS_EVENT_TYPE_ID, "tab": "all"},
+            )
+        except RuntimeError:
+            return set()
+        return {str(event_id) for event_id in ((payload.get("attachments") or {}).get("events") or {})}
+
+    @staticmethod
+    def _event_started(open_date: str, *, now: datetime | None = None) -> bool:
+        if not open_date:
+            return False
+        try:
+            start = datetime.fromisoformat(open_date.replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        current = now or datetime.now(timezone.utc)
+        return start <= current
+
+    def list_prematch_tennis_events(self) -> list[FanDuelEvent]:
+        """Singles a venir: hors in-play API et hors matchs deja commences."""
+        inplay_ids = self.inplay_tennis_event_ids()
+        merged: dict[str, FanDuelEvent] = {}
+
+        try:
+            sport_payload = self._get(
+                "/api/content-managed-page",
+                {"page": "SPORT", "eventTypeId": TENNIS_EVENT_TYPE_ID},
+            )
+            self._absorb_competitions_from_payload(merged, sport_payload)
+        except RuntimeError:
+            pass
+
+        page_ids = self.discover_tennis_page_ids(DEFAULT_TENNIS_PAGE_CANDIDATES)
+        self._absorb_singles(merged, self.list_tennis_events(page_ids))
+
+        prematch: list[FanDuelEvent] = []
+        for event in merged.values():
+            if event.event_id in inplay_ids:
+                continue
+            if self._event_started(event.open_date):
+                continue
+            prematch.append(event)
+        return prematch
 
     def page_has_events(self, custom_page_id: str) -> bool:
         try:

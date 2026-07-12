@@ -71,12 +71,21 @@ def format_line(value: float | str) -> str:
 
 def extract_set_period(label: str) -> str:
     lower = strip_accents(label)
+    leading = re.match(r"^(\d+)(?:er|e|eme|ème)?\s+set\b", lower)
+    if leading:
+        return f"set{leading.group(1)}"
     if "1er set" in lower or "set 1" in lower:
         return "set1"
     if "2e set" in lower or "2eme set" in lower or "set 2" in lower:
         return "set2"
-    if "3e set" in lower or "set 3" in lower:
+    if "3e set" in lower or "3eme set" in lower or "set 3" in lower:
         return "set3"
+    if "4e set" in lower or "4eme set" in lower or "set 4" in lower:
+        return "set4"
+    if "live" in lower and "set" in lower:
+        live_set = re.search(r"live\s+(\d+)(?:e|eme|ème)?\s+set", lower)
+        if live_set:
+            return f"set{live_set.group(1)}"
     if "match" in lower:
         return "match"
     return ""
@@ -130,6 +139,22 @@ def group_over_under_outcomes(
             continue
         key = format_line(line)
         grouped.setdefault(key, {})[normalize_ou_label(raw_label)] = float(odds)
+    return grouped
+
+
+def group_tier_over_outcomes(
+    outcomes: Iterable[tuple[str, float | None]],
+) -> dict[str, dict[str, float]]:
+    """Betclic '+ de X,Y' sans Under associe."""
+    grouped: dict[str, dict[str, float]] = {}
+    for raw_label, odds in outcomes:
+        if odds is None:
+            continue
+        line = parse_french_number(raw_label)
+        if line is None:
+            continue
+        key = format_line(line)
+        grouped.setdefault(key, {})["Over"] = float(odds)
     return grouped
 
 
@@ -320,7 +345,7 @@ def normalize_unibet_market(
 
     if "ace" in lower:
         inline_player = re.match(
-            r"plus / moins \(aces\) - (.+?) ([\d,.]+)\s*-\s*match\s*$",
+            r"plus / moins \(aces\) - (.+?) ([\d,.]+)\s*(?:-\s*match\s*)?$",
             lower,
         )
         if inline_player:
@@ -331,16 +356,30 @@ def normalize_unibet_market(
                 for raw, odds in outcomes
                 if odds is not None
             }
-            market = build_market(
-                f"aces_player|{player_key(player_name)}|{line}",
-                "aces_player",
-                raw_label,
-                outcome_map,
-                market_scope="player",
-                player_name=player_name,
-                line=line,
-                period="match",
-            )
+            ace_period = extract_set_period(raw_label)
+            if ace_period.startswith("set"):
+                set_number = ace_period.replace("set", "")
+                market = build_market(
+                    f"aces_set_player|{set_number}|{player_key(player_name)}|{line}",
+                    "aces_set_player",
+                    raw_label,
+                    outcome_map,
+                    market_scope="set_player",
+                    player_name=player_name,
+                    line=line,
+                    period=ace_period,
+                )
+            else:
+                market = build_market(
+                    f"aces_player|{player_key(player_name)}|{line}",
+                    "aces_player",
+                    raw_label,
+                    outcome_map,
+                    market_scope="player",
+                    player_name=player_name,
+                    line=line,
+                    period="match",
+                )
             if market:
                 markets.append(market)
             return markets
@@ -703,6 +742,52 @@ def normalize_betclic_market(
 
     if "ace" in lower:
         period = extract_set_period(raw_label)
+        set_number = ""
+        if period.startswith("set"):
+            set_number = period.replace("set", "")
+
+        if set_number:
+            player_total = re.match(
+                rf"^{set_number}(?:er|e|eme|ème)?\s+set\s*-\s*(.+?)\s*-\s*nombre total d['\u2019]aces$",
+                strip_accents(raw_label),
+                flags=re.I,
+            )
+            if player_total:
+                player_name = match_player_name(
+                    player_total.group(1).strip(),
+                    home_player,
+                    away_player,
+                )
+                for line, outcome_map in group_tier_over_outcomes(outcomes).items():
+                    market = build_market(
+                        f"aces_set_player|{set_number}|{player_key(player_name)}|{line}",
+                        "aces_set_player",
+                        raw_label,
+                        outcome_map,
+                        market_scope="set_player",
+                        player_name=player_name,
+                        line=line,
+                        period=period,
+                    )
+                    if market:
+                        markets.append(market)
+                return markets
+
+            if re.search(rf"^{set_number}(?:er|e|eme|ème)?\s+set\s*-\s*nombre total d['\u2019]aces", strip_accents(raw_label), flags=re.I):
+                for line, outcome_map in group_tier_over_outcomes(outcomes).items():
+                    market = build_market(
+                        f"aces_set_total|{set_number}|{line}",
+                        "aces_set_total",
+                        raw_label,
+                        outcome_map,
+                        market_scope="set",
+                        line=line,
+                        period=period,
+                    )
+                    if market:
+                        markets.append(market)
+                return markets
+
         if not period or period == "match":
             player_total = re.match(
                 r"^(?:1er set|2eme set|2e set|match)\s*-\s*(.+?)\s*-\s*nombre total d['\u2019]aces$",
