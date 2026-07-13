@@ -108,6 +108,70 @@ def normalize_ou_label(label: str) -> str:
     return label.strip()
 
 
+def is_set_level_tiebreak_question(label: str) -> bool:
+    lower = strip_accents(label)
+    if "dans le set" in lower:
+        return True
+    if re.search(r"tie[- ]?break.*\b(1er|2e|2eme|3e)\s+set\b", lower):
+        return True
+    if re.search(r"\b(1er|2e|2eme|3e)\s+set\b.*tie[- ]?break", lower):
+        return True
+    return False
+
+
+def is_match_level_tiebreak_yes_no(label: str) -> bool:
+    """Oui/Non « au moins un tie-break » sur le match (≈ Over/Under 0,5)."""
+    lower = strip_accents(label)
+    if not ("tie-break" in lower or "tie break" in lower):
+        return False
+    if "plus / moins" in lower or lower.startswith("nombre de tie-break"):
+        return False
+    if is_set_level_tiebreak_question(label):
+        return False
+    if "y aura-t-il" in lower or "au moins" in lower:
+        return True
+    if "au cours du match" in lower:
+        return True
+    return False
+
+
+def group_match_tiebreak_yes_no_outcomes(
+    outcomes: Iterable[tuple[str, float | None]],
+) -> dict[str, float]:
+    yes_no_to_ou = {"Oui": "Over", "Non": "Under", "Yes": "Over", "No": "Under"}
+    outcome_map: dict[str, float] = {}
+    for raw, odds in outcomes:
+        if odds is None:
+            continue
+        aligned = yes_no_to_ou.get(normalize_ou_label(raw), normalize_ou_label(raw))
+        if aligned in {"Over", "Under"}:
+            outcome_map[aligned] = float(odds)
+    return outcome_map
+
+
+def append_match_tiebreak_yes_no_market(
+    markets: list[NormalizedMarket],
+    raw_label: str,
+    outcomes: Iterable[tuple[str, float | None]],
+) -> bool:
+    outcome_map = group_match_tiebreak_yes_no_outcomes(outcomes)
+    if set(outcome_map) != {"Over", "Under"}:
+        return False
+    market = build_market(
+        "tie_break_match|0.5",
+        "tie_break_match",
+        raw_label,
+        outcome_map,
+        market_scope="match",
+        line="0.5",
+        period="match",
+    )
+    if market:
+        markets.append(market)
+        return True
+    return False
+
+
 def player_key(name: str) -> str:
     tokens = player_tokens(name)
     if not tokens:
@@ -301,6 +365,10 @@ def normalize_unibet_market(
             if market:
                 markets.append(market)
         return markets
+
+    if is_match_level_tiebreak_yes_no(raw_label):
+        if append_match_tiebreak_yes_no_market(markets, raw_label, outcomes):
+            return markets
 
     if "tie-break" in lower or "tie break" in lower:
         outcome_map = {
@@ -720,6 +788,10 @@ def normalize_betclic_market(
                 markets.append(market)
         return markets
 
+    if is_match_level_tiebreak_yes_no(raw_label):
+        if append_match_tiebreak_yes_no_market(markets, raw_label, outcomes):
+            return markets
+
     if "tie-break" in lower or "tie break" in lower:
         outcome_map = {
             normalize_ou_label(raw): float(odds)
@@ -986,23 +1058,9 @@ def normalize_winamax_market(
                 markets.append(market)
         return markets
 
-    if lower.startswith("tie-break au cours du match"):
-        outcome_map = {
-            normalize_ou_label(raw): float(odds)
-            for raw, odds in outcomes
-            if odds is not None
-        }
-        market = build_market(
-            "tie_break_match|0.5",
-            "tie_break_match",
-            raw_label,
-            outcome_map,
-            market_scope="match",
-            line="0.5",
-            period="match",
-        )
-        if market:
-            markets.append(market)
+    if lower.startswith("tie-break au cours du match") or is_match_level_tiebreak_yes_no(raw_label):
+        if append_match_tiebreak_yes_no_market(markets, raw_label, outcomes):
+            return markets
         return markets
 
     if "tie-break" in lower or "tie break" in lower:

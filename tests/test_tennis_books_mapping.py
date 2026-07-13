@@ -200,6 +200,26 @@ class TennisBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(markets[0].compare_key, "tie_break_set|1")
 
+    def test_normalize_unibet_match_tiebreak_yes_no(self) -> None:
+        markets = normalize_unibet_market(
+            "Y aura-t-il au moins un Tie-break - Match",
+            [("Oui", 1.55), ("Non", 2.35)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "tie_break_match|0.5")
+        self.assertEqual(set(item.label for item in markets[0].outcomes), {"Over", "Under"})
+
+    def test_normalize_winamax_match_tiebreak_yes_no(self) -> None:
+        markets = normalize_winamax_market(
+            "Tie-break au cours du match",
+            [("Oui", 1.6), ("Non", 2.2)],
+            "Jannik Sinner",
+            "Novak Djokovic",
+        )
+        self.assertEqual(markets[0].compare_key, "tie_break_match|0.5")
+        self.assertEqual(set(item.label for item in markets[0].outcomes), {"Over", "Under"})
+
 
 if __name__ == "__main__":
     unittest.main()

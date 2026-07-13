@@ -500,6 +500,10 @@ def align_fr_outcome_to_fanduel(
         lower = outcome.lower()
         if lower in {"over", "under"}:
             return outcome.capitalize()
+        if lower in {"oui", "yes"}:
+            return "Over"
+        if lower in {"non", "no"}:
+            return "Under"
         if lower.startswith("plus"):
             return "Over"
         if lower.startswith("moins"):

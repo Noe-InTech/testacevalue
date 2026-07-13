@@ -88,6 +88,38 @@ class BreaksAllMarketsTests(unittest.TestCase):
             is_breaks_market("Y aura-t-il un Tie-break dans le set ? - 1er Set")
         )
 
+    def test_match_level_tiebreak_yes_no_is_break_market(self) -> None:
+        self.assertTrue(
+            is_breaks_market("Y aura-t-il au moins un Tie-break - Match")
+        )
+
+    def test_tie_break_match_yes_no_overlap(self) -> None:
+        fr_map = {
+            "tie_break_match|0.5": {
+                "compare_key": "tie_break_match|0.5",
+                "market_family": "tie_break_match",
+                "market_label_raw": "Y aura-t-il au moins un Tie-break - Match",
+                "outcomes": {
+                    "Over": {"odds": 1.55, "bookmaker": "unibet", "bookmaker_label": "Unibet"},
+                    "Under": {"odds": 2.35, "bookmaker": "unibet", "bookmaker_label": "Unibet"},
+                },
+            }
+        }
+        fd_map = {
+            "tie_break_match|0.5": {
+                "compare_key": "tie_break_match|0.5",
+                "market_label": "Total Tie Breaks 0.5",
+                "outcomes": {
+                    "Over": {"decimal_fr": 1.5, "decimal_raw": 1.5, "american": -200},
+                    "Under": {"decimal_fr": 2.5, "decimal_raw": 2.5, "american": 150},
+                },
+                "fd_line_source": "ou",
+            }
+        }
+        rows = compare_normalized_breaks(fr_map, fd_map)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["ligne_breaks_fr"], "Plus de 0,5 tie-break(s) — match")
+
 
 if __name__ == "__main__":
     unittest.main()

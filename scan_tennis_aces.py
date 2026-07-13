@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from betclic_client import BetclicClient
-from tennis_books_mapping import strip_accents
+from tennis_books_mapping import is_set_level_tiebreak_question, strip_accents
 from tennis_market_mapping import players_match
 from unibet_client import UnibetClient
 from winamax_client import WinamaxClient, WinamaxMatchLink
@@ -50,9 +50,7 @@ def is_breaks_market(label: str) -> bool:
     lower = strip_accents(label).lower()
     if "face a face" in lower or "face-a-face" in lower:
         return False
-    if "y aura-t-il" in lower and ("tie-break" in lower or "tie break" in lower):
-        return False
-    if "tie-break dans le set" in lower or "tie break dans le set" in lower:
+    if is_set_level_tiebreak_question(label):
         return False
     if "break points" in lower and "break(s)" not in lower and "breaks" not in lower:
         return False
