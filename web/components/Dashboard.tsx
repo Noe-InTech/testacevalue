@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
+import { ValuesTable } from "@/components/ValuesTable";
+import { buildValueRows } from "@/lib/mptoValue";
 import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
@@ -315,6 +317,10 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     () => payload?.fr_higher_comparables ?? [],
     [payload],
   );
+  const valueRows = useMemo(
+    () => buildValueRows(frHigherRows, marketTab),
+    [frHigherRows, marketTab],
+  );
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
   const fdOnlyRows = useMemo(() => payload?.fd_only_comparables ?? [], [payload]);
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
@@ -461,6 +467,12 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           <strong>{payload?.fr_higher_count ?? 0}</strong>
         </div>
         <div>
+          <span className="meta-label" title="Values MPTO positives (Kelly 0,25) sur lignes FR > FD">
+            Values MPTO
+          </span>
+          <strong>{valueRows.length}</strong>
+        </div>
+        <div>
           <span className="meta-label" title="Lignes FR sans equivalent FanDuel sur la meme ligne">
             FR sans FD
           </span>
@@ -542,6 +554,12 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         showCaptureDetails
         runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
         emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
+      />
+
+      <ValuesTable
+        title="Values MPTO — book FR vs FanDuel"
+        rows={valueRows}
+        emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
       />
 
       <CollapsibleSection

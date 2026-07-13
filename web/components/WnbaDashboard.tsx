@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
+import { ValuesTable } from "@/components/ValuesTable";
+import { buildValueRows } from "@/lib/mptoValue";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
@@ -80,7 +82,7 @@ function emptyBasketballPayload(source: string): MarketPayload {
 }
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
-const SECTION_IDS = ["progress", "comparables", "frHigher", "frOnly", "fdOnly"] as const;
+const SECTION_IDS = ["progress", "comparables", "frHigher", "values", "frOnly", "fdOnly"] as const;
 type SectionId = (typeof SECTION_IDS)[number];
 
 function formatTimestamp(value?: string): string {
@@ -99,6 +101,7 @@ function defaultOpenSections(): Record<SectionId, boolean> {
     progress: false,
     comparables: true,
     frHigher: true,
+    values: true,
     frOnly: false,
     fdOnly: false,
   };
@@ -445,6 +448,10 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => cfg.filterRows(payload?.fr_higher_comparables ?? [], filterOptions),
     [payload, filterOptions, cfg],
   );
+  const valueRows = useMemo(
+    () => buildValueRows(frHigherRows, cfg.marketKind),
+    [frHigherRows, cfg.marketKind],
+  );
   const frOnlyRows = useMemo(
     () => cfg.filterRows(payload?.fr_only_comparables ?? [], filterOptions),
     [payload, filterOptions, cfg],
@@ -498,6 +505,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       progress: false,
       comparables: false,
       frHigher: false,
+      values: false,
       frOnly: false,
       fdOnly: false,
     });
@@ -508,6 +516,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       progress: true,
       comparables: true,
       frHigher: true,
+      values: true,
       frOnly: true,
       fdOnly: true,
     });
@@ -674,6 +683,10 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           <strong>{frHigherRows.length}</strong>
         </div>
         <div>
+          <span className="meta-label">Values MPTO</span>
+          <strong>{valueRows.length}</strong>
+        </div>
+        <div>
           <span className="meta-label">FR sans FD</span>
           <strong>{frOnlyRows.length}</strong>
         </div>
@@ -767,6 +780,21 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
           emptyMessage="Aucune ligne ou la cote FR bat FanDuel pour ces filtres."
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Values MPTO — book FR vs FanDuel"
+        badge={valueRows.length}
+        open={openSections.values}
+        onOpenChange={(open) => setSectionOpen("values", open)}
+      >
+        <ValuesTable
+          title=""
+          rows={valueRows}
+          embedded
+          searchQuery={globalSearch}
+          emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
         />
       </CollapsibleSection>
 

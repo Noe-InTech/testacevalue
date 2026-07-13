@@ -154,6 +154,22 @@ button:disabled {
   font-weight: 700;
 }
 
+.badge-success {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--success);
+}
+
+.values-panel .panel-header h2 {
+  color: var(--success);
+}
+
+.value-edge,
+.value-kelly {
+  font-weight: 700;
+  color: var(--success);
+  white-space: nowrap;
+}
+
 .empty {
   margin: 0;
   color: var(--muted);
