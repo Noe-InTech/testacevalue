@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 from fanduel_client import format_american_moneyline, format_french_decimal
 
-PartialCallback = Callable[[dict[str, Any], str], None]
+PartialCallback = Callable[[Dict[str, Any], str], None]
 
 
 def assemble_anchor_result(
@@ -94,7 +94,7 @@ def flush_anchor_partial(
     fr_scraped_at: str | None,
     fd_scraped_at: str | None,
     step: str,
-    on_partial: PartialCallback | None,
+    on_partial: Optional[PartialCallback],
     compare_normalized_props: Callable[..., list[dict[str, Any]]],
     enrich_fr_only_row: Callable[[dict[str, Any]], dict[str, Any]],
     enrich_fd_only_row: Callable[[dict[str, Any]], dict[str, Any]],
