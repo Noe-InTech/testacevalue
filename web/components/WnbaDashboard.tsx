@@ -260,7 +260,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     }
     const timer = window.setInterval(() => {
       refresh({ silent: true }).catch(() => undefined);
-    }, 500);
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [isRunning, refresh]);
 
