@@ -9,7 +9,7 @@ export function runnerEnabled(): boolean {
   return Boolean(baseUrl && secret);
 }
 
-export async function triggerRunner(match: string): Promise<Response> {
+export async function triggerRunner(match: string, sport = "tennis"): Promise<Response> {
   const { baseUrl, secret } = runnerConfig();
   if (!baseUrl || !secret) {
     return new Response(
@@ -26,7 +26,7 @@ export async function triggerRunner(match: string): Promise<Response> {
         "Content-Type": "application/json",
         "X-Runner-Secret": secret,
       },
-      body: JSON.stringify({ match }),
+      body: JSON.stringify({ match, sport }),
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
     });
@@ -47,7 +47,7 @@ export async function triggerRunner(match: string): Promise<Response> {
   });
 }
 
-export async function fetchRunnerResults(): Promise<{
+export async function fetchRunnerResults(sport = "tennis"): Promise<{
   payload: unknown;
   status: unknown;
 } | null> {
@@ -55,7 +55,7 @@ export async function fetchRunnerResults(): Promise<{
   if (!baseUrl) {
     return null;
   }
-  const response = await fetch(`${baseUrl}/api/results`, {
+  const response = await fetch(`${baseUrl}/api/results?sport=${encodeURIComponent(sport)}`, {
     cache: "no-store",
     signal: AbortSignal.timeout(15_000),
   });

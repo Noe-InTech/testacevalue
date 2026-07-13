@@ -3,8 +3,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Aces & breaks FR vs FanDuel",
-  description: "Compare les cotes aces et breaks des books FR contre FanDuel.",
+  title: "Props FR vs FanDuel — Tennis & WNBA",
+  description:
+    "Compare les cotes tennis (aces, breaks) et basket WNBA (props joueuses) des books FR contre FanDuel.",
 };
 
 export const viewport: Viewport = {

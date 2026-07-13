@@ -189,13 +189,15 @@ td.side {
   font-weight: 700;
 }
 
-.market-tabs {
+.market-tabs,
+.sport-tabs {
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.market-tab {
+.market-tab,
+.sport-tab {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   color: inherit;
@@ -205,7 +207,8 @@ td.side {
   font: inherit;
 }
 
-.market-tab.active {
+.market-tab.active,
+.sport-tab.active {
   background: rgba(56, 189, 248, 0.18);
   border-color: rgba(56, 189, 248, 0.45);
   color: var(--accent);

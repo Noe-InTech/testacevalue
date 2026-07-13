@@ -4,7 +4,7 @@ import { isAuthorized, triggerWorkflow } from "@/lib/github";
 import { runnerEnabled, triggerRunner } from "@/lib/runner";
 
 export async function POST(request: Request) {
-  let body: { secret?: string; match?: string };
+  let body: { secret?: string; match?: string; sport?: string };
   try {
     body = await request.json();
   } catch {
@@ -16,8 +16,9 @@ export async function POST(request: Request) {
   }
 
   const match = (body.match || "").trim();
+  const sport = (body.sport || "tennis").trim().toLowerCase();
   const response = runnerEnabled()
-    ? await triggerRunner(match)
+    ? await triggerRunner(match, sport)
     : await triggerWorkflow(match, "live");
   const data = await response.json();
   return NextResponse.json(data, { status: response.status });

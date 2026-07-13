@@ -20,7 +20,7 @@ function formatTimestamp(value?: string): string {
   return date.toLocaleString("fr-FR");
 }
 
-export function Dashboard() {
+export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
   const [marketTab, setMarketTab] = useState<"aces" | "breaks">("aces");
@@ -232,8 +232,8 @@ export function Dashboard() {
     return "";
   }, [payload, marketTab]);
 
-  return (
-    <main className="page">
+  const content = (
+    <>
       <header className="hero">
         <p className="eyebrow">Tennis props</p>
         <h1>Aces & breaks — books FR vs FanDuel</h1>
@@ -472,6 +472,12 @@ export function Dashboard() {
           emptyMessage={`Toutes les lignes FanDuel ont un equivalent FR, ou pas de marche ${marketTab} FanDuel.`}
         />
       </CollapsibleSection>
-    </main>
+    </>
   );
+
+  if (embedded) {
+    return content;
+  }
+
+  return <main className="page">{content}</main>;
 }

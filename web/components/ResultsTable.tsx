@@ -1,21 +1,26 @@
-import type { ComparableRow, TableColumn } from "@/lib/types";
+import type { ComparableRow, MarketKind, TableColumn } from "@/lib/types";
 import { getTableColumns } from "@/lib/types";
 
 interface ResultsTableProps {
   title: string;
   rows: ComparableRow[];
   emptyMessage: string;
-  marketKind?: "aces" | "breaks";
+  marketKind?: MarketKind;
   searchQuery?: string;
   embedded?: boolean;
 }
 
-function filterRows(rows: ComparableRow[], query: string, marketKind: "aces" | "breaks") {
+function filterRows(rows: ComparableRow[], query: string, marketKind: MarketKind) {
   const needle = query.trim().toLowerCase();
   if (!needle) {
     return rows;
   }
-  const lineKey = marketKind === "breaks" ? "ligne_breaks_fr" : "ligne_aces_fr";
+  const lineKey =
+    marketKind === "breaks"
+      ? "ligne_breaks_fr"
+      : marketKind === "wnba"
+        ? "ligne_props_fr"
+        : "ligne_aces_fr";
   return rows.filter((row) => {
     const haystack = [
       row.match,
@@ -24,6 +29,7 @@ function filterRows(rows: ComparableRow[], query: string, marketKind: "aces" | "
       row.marche_fanduel,
       row.ligne_aces_fr,
       row.ligne_breaks_fr,
+      row.ligne_props_fr,
       row[lineKey as keyof ComparableRow],
     ]
       .filter(Boolean)

@@ -2,6 +2,7 @@ export interface ComparableRow {
   match: string;
   ligne_aces_fr?: string;
   ligne_breaks_fr?: string;
+  ligne_props_fr?: string;
   issue_fr: string;
   issue_fr_contraire?: string;
   marche_fr: string;
@@ -67,11 +68,15 @@ export interface CombinedPropsPayload {
   breaks: MarketPayload;
 }
 
+export type SportKey = "tennis" | "wnba";
+export type MarketKind = "aces" | "breaks" | "wnba";
+
 export type AcesPayload = MarketPayload;
 
 export interface RunStatus {
   status: "idle" | "running" | "success" | "error";
   message: string;
+  sport?: SportKey;
   match_filter?: string;
   updated_at?: string;
   generated_at?: string;
@@ -131,8 +136,13 @@ export function getPayloadProgressSnapshot(payload: ApiPayload | null) {
   };
 }
 
-function ligneLabel(row: ComparableRow, marketKind: "aces" | "breaks"): string {
-  const key = marketKind === "breaks" ? "ligne_breaks_fr" : "ligne_aces_fr";
+function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
+  const key =
+    marketKind === "breaks"
+      ? "ligne_breaks_fr"
+      : marketKind === "wnba"
+        ? "ligne_props_fr"
+        : "ligne_aces_fr";
   const explicit = row[key]?.trim();
   if (explicit) {
     return explicit;
@@ -143,9 +153,19 @@ function ligneLabel(row: ComparableRow, marketKind: "aces" | "breaks"): string {
   return row.marche_fr || row.issue_fr || "—";
 }
 
-export function getTableColumns(marketKind: "aces" | "breaks") {
-  const pariLabel = marketKind === "breaks" ? "Pari breaks" : "Pari aces";
-  const lineKey = marketKind === "breaks" ? "ligne_breaks" : "ligne_aces";
+export function getTableColumns(marketKind: MarketKind) {
+  const pariLabel =
+    marketKind === "breaks"
+      ? "Pari breaks"
+      : marketKind === "wnba"
+        ? "Prop joueuse"
+        : "Pari aces";
+  const lineKey =
+    marketKind === "breaks"
+      ? "ligne_breaks"
+      : marketKind === "wnba"
+        ? "ligne_props"
+        : "ligne_aces";
 
   return [
     { key: "match" as const, label: "Match", hint: "Joueur A vs joueur B" },
@@ -158,7 +178,10 @@ export function getTableColumns(marketKind: "aces" | "breaks") {
     {
       key: "marche_fanduel" as const,
       label: "Equiv. FanDuel",
-      hint: "Meme marche chez FanDuel (libelle anglais)",
+      hint:
+        marketKind === "wnba"
+          ? "Meme prop joueuse chez FanDuel (libelle anglais)"
+          : "Meme marche chez FanDuel (libelle anglais)",
     },
     {
       key: "cote_fr" as const,

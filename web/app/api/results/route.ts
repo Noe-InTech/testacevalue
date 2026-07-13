@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { fetchGithubJson } from "@/lib/github";
 import { fetchRunnerResults, runnerEnabled } from "@/lib/runner";
-import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
+import type { ApiPayload, MarketPayload, RunStatus, SportKey } from "@/lib/types";
 
 async function readLocalJson<T>(filename: string): Promise<T | null> {
   try {
@@ -36,6 +36,8 @@ function emptyMarketPayload(source: string): MarketPayload {
   };
 }
 
+const idleWnbaPayload: MarketPayload = emptyMarketPayload("wnba_player_props_comparable");
+
 const idlePayload: ApiPayload = {
   source: "tennis_props_comparable",
   generated_at: "",
@@ -53,22 +55,26 @@ const runnerUnreachableStatus: RunStatus = {
   updated_at: new Date().toISOString(),
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const sport = (new URL(request.url).searchParams.get("sport") || "tennis") as SportKey;
+
   if (runnerEnabled()) {
-    const runnerData = await fetchRunnerResults();
+    const runnerData = await fetchRunnerResults(sport);
     if (runnerData) {
       return NextResponse.json({
         payload: runnerData.payload,
         status: runnerData.status,
         source: "runner-live",
+        sport,
         fetched_at: new Date().toISOString(),
       });
     }
 
     return NextResponse.json({
-      payload: idlePayload,
+      payload: sport === "wnba" ? idleWnbaPayload : idlePayload,
       status: runnerUnreachableStatus,
       source: "runner-unreachable",
+      sport,
       fetched_at: new Date().toISOString(),
     });
   }

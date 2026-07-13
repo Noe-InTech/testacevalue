@@ -172,6 +172,82 @@ def build_fanduel_player_props_map(
     return variant_map
 
 
+def props_outcome_label_fr(outcome: str) -> str:
+    if outcome == "Over":
+        return "Plus"
+    if outcome == "Under":
+        return "Moins"
+    if outcome == "Yes":
+        return "Oui"
+    return outcome
+
+
+def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
+    fr_odds = round(float(row["best_fr_odds"]), 2)
+    fd_decimal = round(float(row["fanduel_odds"]), 2)
+    price_delta = round(fr_odds - fd_decimal, 2)
+    if price_delta > 0:
+        best_side = "fr"
+    elif price_delta < 0:
+        best_side = "fanduel"
+    else:
+        best_side = "tie"
+    issue = props_outcome_label_fr(str(row.get("outcome", "")))
+    marche_fr = str(row.get("fr_market_label", ""))
+    marche_fd = str(row.get("fanduel_market_label", ""))
+    enriched = {
+        **row,
+        "best_side": best_side,
+        "cote_fr": format_french_decimal(fr_odds),
+        "bookmaker_fr": row.get("best_fr_bookmaker", ""),
+        "cote_us_fanduel_ml": format_american_moneyline(row.get("fanduel_american")),
+        "cote_fr_fanduel": format_french_decimal(fd_decimal),
+        "ecart_fr_moins_fd": f"{price_delta:+.2f}".replace(".", ","),
+        "meilleur_cote": "FR" if best_side == "fr" else "FanDuel" if best_side == "fanduel" else "Egalite",
+        "issue_fr": issue,
+        "marche_fr": marche_fr,
+        "marche_fanduel": marche_fd,
+        "ligne_props_fr": format_ligne_props_fr(row),
+    }
+    return enriched
+
+
+def enrich_fr_only_row(row: dict[str, Any]) -> dict[str, Any]:
+    issue = props_outcome_label_fr(str(row.get("outcome", "")))
+    marche_fr = str(row.get("fr_market_label", ""))
+    return {
+        **row,
+        "cote_fr": format_french_decimal(float(row["best_fr_odds"])),
+        "bookmaker_fr": row.get("best_fr_bookmaker", ""),
+        "cote_us_fanduel_ml": "",
+        "cote_fr_fanduel": "",
+        "ecart_fr_moins_fd": "",
+        "meilleur_cote": "FR seul",
+        "issue_fr": issue,
+        "marche_fr": marche_fr,
+        "marche_fanduel": "",
+        "ligne_props_fr": format_ligne_props_fr(row),
+    }
+
+
+def enrich_fd_only_row(row: dict[str, Any]) -> dict[str, Any]:
+    issue = props_outcome_label_fr(str(row.get("outcome", "")))
+    marche_fd = str(row.get("fanduel_market_label", ""))
+    return {
+        **row,
+        "cote_fr": "",
+        "bookmaker_fr": "",
+        "cote_us_fanduel_ml": row.get("cote_us_fanduel_ml", ""),
+        "cote_fr_fanduel": row.get("cote_fr_fanduel", ""),
+        "ecart_fr_moins_fd": "",
+        "meilleur_cote": "FanDuel seul",
+        "issue_fr": issue,
+        "marche_fr": "",
+        "marche_fanduel": marche_fd,
+        "ligne_props_fr": format_ligne_props_fr(row),
+    }
+
+
 def format_ligne_props_fr(row: dict[str, Any]) -> str:
     compare_key = str(row.get("compare_key", ""))
     parts = compare_key.split("|")
@@ -220,22 +296,20 @@ def compare_normalized_props(
             fd_bundle = fd_market["outcomes"].get(outcome)
             if not fd_bundle or fd_bundle.get("decimal_fr") is None:
                 continue
-            row = {
-                "compare_key": compare_key,
-                "market_family": fr_market["market_family"],
-                "player_name": fr_market.get("player_name", ""),
-                "outcome": outcome,
-                "fr_market_label": fr_market["market_label_raw"],
-                "fanduel_market_label": fd_market.get("market_label", ""),
-                "best_fr_odds": fr_payload["odds"],
-                "best_fr_bookmaker": fr_payload["bookmaker_label"],
-                "cote_fr": format_french_decimal(float(fr_payload["odds"])),
-                "bookmaker_fr": fr_payload["bookmaker_label"],
-                "cote_us_fanduel_ml": format_american_moneyline(fd_bundle.get("american")),
-                "cote_fr_fanduel": format_french_decimal(float(fd_bundle["decimal_fr"])),
-                "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
-            }
-            row["ligne_props_fr"] = format_ligne_props_fr(row)
+            row = enrich_comparable_row(
+                {
+                    "compare_key": compare_key,
+                    "market_family": fr_market["market_family"],
+                    "player_name": fr_market.get("player_name", ""),
+                    "outcome": outcome,
+                    "fr_market_label": fr_market["market_label_raw"],
+                    "fanduel_market_label": fd_market.get("market_label", ""),
+                    "best_fr_odds": fr_payload["odds"],
+                    "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                    "fanduel_american": fd_bundle.get("american"),
+                    "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
+                }
+            )
             rows.append(row)
     return rows
 
@@ -323,6 +397,248 @@ def discover_anchors(
     return list(anchors.values())
 
 
+def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for row in result.get("comparables", []):
+            rows.append({"match": result["match"], **row})
+    return rows
+
+
+def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [row for row in rows if row.get("best_side") == "fr"]
+
+
+def collect_fr_only_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for row in result.get("fr_only", []):
+            rows.append({"match": result["match"], **row})
+    return rows
+
+
+def collect_fd_only_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for row in result.get("fd_only", []):
+            rows.append({"match": result["match"], **row})
+    return rows
+
+
+def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        rows.append(
+            {
+                "match": result.get("match", ""),
+                "comparable_count": int(result.get("comparable_count", 0)),
+                "fr_only_count": int(result.get("fr_only_count", 0)),
+                "fd_only_count": int(result.get("fd_only_count", 0)),
+                "fr_market_count": int(result.get("fr_prop_market_count", 0)),
+                "fd_market_count": int(result.get("fd_prop_market_count", 0)),
+                "fanduel_found": bool(result.get("fanduel_event_id")),
+            }
+        )
+    return rows
+
+
+def build_results_payload(
+    results: list[dict[str, Any]],
+    *,
+    partial: bool,
+    anchors_total: int | None = None,
+) -> dict[str, Any]:
+    comparable_rows = collect_comparable_rows(results)
+    fr_higher_rows = collect_fr_higher_rows(comparable_rows)
+    fr_only_rows = collect_fr_only_rows(results)
+    fd_only_rows = collect_fd_only_rows(results)
+    match_progress = build_match_progress(results)
+    fd_events = sum(1 for result in results if int(result.get("fd_prop_market_count", 0)) > 0)
+    fr_events = sum(1 for result in results if int(result.get("fr_prop_market_count", 0)) > 0)
+    return {
+        "source": "wnba_player_props_comparable",
+        "generated_at": utc_now(),
+        "partial": partial,
+        "anchors_total": anchors_total if anchors_total is not None else len(match_progress),
+        "matches_done": len(match_progress),
+        "comparable_count": len(comparable_rows),
+        "fr_higher_count": len(fr_higher_rows),
+        "value_count": 0,
+        "fr_only_count": len(fr_only_rows),
+        "fd_only_count": len(fd_only_rows),
+        "fd_event_count": fd_events,
+        "fr_event_count": fr_events,
+        "comparables": comparable_rows,
+        "fr_higher_comparables": fr_higher_rows,
+        "value_comparables": [],
+        "fr_only_comparables": fr_only_rows,
+        "fd_only_comparables": fd_only_rows,
+        "match_progress": match_progress,
+        "notes": [
+            "Pipeline WNBA séparé du tennis.",
+            "Référence US: FanDuel (props joueuse O/U).",
+            "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
+        ],
+    }
+
+
+def write_progress_json(
+    path: Path | None,
+    results: list[dict[str, Any]],
+    *,
+    partial: bool,
+    anchors_total: int | None = None,
+) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = build_results_payload(results, partial=partial, anchors_total=anchors_total)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def write_run_status_file(
+    path: Path | None,
+    status: str,
+    message: str,
+    *,
+    match_filter: str = "",
+    results: list[dict[str, Any]] | None = None,
+    anchors_total: int | None = None,
+) -> None:
+    if path is None:
+        return
+    payload: dict[str, Any] = {
+        "status": status,
+        "message": message,
+        "match_filter": match_filter,
+        "sport": "wnba",
+        "updated_at": utc_now(),
+    }
+    if anchors_total is not None:
+        payload["anchors_total"] = anchors_total
+    if results is not None:
+        comparable_rows = collect_comparable_rows(results)
+        payload["comparable_count"] = len(comparable_rows)
+        payload["fr_higher_count"] = len(collect_fr_higher_rows(comparable_rows))
+        payload["value_count"] = 0
+        payload["matches_done"] = len(results)
+        payload["fr_only_count"] = sum(int(item.get("fr_only_count", 0)) for item in results)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def compare_anchor(
+    anchor: dict[str, Any],
+    *,
+    unibet_events: list[Any],
+    betclic_links: list[Any],
+    winamax_links: list[Any],
+    fanduel_events: list[Any],
+    unibet: UnibetBasketballClient,
+    betclic: BetclicBasketballClient,
+    winamax: WinamaxBasketballClient,
+    fanduel: FanDuelBasketballClient,
+) -> dict[str, Any]:
+    book_events: dict[str, dict[str, Any]] = {}
+
+    unibet_event = next(
+        (item for item in unibet_events if item.event_id == anchor.get("unibet_event_id")),
+        None,
+    )
+    if unibet_event:
+        book_events["unibet"] = unibet.build_event_payload(unibet_event)
+
+    betclic_link = next(
+        (item for item in betclic_links if item.match_id == anchor.get("betclic_match_id")),
+        None,
+    )
+    if betclic_link:
+        book_events["betclic"] = betclic.build_event_payload(betclic_link)
+
+    winamax_link = next(
+        (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
+        None,
+    )
+    if winamax_link:
+        book_events["winamax"] = winamax.build_event_payload(winamax_link)
+
+    roster = merge_roster(
+        book_events.get("winamax", {}).get("roster"),
+        book_events.get("unibet", {}).get("roster"),
+        book_events.get("betclic", {}).get("roster"),
+        [anchor["home_team"], anchor["away_team"]],
+    )
+
+    fanduel_payload = None
+    if anchor.get("fanduel_event_id"):
+        event = next(
+            (item for item in fanduel_events if item.event_id == anchor["fanduel_event_id"]),
+            None,
+        )
+        if event:
+            fanduel_payload = fanduel.build_event_payload(event)
+
+    fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+    fd_map = build_fanduel_player_props_map(fanduel_payload, roster=roster)
+    comparable = compare_normalized_props(fr_map, fd_map)
+
+    fr_only: list[dict[str, Any]] = []
+    for compare_key, fr_market in fr_map.items():
+        fd_market = fd_map.get(compare_key)
+        for outcome, fr_payload in fr_market["outcomes"].items():
+            if fd_market and outcome in fd_market.get("outcomes", {}):
+                continue
+            fr_only.append(
+                enrich_fr_only_row(
+                    {
+                        "compare_key": compare_key,
+                        "market_family": fr_market["market_family"],
+                        "player_name": fr_market.get("player_name", ""),
+                        "outcome": outcome,
+                        "best_fr_odds": fr_payload["odds"],
+                        "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "fr_market_label": fr_market["market_label_raw"],
+                    }
+                )
+            )
+
+    fd_only: list[dict[str, Any]] = []
+    for compare_key, fd_market in fd_map.items():
+        fr_market = fr_map.get(compare_key)
+        for outcome, fd_bundle in fd_market.get("outcomes", {}).items():
+            if fr_market and outcome in fr_market.get("outcomes", {}):
+                continue
+            fd_only.append(
+                enrich_fd_only_row(
+                    {
+                        "compare_key": compare_key,
+                        "market_family": fd_market.get("market_family", compare_key.split("|", 1)[0]),
+                        "player_name": "",
+                        "outcome": outcome,
+                        "fanduel_market_label": fd_market.get("market_label", ""),
+                        "cote_fr_fanduel": format_french_decimal(float(fd_bundle["decimal_fr"])),
+                        "cote_us_fanduel_ml": format_american_moneyline(fd_bundle.get("american")),
+                    }
+                )
+            )
+
+    return {
+        "match": anchor["match"],
+        "sources": sorted(anchor["sources"]),
+        "fanduel_event_id": anchor.get("fanduel_event_id"),
+        "comparable_count": len(comparable),
+        "fr_only_count": len(fr_only),
+        "fd_only_count": len(fd_only),
+        "fr_prop_market_count": len(fr_map),
+        "fd_prop_market_count": len(fd_map),
+        "comparables": comparable,
+        "fr_only": fr_only,
+        "fd_only": fd_only,
+    }
+
+
 def run_compare(*, match_filter: str = "") -> dict[str, Any]:
     unibet = UnibetBasketballClient()
     betclic = BetclicBasketballClient()
@@ -343,117 +659,127 @@ def run_compare(*, match_filter: str = "") -> dict[str, Any]:
         needle = match_filter.strip().lower()
         anchors = [anchor for anchor in anchors if needle in anchor["match"].lower()]
 
+    results = [
+        compare_anchor(
+            anchor,
+            unibet_events=unibet_events,
+            betclic_links=betclic_links,
+            winamax_links=winamax_links,
+            fanduel_events=fanduel_events,
+            unibet=unibet,
+            betclic=betclic,
+            winamax=winamax,
+            fanduel=fanduel,
+        )
+        for anchor in anchors
+    ]
+    return build_results_payload(results, partial=False, anchors_total=len(anchors))
+
+
+def run_live_compare(
+    output: Path | None = None,
+    *,
+    match_filter: str = "",
+    progress_json: Path | None = None,
+    status_json: Path | None = None,
+) -> Path:
+    unibet = UnibetBasketballClient()
+    betclic = BetclicBasketballClient()
+    winamax = WinamaxBasketballClient(fetch_timeout=25)
+    fanduel = FanDuelBasketballClient()
+    anchors_total = 0
     results: list[dict[str, Any]] = []
-    comparable_rows: list[dict[str, Any]] = []
-    fr_only_rows: list[dict[str, Any]] = []
-    fd_only_rows: list[dict[str, Any]] = []
 
-    for anchor in anchors:
-        book_events: dict[str, dict[str, Any]] = {}
-
-        unibet_event = next(
-            (item for item in unibet_events if item.event_id == anchor.get("unibet_event_id")),
-            None,
+    def on_progress(message: str) -> None:
+        write_progress_json(
+            progress_json,
+            results,
+            partial=True,
+            anchors_total=anchors_total,
         )
-        if unibet_event:
-            book_events["unibet"] = unibet.build_event_payload(unibet_event)
-
-        betclic_link = next(
-            (item for item in betclic_links if item.match_id == anchor.get("betclic_match_id")),
-            None,
-        )
-        if betclic_link:
-            book_events["betclic"] = betclic.build_event_payload(betclic_link)
-
-        winamax_link = next(
-            (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
-            None,
-        )
-        if winamax_link:
-            book_events["winamax"] = winamax.build_event_payload(winamax_link)
-
-        roster = merge_roster(
-            book_events.get("winamax", {}).get("roster"),
-            book_events.get("unibet", {}).get("roster"),
-            book_events.get("betclic", {}).get("roster"),
-            [anchor["home_team"], anchor["away_team"]],
+        write_run_status_file(
+            status_json,
+            "running",
+            message,
+            match_filter=match_filter,
+            results=results,
+            anchors_total=anchors_total,
         )
 
-        fanduel_payload = None
-        if anchor.get("fanduel_event_id"):
-            event = next(
-                (item for item in fanduel_events if item.event_id == anchor["fanduel_event_id"]),
-                None,
-            )
-            if event:
-                fanduel_payload = fanduel.build_event_payload(event)
+    write_run_status_file(
+        status_json,
+        "running",
+        "Chargement des matchs WNBA...",
+        match_filter=match_filter,
+    )
+    write_progress_json(progress_json, [], partial=True)
 
-        fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-        fd_map = build_fanduel_player_props_map(fanduel_payload, roster=roster)
-        comparable = compare_normalized_props(fr_map, fd_map)
+    unibet_events = unibet.list_wnba_events()
+    betclic_links = betclic.list_wnba_matches()
+    winamax_links = winamax.list_wnba_matches()
+    fanduel_events = fanduel.list_wnba_events()
+    anchors = discover_anchors(
+        unibet_events=unibet_events,
+        betclic_links=betclic_links,
+        winamax_links=winamax_links,
+        fanduel_events=fanduel_events,
+    )
+    if match_filter:
+        needle = match_filter.strip().lower()
+        anchors = [anchor for anchor in anchors if needle in anchor["match"].lower()]
 
-        for compare_key, fr_market in fr_map.items():
-            fd_market = fd_map.get(compare_key)
-            for outcome, fr_payload in fr_market["outcomes"].items():
-                if fd_market and outcome in fd_market.get("outcomes", {}):
-                    continue
-                row = {
-                    "match": anchor["match"],
-                    "compare_key": compare_key,
-                    "outcome": outcome,
-                    "best_fr_odds": fr_payload["odds"],
-                    "best_fr_bookmaker": fr_payload["bookmaker_label"],
-                    "fr_market_label": fr_market["market_label_raw"],
-                }
-                row["ligne_props_fr"] = format_ligne_props_fr(row)
-                fr_only_rows.append(row)
+    anchors_total = len(anchors)
+    write_run_status_file(
+        status_json,
+        "running",
+        f"{anchors_total} match(s) WNBA — resultats au fil de l'eau...",
+        match_filter=match_filter,
+        anchors_total=anchors_total,
+    )
+    write_progress_json(progress_json, [], partial=True, anchors_total=anchors_total)
 
-        for compare_key, fd_market in fd_map.items():
-            fr_market = fr_map.get(compare_key)
-            for outcome, fd_bundle in fd_market.get("outcomes", {}).items():
-                if fr_market and outcome in fr_market.get("outcomes", {}):
-                    continue
-                row = {
-                    "match": anchor["match"],
-                    "compare_key": compare_key,
-                    "outcome": outcome,
-                    "fanduel_market_label": fd_market.get("market_label", ""),
-                    "cote_fr_fanduel": format_french_decimal(float(fd_bundle["decimal_fr"])),
-                    "cote_us_fanduel_ml": format_american_moneyline(fd_bundle.get("american")),
-                }
-                row["ligne_props_fr"] = format_ligne_props_fr(row)
-                fd_only_rows.append(row)
+    for index, anchor in enumerate(anchors, start=1):
+        compared = compare_anchor(
+            anchor,
+            unibet_events=unibet_events,
+            betclic_links=betclic_links,
+            winamax_links=winamax_links,
+            fanduel_events=fanduel_events,
+            unibet=unibet,
+            betclic=betclic,
+            winamax=winamax,
+            fanduel=fanduel,
+        )
+        results.append(compared)
+        on_progress(
+            f"{index}/{anchors_total} — {compared['match']} : "
+            f"{compared['comparable_count']} comparee(s), "
+            f"{compared['fr_only_count']} FR seul"
+        )
 
-        result = {
-            "match": anchor["match"],
-            "sources": sorted(anchor["sources"]),
-            "fanduel_event_id": anchor.get("fanduel_event_id"),
-            "comparable_count": len(comparable),
-            "fr_prop_market_count": len(fr_map),
-            "fd_prop_market_count": len(fd_map),
-            "comparables": comparable,
-        }
-        results.append(result)
-        comparable_rows.extend({**row, "match": anchor["match"]} for row in comparable)
-
-    return {
-        "source": "wnba_player_props_comparable",
-        "generated_at": utc_now(),
-        "anchors_total": len(anchors),
-        "matches_done": len(results),
-        "comparable_count": len(comparable_rows),
-        "fr_only_count": len(fr_only_rows),
-        "fd_only_count": len(fd_only_rows),
-        "results": results,
-        "comparables": comparable_rows,
-        "fr_only_comparables": fr_only_rows,
-        "fd_only_comparables": fd_only_rows,
-        "notes": [
-            "Pipeline WNBA séparé du tennis.",
-            "Référence US: FanDuel (props joueuse O/U).",
-            "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
-        ],
-    }
+    payload = build_results_payload(results, partial=False, anchors_total=anchors_total)
+    output_path = output or (OUTPUT_DIR / "wnba_props_compare.json")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_progress_json(
+        progress_json, results, partial=False, anchors_total=anchors_total
+    )
+    write_run_status_file(
+        status_json,
+        "success",
+        f"Comparaison WNBA terminee — {len(results)}/{anchors_total} match(s).",
+        match_filter=match_filter,
+        results=results,
+        anchors_total=anchors_total,
+    )
+    log.info(
+        "WNBA compare terminé — %d match(s), %d comparable(s), %d FR seul, %d FD seul",
+        payload["matches_done"],
+        payload["comparable_count"],
+        payload["fr_only_count"],
+        payload["fd_only_count"],
+    )
+    return output_path
 
 
 def main() -> None:
@@ -465,7 +791,26 @@ def main() -> None:
         type=Path,
         default=OUTPUT_DIR / "wnba_props_compare.json",
     )
+    parser.add_argument(
+        "--progress-json",
+        type=Path,
+        help="Ecrit les resultats partiels au fil de l'eau (JSON)",
+    )
+    parser.add_argument(
+        "--status-json",
+        type=Path,
+        help="Met a jour le statut du run (JSON)",
+    )
     args = parser.parse_args()
+
+    if args.progress_json or args.status_json:
+        run_live_compare(
+            args.output,
+            match_filter=args.match,
+            progress_json=args.progress_json,
+            status_json=args.status_json,
+        )
+        return
 
     payload = run_compare(match_filter=args.match)
     args.output.parent.mkdir(parents=True, exist_ok=True)
