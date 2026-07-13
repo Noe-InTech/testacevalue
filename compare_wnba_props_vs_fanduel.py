@@ -8,7 +8,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -52,7 +53,7 @@ logging.basicConfig(
 log = logging.getLogger("compare_wnba")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-WINAMAX_FETCH_TIMEOUT = 25
+WINAMAX_FETCH_TIMEOUT = 10
 
 
 def utc_now() -> str:
@@ -764,90 +765,118 @@ def compare_anchor(
             attach_capture_times=attach_capture_times,
         )
 
+    def merge_roster_from_books() -> list[str]:
+        return merge_roster(
+            book_events.get("winamax", {}).get("roster"),
+            book_events.get("unibet", {}).get("roster"),
+            book_events.get("betclic", {}).get("roster"),
+            [anchor["home_team"], anchor["away_team"]],
+        )
+
+    book_lock = threading.Lock()
+
+    def ingest_fr_book(book: str, payload: dict[str, Any] | None) -> None:
+        nonlocal roster, fr_scraped_at, fr_map
+        if not payload:
+            return
+        with book_lock:
+            book_events[book] = payload
+            roster = merge_roster_from_books()
+            fr_scraped_at = utc_now()
+            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+            flush(book)
+
+    def ingest_fanduel(payload: dict[str, Any] | None) -> None:
+        nonlocal roster, fd_scraped_at, fd_map
+        if not payload:
+            return
+        with book_lock:
+            fd_scraped_at = utc_now()
+            fd_map = build_fanduel_player_props_map(payload, roster=roster)
+            flush("fanduel")
+
     unibet_event = next(
         (item for item in unibet_events if item.event_id == anchor.get("unibet_event_id")),
         None,
     )
-    if unibet_event:
-        payload = _safe_call(
-            "Unibet",
-            lambda: unibet.build_event_payload(unibet_event),
-            None,
-        )
-        if payload:
-            book_events["unibet"] = payload
-            roster = merge_roster(
-                book_events.get("winamax", {}).get("roster"),
-                book_events.get("unibet", {}).get("roster"),
-                book_events.get("betclic", {}).get("roster"),
-                [anchor["home_team"], anchor["away_team"]],
-            )
-            fr_scraped_at = utc_now()
-            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-            flush("unibet")
-
     betclic_link = next(
         (item for item in betclic_links if item.match_id == anchor.get("betclic_match_id")),
         None,
     )
-    if betclic_link:
-        payload = _safe_call(
-            "Betclic",
-            lambda: betclic.build_event_payload(betclic_link),
-            None,
-        )
-        if payload:
-            book_events["betclic"] = payload
-            roster = merge_roster(
-                book_events.get("winamax", {}).get("roster"),
-                book_events.get("unibet", {}).get("roster"),
-                book_events.get("betclic", {}).get("roster"),
-                [anchor["home_team"], anchor["away_team"]],
-            )
-            fr_scraped_at = utc_now()
-            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-            flush("betclic")
-
     winamax_link = next(
         (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
         None,
     )
-    if winamax_link:
-        payload = _safe_call(
-            "Winamax",
-            lambda: winamax.build_event_payload(winamax_link),
+    fanduel_event = None
+    if anchor.get("fanduel_event_id"):
+        fanduel_event = next(
+            (item for item in fanduel_events if item.event_id == anchor["fanduel_event_id"]),
             None,
         )
-        if payload:
-            book_events["winamax"] = payload
-            roster = merge_roster(
-                book_events.get("winamax", {}).get("roster"),
-                book_events.get("unibet", {}).get("roster"),
-                book_events.get("betclic", {}).get("roster"),
-                [anchor["home_team"], anchor["away_team"]],
-            )
-            fr_scraped_at = utc_now()
-            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-            flush("winamax")
 
     build_fd_payload = (
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
-    if anchor.get("fanduel_event_id"):
-        event = next(
-            (item for item in fanduel_events if item.event_id == anchor["fanduel_event_id"]),
-            None,
-        )
-        if event:
-            fanduel_payload = _safe_call(
-                "FanDuel",
-                lambda: build_fd_payload(event),
-                None,
+
+    # FanDuel en premier (reference US) — les comparables arrivent des le 1er book FR.
+    priority_jobs: list[tuple[str, Callable[[], dict[str, Any] | None]]] = []
+    if fanduel_event:
+        priority_jobs.append(
+            (
+                "fanduel",
+                lambda event=fanduel_event: _safe_call(
+                    "FanDuel",
+                    lambda: build_fd_payload(event),
+                    None,
+                ),
             )
-            if fanduel_payload:
-                fd_scraped_at = utc_now()
-                fd_map = build_fanduel_player_props_map(fanduel_payload, roster=roster)
-                flush("fanduel")
+        )
+    if betclic_link:
+        priority_jobs.append(
+            (
+                "betclic",
+                lambda link=betclic_link: _safe_call(
+                    "Betclic",
+                    lambda: betclic.build_event_payload(link),
+                    None,
+                ),
+            )
+        )
+
+    if priority_jobs:
+        with ThreadPoolExecutor(max_workers=min(2, len(priority_jobs))) as pool:
+            futures = {pool.submit(job[1]): job[0] for job in priority_jobs}
+            for future in as_completed(futures):
+                book = futures[future]
+                try:
+                    payload = future.result()
+                except Exception as exc:
+                    log.warning("%s ignore %s: %s", book, anchor["match"], exc)
+                    continue
+                if book == "fanduel":
+                    ingest_fanduel(payload)
+                else:
+                    ingest_fr_book(book, payload)
+
+    if unibet_event:
+        ingest_fr_book(
+            "unibet",
+            _safe_call(
+                "Unibet",
+                lambda: unibet.build_event_payload(unibet_event),
+                None,
+            ),
+        )
+
+    if winamax_link:
+        ingest_fr_book(
+            "winamax",
+            _safe_call(
+                "Winamax",
+                lambda: winamax.build_event_payload(winamax_link),
+                None,
+            ),
+        )
 
     return assemble_anchor_result(
         anchor,
