@@ -8,9 +8,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from basketball_books_mapping import (
     BOOK_NORMALIZERS,
@@ -447,6 +448,7 @@ def build_results_payload(
     *,
     partial: bool,
     anchors_total: int | None = None,
+    book_warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     comparable_rows = collect_comparable_rows(results)
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
@@ -478,6 +480,7 @@ def build_results_payload(
             "Pipeline WNBA séparé du tennis.",
             "Référence US: FanDuel (props joueuse O/U).",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
+            *(book_warnings or []),
         ],
     }
 
@@ -529,6 +532,59 @@ def write_run_status_file(
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _safe_call(label: str, callback: Callable[[], Any], fallback: Any) -> Any:
+    try:
+        return callback()
+    except Exception as exc:
+        log.warning("%s indisponible (live): %s", label, exc)
+        return fallback
+
+
+def fetch_live_wnba_listings(
+    *,
+    unibet: UnibetBasketballClient,
+    betclic: BetclicBasketballClient,
+    winamax: WinamaxBasketballClient,
+    fanduel: FanDuelBasketballClient,
+    on_status: Callable[[str], None] | None = None,
+) -> tuple[list[Any], list[Any], list[Any], list[Any], list[str]]:
+    def status(message: str) -> None:
+        if on_status is not None:
+            on_status(message)
+
+    warnings: list[str] = []
+    status("Chargement parallele des calendriers WNBA...")
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        fut_unibet = pool.submit(unibet.list_wnba_events)
+        fut_betclic = pool.submit(betclic.list_wnba_matches)
+        fut_winamax = pool.submit(winamax.list_wnba_matches)
+        fut_fanduel = pool.submit(fanduel.list_wnba_events)
+
+        unibet_events = _safe_call("Unibet", fut_unibet.result, [])
+        betclic_links = _safe_call("Betclic", fut_betclic.result, [])
+        winamax_links = _safe_call("Winamax", fut_winamax.result, [])
+        fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
+
+    if not unibet_events:
+        warnings.append("Unibet indisponible depuis le runner EU (souvent bloque IP datacenter).")
+    if not betclic_links:
+        warnings.append("Betclic: aucun match WNBA ou scrape indisponible.")
+    if not winamax_links:
+        warnings.append(
+            "Winamax indisponible depuis le runner EU (IP Oracle bloquee — compare sans Winamax)."
+        )
+    if not fanduel_events:
+        warnings.append("FanDuel: aucun evenement WNBA ou scrape indisponible.")
+
+    status(
+        "Calendriers WNBA — "
+        f"Unibet {len(unibet_events)}, Betclic {len(betclic_links)}, "
+        f"Winamax {len(winamax_links)}, FanDuel {len(fanduel_events)}"
+    )
+    return unibet_events, betclic_links, winamax_links, fanduel_events, warnings
+
+
 def compare_anchor(
     anchor: dict[str, Any],
     *,
@@ -548,21 +604,39 @@ def compare_anchor(
         None,
     )
     if unibet_event:
-        book_events["unibet"] = unibet.build_event_payload(unibet_event)
+        payload = _safe_call(
+            "Unibet",
+            lambda: unibet.build_event_payload(unibet_event),
+            None,
+        )
+        if payload:
+            book_events["unibet"] = payload
 
     betclic_link = next(
         (item for item in betclic_links if item.match_id == anchor.get("betclic_match_id")),
         None,
     )
     if betclic_link:
-        book_events["betclic"] = betclic.build_event_payload(betclic_link)
+        payload = _safe_call(
+            "Betclic",
+            lambda: betclic.build_event_payload(betclic_link),
+            None,
+        )
+        if payload:
+            book_events["betclic"] = payload
 
     winamax_link = next(
         (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
         None,
     )
     if winamax_link:
-        book_events["winamax"] = winamax.build_event_payload(winamax_link)
+        payload = _safe_call(
+            "Winamax",
+            lambda: winamax.build_event_payload(winamax_link),
+            None,
+        )
+        if payload:
+            book_events["winamax"] = payload
 
     roster = merge_roster(
         book_events.get("winamax", {}).get("roster"),
@@ -578,7 +652,11 @@ def compare_anchor(
             None,
         )
         if event:
-            fanduel_payload = fanduel.build_event_payload(event)
+            fanduel_payload = _safe_call(
+                "FanDuel",
+                lambda: fanduel.build_event_payload(event),
+                None,
+            )
 
     fr_map = build_best_fr_player_props_map(book_events, roster=roster)
     fd_map = build_fanduel_player_props_map(fanduel_payload, roster=roster)
@@ -645,10 +723,14 @@ def run_compare(*, match_filter: str = "") -> dict[str, Any]:
     winamax = WinamaxBasketballClient(fetch_timeout=25)
     fanduel = FanDuelBasketballClient()
 
-    unibet_events = unibet.list_wnba_events()
-    betclic_links = betclic.list_wnba_matches()
-    winamax_links = winamax.list_wnba_matches()
-    fanduel_events = fanduel.list_wnba_events()
+    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = (
+        fetch_live_wnba_listings(
+            unibet=unibet,
+            betclic=betclic,
+            winamax=winamax,
+            fanduel=fanduel,
+        )
+    )
     anchors = discover_anchors(
         unibet_events=unibet_events,
         betclic_links=betclic_links,
@@ -673,7 +755,12 @@ def run_compare(*, match_filter: str = "") -> dict[str, Any]:
         )
         for anchor in anchors
     ]
-    return build_results_payload(results, partial=False, anchors_total=len(anchors))
+    return build_results_payload(
+        results,
+        partial=False,
+        anchors_total=len(anchors),
+        book_warnings=book_warnings,
+    )
 
 
 def run_live_compare(
@@ -689,6 +776,7 @@ def run_live_compare(
     fanduel = FanDuelBasketballClient()
     anchors_total = 0
     results: list[dict[str, Any]] = []
+    book_warnings: list[str] = []
 
     def on_progress(message: str) -> None:
         write_progress_json(
@@ -714,10 +802,18 @@ def run_live_compare(
     )
     write_progress_json(progress_json, [], partial=True)
 
-    unibet_events = unibet.list_wnba_events()
-    betclic_links = betclic.list_wnba_matches()
-    winamax_links = winamax.list_wnba_matches()
-    fanduel_events = fanduel.list_wnba_events()
+    def on_listing_status(message: str) -> None:
+        write_run_status_file(status_json, "running", message, match_filter=match_filter)
+
+    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = (
+        fetch_live_wnba_listings(
+            unibet=unibet,
+            betclic=betclic,
+            winamax=winamax,
+            fanduel=fanduel,
+            on_status=on_listing_status,
+        )
+    )
     anchors = discover_anchors(
         unibet_events=unibet_events,
         betclic_links=betclic_links,
@@ -757,7 +853,12 @@ def run_live_compare(
             f"{compared['fr_only_count']} FR seul"
         )
 
-    payload = build_results_payload(results, partial=False, anchors_total=anchors_total)
+    payload = build_results_payload(
+        results,
+        partial=False,
+        anchors_total=anchors_total,
+        book_warnings=book_warnings,
+    )
     output_path = output or (OUTPUT_DIR / "wnba_props_compare.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -181,6 +181,13 @@ export function WnbaDashboard() {
   }, [matchProgress, progressSearch]);
 
   const overlapHint = useMemo(() => {
+    const notes = (payload as { notes?: string[] } | null)?.notes ?? [];
+    const bookNote = notes.find((note) =>
+      /winamax|unibet|betclic|fanduel/i.test(note),
+    );
+    if (bookNote) {
+      return bookNote;
+    }
     if ((payload?.comparable_count ?? 0) > 0) {
       return "";
     }
