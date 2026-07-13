@@ -21,6 +21,10 @@ export interface ComparableRow {
   paire_fd_complete?: boolean;
   ecart_fr_moins_fd: string;
   meilleur_cote: string;
+  compare_key?: string;
+  market_family?: string;
+  player_name?: string;
+  outcome?: string;
 }
 
 export interface MatchProgressRow {
@@ -56,6 +60,7 @@ export interface MarketPayload {
   fr_only_comparables?: ComparableRow[];
   fd_only_comparables?: ComparableRow[];
   match_progress?: MatchProgressRow[];
+  notes?: string[];
 }
 
 export interface CombinedPropsPayload {

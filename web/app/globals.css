@@ -265,6 +265,90 @@ td.side {
   font-size: 0.9rem;
 }
 
+.warning {
+  margin: 8px 0 0;
+  color: #fbbf24;
+  font-size: 0.92rem;
+}
+
+.filters-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.filters-panel h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filters-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ghost-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.filters-panel label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.filters-panel input,
+.filters-panel select {
+  width: 100%;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.filter-chip.active {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: var(--accent);
+}
+
+.chip-count {
+  opacity: 0.75;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 720px) {
   .meta {
     grid-template-columns: 1fr;

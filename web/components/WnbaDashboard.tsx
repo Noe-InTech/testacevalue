@@ -6,8 +6,20 @@ import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
+import {
+  countRowsByStat,
+  filterWnbaRows,
+  hasWnbaData,
+  loadCachedWnbaResults,
+  saveCachedWnbaResults,
+  WNBA_BOOK_FILTERS,
+  WNBA_STAT_FILTERS,
+  type WnbaBookFilter,
+} from "@/lib/wnba";
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
+const SECTION_IDS = ["progress", "comparables", "frHigher", "frOnly", "fdOnly"] as const;
+type SectionId = (typeof SECTION_IDS)[number];
 
 function formatTimestamp(value?: string): string {
   if (!value) {
@@ -20,16 +32,31 @@ function formatTimestamp(value?: string): string {
   return date.toLocaleString("fr-FR");
 }
 
+function defaultOpenSections(): Record<SectionId, boolean> {
+  return {
+    progress: false,
+    comparables: true,
+    frHigher: true,
+    frOnly: false,
+    fdOnly: false,
+  };
+}
+
 export function WnbaDashboard() {
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [displayMatchFilter, setDisplayMatchFilter] = useState("");
+  const [statFilter, setStatFilter] = useState("all");
+  const [bookFilter, setBookFilter] = useState<WnbaBookFilter>("Tous");
   const [progressSearch, setProgressSearch] = useState("");
-  const [frOnlySearch, setFrOnlySearch] = useState("");
-  const [fdOnlySearch, setFdOnlySearch] = useState("");
+  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(defaultOpenSections);
   const [payload, setPayload] = useState<MarketPayload | null>(null);
   const [status, setStatus] = useState<RunStatus | null>(null);
+  const [cacheSavedAt, setCacheSavedAt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [info, setInfo] = useState("");
 
   useEffect(() => {
@@ -37,25 +64,100 @@ export function WnbaDashboard() {
     if (saved) {
       setSecret(saved);
     }
+    const cached = loadCachedWnbaResults();
+    if (cached) {
+      setPayload(cached.payload);
+      setStatus(cached.status);
+      setCacheSavedAt(cached.savedAt);
+    }
   }, []);
 
-  const refresh = useCallback(async () => {
-    const response = await fetch("/api/results?sport=wnba", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Impossible de charger les resultats WNBA.");
+  const applyResults = useCallback((nextPayload: MarketPayload | null, nextStatus: RunStatus | null) => {
+    if (nextPayload && hasWnbaData(nextPayload)) {
+      setPayload(nextPayload);
+      saveCachedWnbaResults(nextPayload, nextStatus);
+      setCacheSavedAt(new Date().toISOString());
     }
-    const data = await response.json();
-    setPayload((data.payload as MarketPayload) ?? null);
-    setStatus(data.status ?? null);
-    return data as {
-      payload: MarketPayload | null;
-      status: RunStatus | null;
-      source?: string;
-    };
+    if (nextStatus) {
+      setStatus(nextStatus);
+    }
   }, []);
+
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      try {
+        const response = await fetch("/api/results?sport=wnba", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        const nextPayload = (data.payload as MarketPayload) ?? null;
+        const nextStatus = (data.status as RunStatus) ?? null;
+
+        if (hasWnbaData(nextPayload)) {
+          applyResults(nextPayload, nextStatus);
+          if (!options?.silent) {
+            setWarning("");
+          }
+        } else if (data.source === "runner-unreachable") {
+          const cached = loadCachedWnbaResults();
+          if (cached) {
+            setPayload(cached.payload);
+            setStatus(cached.status);
+            setCacheSavedAt(cached.savedAt);
+            setWarning(
+              "Runner EU injoignable — derniers resultats en memoire affiches. Mets a jour RUNNER_URL sur Vercel.",
+            );
+          } else if (!options?.silent) {
+            setWarning(
+              "Runner EU injoignable. Mets a jour RUNNER_URL (URL Cloudflare https://....trycloudflare.com).",
+            );
+          }
+        } else if (nextStatus) {
+          setStatus(nextStatus);
+        }
+
+        return data as {
+          payload: MarketPayload | null;
+          status: RunStatus | null;
+          source?: string;
+        };
+      } catch (exc) {
+        const cached = loadCachedWnbaResults();
+        if (cached) {
+          setPayload(cached.payload);
+          setStatus(cached.status);
+          setCacheSavedAt(cached.savedAt);
+          setWarning(
+            exc instanceof Error
+              ? `Connexion instable (${exc.message}) — derniers resultats en memoire.`
+              : "Connexion instable — derniers resultats en memoire.",
+          );
+          return {
+            payload: cached.payload,
+            status: cached.status,
+            source: "cache",
+          };
+        }
+        if (!options?.silent) {
+          throw exc;
+        }
+        return {
+          payload: null,
+          status: null,
+          source: "error",
+        };
+      }
+    },
+    [applyResults],
+  );
 
   useEffect(() => {
-    refresh().catch((exc) => setError(exc instanceof Error ? exc.message : "Erreur inconnue."));
+    refresh({ silent: true }).catch((exc) => {
+      if (!loadCachedWnbaResults()) {
+        setError(exc instanceof Error ? exc.message : "Impossible de charger les resultats WNBA.");
+      }
+    });
   }, [refresh]);
 
   useEffect(() => {
@@ -63,8 +165,8 @@ export function WnbaDashboard() {
       return;
     }
     const timer = window.setInterval(() => {
-      refresh().catch(() => undefined);
-    }, 500);
+      refresh({ silent: true }).catch(() => undefined);
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [busy, status?.status, refresh]);
 
@@ -74,8 +176,8 @@ export function WnbaDashboard() {
     let lastMatches = 0;
 
     while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const data = await refresh();
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const data = await refresh({ silent: true });
       const progress = getPayloadProgressSnapshot(data.payload);
       const currentStatus = data.status?.status;
       const comparableCount = progress.comparable_count;
@@ -97,14 +199,14 @@ export function WnbaDashboard() {
         setInfo(data.status?.message || "Comparaison WNBA en cours...");
       }
 
-      if (data.source === "runner-unreachable") {
+      if (data.source === "runner-unreachable" && !hasWnbaData(data.payload) && !loadCachedWnbaResults()) {
         throw new Error(
           "Runner EU injoignable. Mets a jour RUNNER_URL sur Vercel (URL Cloudflare).",
         );
       }
 
       if (currentStatus === "error") {
-        if (totalRows > 0 || matchesDone > 0) {
+        if (totalRows > 0 || matchesDone > 0 || loadCachedWnbaResults()) {
           setInfo(`${matchesDone}/${anchorsTotal || "?"} match(s), ${totalRows} ligne(s) (partiel).`);
           return;
         }
@@ -116,7 +218,7 @@ export function WnbaDashboard() {
       }
     }
 
-    const finalData = await refresh();
+    const finalData = await refresh({ silent: true });
     const finalProgress = getPayloadProgressSnapshot(finalData.payload);
     const finalRows = finalProgress.comparable_count + finalProgress.fr_only_count;
     if (finalRows > 0 || (finalData.status?.matches_done ?? finalProgress.matches_done) > 0) {
@@ -128,6 +230,7 @@ export function WnbaDashboard() {
 
   const onSubmit = async () => {
     setError("");
+    setWarning("");
     setInfo("");
     if (!secret.trim()) {
       setError("Saisis ton code secret.");
@@ -136,15 +239,6 @@ export function WnbaDashboard() {
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
     setBusy(true);
-    setPayload({
-      source: "wnba_player_props_comparable",
-      generated_at: "",
-      partial: true,
-      comparable_count: 0,
-      fr_higher_count: 0,
-      comparables: [],
-      fr_higher_comparables: [],
-    });
     setInfo("Lancement WNBA en cours...");
 
     try {
@@ -160,17 +254,53 @@ export function WnbaDashboard() {
 
       setInfo("Scrape WNBA live en cours...");
       await waitForCompletion();
+      await refresh({ silent: true });
       setInfo("Comparaison WNBA terminee.");
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
+      if (loadCachedWnbaResults()) {
+        setWarning(
+          exc instanceof Error
+            ? `${exc.message} — derniers resultats conserves.`
+            : "Erreur — derniers resultats conserves.",
+        );
+      } else {
+        setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
+      }
     } finally {
       setBusy(false);
     }
   };
 
-  const frHigherRows = useMemo(() => payload?.fr_higher_comparables ?? [], [payload]);
-  const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
-  const fdOnlyRows = useMemo(() => payload?.fd_only_comparables ?? [], [payload]);
+  const filterOptions = useMemo(
+    () => ({
+      statId: statFilter,
+      book: bookFilter,
+      query: globalSearch,
+      matchQuery: displayMatchFilter,
+    }),
+    [statFilter, bookFilter, globalSearch, displayMatchFilter],
+  );
+
+  const comparables = useMemo(
+    () => filterWnbaRows(payload?.comparables ?? [], filterOptions),
+    [payload, filterOptions],
+  );
+  const frHigherRows = useMemo(
+    () => filterWnbaRows(payload?.fr_higher_comparables ?? [], filterOptions),
+    [payload, filterOptions],
+  );
+  const frOnlyRows = useMemo(
+    () => filterWnbaRows(payload?.fr_only_comparables ?? [], filterOptions),
+    [payload, filterOptions],
+  );
+  const fdOnlyRows = useMemo(
+    () => filterWnbaRows(payload?.fd_only_comparables ?? [], filterOptions),
+    [payload, filterOptions],
+  );
+  const statCounts = useMemo(
+    () => countRowsByStat(payload?.comparables ?? []),
+    [payload],
+  );
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
   const filteredProgress = useMemo(() => {
     const needle = progressSearch.trim().toLowerCase();
@@ -181,10 +311,8 @@ export function WnbaDashboard() {
   }, [matchProgress, progressSearch]);
 
   const overlapHint = useMemo(() => {
-    const notes = (payload as { notes?: string[] } | null)?.notes ?? [];
-    const bookNote = notes.find((note) =>
-      /winamax|unibet|betclic|fanduel/i.test(note),
-    );
+    const notes = payload?.notes ?? [];
+    const bookNote = notes.find((note) => /winamax|unibet|betclic|fanduel/i.test(note));
     if (bookNote) {
       return bookNote;
     }
@@ -204,6 +332,32 @@ export function WnbaDashboard() {
     }
     return "";
   }, [payload]);
+
+  const setSectionOpen = (id: SectionId, open: boolean) => {
+    setOpenSections((current) => ({ ...current, [id]: open }));
+  };
+
+  const collapseAllSections = () => {
+    setOpenSections({
+      progress: false,
+      comparables: false,
+      frHigher: false,
+      frOnly: false,
+      fdOnly: false,
+    });
+  };
+
+  const expandAllSections = () => {
+    setOpenSections({
+      progress: true,
+      comparables: true,
+      frHigher: true,
+      frOnly: true,
+      fdOnly: true,
+    });
+  };
+
+  const allCollapsed = SECTION_IDS.every((id) => !openSections[id]);
 
   return (
     <>
@@ -228,7 +382,7 @@ export function WnbaDashboard() {
           />
         </label>
         <label>
-          Filtre match (optionnel)
+          Filtre match au lancement (optionnel)
           <input
             type="text"
             value={match}
@@ -240,7 +394,80 @@ export function WnbaDashboard() {
           {busy ? "Comparaison WNBA..." : "Lancer comparaison WNBA"}
         </button>
         {info ? <p className="info">{info}</p> : null}
+        {warning ? <p className="warning">{warning}</p> : null}
         {error ? <p className="error">{error}</p> : null}
+      </section>
+
+      <section className="panel filters-panel">
+        <div className="filters-header">
+          <h2>Filtres affichage</h2>
+          <div className="filters-actions">
+            <button type="button" className="ghost-btn" onClick={() => refresh().catch(() => undefined)}>
+              Rafraichir
+            </button>
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={allCollapsed ? expandAllSections : collapseAllSections}
+            >
+              {allCollapsed ? "Tout deplier" : "Tout replier"}
+            </button>
+          </div>
+        </div>
+
+        <label>
+          Recherche globale
+          <input
+            type="search"
+            value={globalSearch}
+            onChange={(event) => setGlobalSearch(event.target.value)}
+            placeholder="Joueur, match, book, ligne..."
+          />
+        </label>
+
+        <label>
+          Filtrer par match affiche
+          <input
+            type="search"
+            value={displayMatchFilter}
+            onChange={(event) => setDisplayMatchFilter(event.target.value)}
+            placeholder="dream, sparks, gray..."
+          />
+        </label>
+
+        <label>
+          Book FR
+          <select value={bookFilter} onChange={(event) => setBookFilter(event.target.value as WnbaBookFilter)}>
+            {WNBA_BOOK_FILTERS.map((book) => (
+              <option key={book} value={book}>
+                {book}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="filter-chips" role="group" aria-label="Filtrer par stat">
+          {WNBA_STAT_FILTERS.map((stat) => {
+            const count =
+              stat.id === "all"
+                ? (payload?.comparable_count ?? 0)
+                : (statCounts[stat.id] ?? 0);
+            if (stat.id !== "all" && count === 0) {
+              return null;
+            }
+            return (
+              <button
+                key={stat.id}
+                type="button"
+                className={`filter-chip${statFilter === stat.id ? " active" : ""}`}
+                onClick={() => setStatFilter(stat.id)}
+              >
+                {stat.label}
+                <span className="chip-count">{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section className="panel meta">
@@ -248,6 +475,12 @@ export function WnbaDashboard() {
           <span className="meta-label">Derniere mise a jour</span>
           <strong>{formatTimestamp(payload?.generated_at)}</strong>
         </div>
+        {cacheSavedAt ? (
+          <div>
+            <span className="meta-label">Memoire locale</span>
+            <strong>{formatTimestamp(cacheSavedAt)}</strong>
+          </div>
+        ) : null}
         <div>
           <span className="meta-label">Etape</span>
           <strong>{status?.message ?? "—"}</strong>
@@ -269,20 +502,20 @@ export function WnbaDashboard() {
           </strong>
         </div>
         <div>
-          <span className="meta-label">Lignes comparees</span>
-          <strong>{payload?.comparable_count ?? 0}</strong>
+          <span className="meta-label">Lignes filtrees</span>
+          <strong>{comparables.length}</strong>
         </div>
         <div>
           <span className="meta-label">FR paie mieux</span>
-          <strong>{payload?.fr_higher_count ?? 0}</strong>
+          <strong>{frHigherRows.length}</strong>
         </div>
         <div>
           <span className="meta-label">FR sans FD</span>
-          <strong>{payload?.fr_only_count ?? 0}</strong>
+          <strong>{frOnlyRows.length}</strong>
         </div>
         <div>
           <span className="meta-label">FD sans FR</span>
-          <strong>{payload?.fd_only_count ?? 0}</strong>
+          <strong>{fdOnlyRows.length}</strong>
         </div>
       </section>
 
@@ -296,7 +529,8 @@ export function WnbaDashboard() {
         <CollapsibleSection
           title="Avancement par match"
           badge={filteredProgress.length}
-          defaultOpen={false}
+          open={openSections.progress}
+          onOpenChange={(open) => setSectionOpen("progress", open)}
           search={{
             value: progressSearch,
             onChange: setProgressSearch,
@@ -338,35 +572,46 @@ export function WnbaDashboard() {
         </CollapsibleSection>
       ) : null}
 
-      <ResultsTable
+      <CollapsibleSection
         title="Toutes les props comparees"
-        rows={payload?.comparables ?? []}
-        marketKind="wnba"
-        emptyMessage="Aucun resultat WNBA. Lance une comparaison."
-      />
+        badge={comparables.length}
+        open={openSections.comparables}
+        onOpenChange={(open) => setSectionOpen("comparables", open)}
+      >
+        <ResultsTable
+          title=""
+          rows={comparables}
+          marketKind="wnba"
+          embedded
+          emptyMessage="Aucun resultat pour ces filtres. Lance une comparaison ou elargis les filtres."
+        />
+      </CollapsibleSection>
 
-      <ResultsTable
+      <CollapsibleSection
         title="Lignes ou le book FR paie mieux que FanDuel"
-        rows={frHigherRows}
-        marketKind="wnba"
-        emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
-      />
+        badge={frHigherRows.length}
+        open={openSections.frHigher}
+        onOpenChange={(open) => setSectionOpen("frHigher", open)}
+      >
+        <ResultsTable
+          title=""
+          rows={frHigherRows}
+          marketKind="wnba"
+          embedded
+          emptyMessage="Aucune ligne ou la cote FR bat FanDuel pour ces filtres."
+        />
+      </CollapsibleSection>
 
       <CollapsibleSection
         title="Props FR sans equivalent FanDuel (meme seuil)"
         badge={frOnlyRows.length}
-        defaultOpen={false}
-        search={{
-          value: frOnlySearch,
-          onChange: setFrOnlySearch,
-          placeholder: "Match, joueuse, book...",
-        }}
+        open={openSections.frOnly}
+        onOpenChange={(open) => setSectionOpen("frOnly", open)}
       >
         <ResultsTable
           title=""
           rows={frOnlyRows}
           marketKind="wnba"
-          searchQuery={frOnlySearch}
           embedded
           emptyMessage="Toutes les lignes FR ont un equivalent FanDuel, ou pas de prop FR."
         />
@@ -375,18 +620,13 @@ export function WnbaDashboard() {
       <CollapsibleSection
         title="Props FanDuel sans equivalent FR (meme seuil)"
         badge={fdOnlyRows.length}
-        defaultOpen={false}
-        search={{
-          value: fdOnlySearch,
-          onChange: setFdOnlySearch,
-          placeholder: "Match, marche FanDuel...",
-        }}
+        open={openSections.fdOnly}
+        onOpenChange={(open) => setSectionOpen("fdOnly", open)}
       >
         <ResultsTable
           title=""
           rows={fdOnlyRows}
           marketKind="wnba"
-          searchQuery={fdOnlySearch}
           embedded
           emptyMessage="Toutes les lignes FanDuel ont un equivalent FR, ou pas de prop FanDuel."
         />

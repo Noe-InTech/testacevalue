@@ -6,6 +6,8 @@ interface CollapsibleSectionProps {
   title: string;
   badge?: number | string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   search?: {
     value: string;
     onChange: (value: string) => void;
@@ -18,17 +20,29 @@ export function CollapsibleSection({
   title,
   badge,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
   search,
   children,
 }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? internalOpen;
+
+  const toggle = () => {
+    const next = !open;
+    if (onOpenChange) {
+      onOpenChange(next);
+    } else {
+      setInternalOpen(next);
+    }
+  };
 
   return (
     <section className="panel collapsible">
       <button
         type="button"
         className="collapsible-trigger"
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
         aria-expanded={open}
       >
         <span className="collapsible-title">{title}</span>
