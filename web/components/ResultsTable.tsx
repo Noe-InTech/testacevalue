@@ -163,7 +163,9 @@ export function ResultsTable({
                         data-label={column.label}
                         className={column.key === "meilleur_cote" ? "side" : undefined}
                       >
-                        {column.format ? column.format(row) : row[column.key as keyof ComparableRow]}
+                        {"format" in column && column.format
+                          ? column.format(row)
+                          : row[column.key as keyof ComparableRow]}
                       </td>
                     ))}
                   </tr>
