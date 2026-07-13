@@ -250,7 +250,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     }
     const timer = window.setInterval(() => {
       refresh({ silent: true }).catch(() => undefined);
-    }, 1000);
+    }, 500);
     return () => window.clearInterval(timer);
   }, [isRunning, refresh]);
 
@@ -263,7 +263,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       if (signal?.aborted) {
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       if (signal?.aborted) {
         return;
       }
