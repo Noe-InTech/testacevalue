@@ -7,6 +7,7 @@ import csv
 import json
 import logging
 import re
+import threading
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
@@ -1258,6 +1259,7 @@ def _compare_anchor_live(
     betclic_links: list[Any],
     winamax_links: list[Any],
     fanduel_event_list: list[Any],
+    on_partial: Callable[[dict[str, Any], str], None] | None = None,
 ) -> dict[str, Any]:
     home = anchor["home_player"]
     away = anchor["away_player"]
@@ -1272,11 +1274,33 @@ def _compare_anchor_live(
         "best_overall": None,
     }
     book_events: dict[str, dict[str, Any]] = {}
+    fr_map: dict[str, dict[str, Any]] = {}
+    fanduel_event: dict[str, Any] | None = None
+
+    from compare_tennis_breaks import (
+        attach_breaks_to_anchor_result,
+        build_best_fr_breaks_map,
+        build_fanduel_breaks_normalized_map,
+    )
+
+    def flush_aces(step: str) -> None:
+        if on_partial is None:
+            return
+        partial = compare_match_to_fanduel(
+            match_meta,
+            fanduel_event,
+            book_events,
+            fr_map=fr_map,
+        )
+        partial["match"] = match_key
+        on_partial(partial, step)
 
     unibet_event = find_event_by_players(home, away, unibet_meta, home_key="home", away_key="away")
     if unibet_event:
         try:
             book_events["unibet"] = unibet.build_event_payload(unibet_event)
+            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            flush_aces("unibet")
         except Exception as exc:
             log.warning("Unibet ignore %s: %s", match_key, exc)
 
@@ -1289,6 +1313,8 @@ def _compare_anchor_live(
                 grpc_categories=BETCLIC_ACES_GRPC,
             )
             book_events["betclic"] = betclic_payload
+            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            flush_aces("betclic")
         except Exception as exc:
             log.warning("Betclic ignore %s: %s", match_key, exc)
 
@@ -1298,18 +1324,17 @@ def _compare_anchor_live(
             payloads = winamax.build_event_payloads([winamax_link])
             if payloads:
                 book_events["winamax"] = payloads[0]
+                fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+                flush_aces("winamax")
         except Exception as exc:
             log.warning("Winamax ignore %s: %s", match_key, exc)
 
     fanduel_event = fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list)
     fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
-    fr_map = build_best_fr_normalized_map(book_events, home=home, away=away) if book_events else {}
-
-    from compare_tennis_breaks import (
-        attach_breaks_to_anchor_result,
-        build_best_fr_breaks_map,
-        build_fanduel_breaks_normalized_map,
-    )
+    if not fr_map and book_events:
+        fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+    if fanduel_event:
+        flush_aces("fanduel")
 
     fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away) if book_events else {}
     fd_break_map = build_fanduel_breaks_normalized_map(fanduel_event) if fanduel_event else {}
@@ -1328,6 +1353,7 @@ def _compare_anchor_live(
             )
             fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
             fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away)
+            flush_aces("betclic-full")
         except Exception as exc:
             log.warning("Betclic (full) ignore %s: %s", match_key, exc)
 
@@ -1357,6 +1383,8 @@ def _compare_anchors_parallel(
     from winamax_client import WinamaxClient
 
     results: list[dict[str, Any]] = []
+    partial_by_match: dict[str, dict[str, Any]] = {}
+    progress_lock = threading.Lock()
     unibet = UnibetClient()
     betclic = BetclicClient()
     winamax = WinamaxClient()
@@ -1366,8 +1394,27 @@ def _compare_anchors_parallel(
         if on_progress is not None:
             on_progress(results, message)
 
+    def snapshot_results() -> list[dict[str, Any]]:
+        with progress_lock:
+            return list(results) + list(partial_by_match.values())
+
+    def notify_snapshot(message: str) -> None:
+        if on_progress is None:
+            return
+        on_progress(snapshot_results(), message)
+
     if not anchors:
         return results
+
+    def make_on_partial(match_key: str) -> Callable[[dict[str, Any], str], None]:
+        def _on_partial(partial: dict[str, Any], step: str) -> None:
+            with progress_lock:
+                partial_by_match[match_key] = partial
+            notify_snapshot(
+                f"{match_key} ({step}) — {partial.get('comparable_ace_count', 0)} comparee(s)"
+            )
+
+        return _on_partial
 
     with ThreadPoolExecutor(max_workers=min(6, len(anchors))) as pool:
         futures = {
@@ -1382,17 +1429,22 @@ def _compare_anchors_parallel(
                 betclic_links=betclic_links,
                 winamax_links=winamax_links,
                 fanduel_event_list=fanduel_event_list,
+                on_partial=make_on_partial(f"{anchor['home_player']} vs {anchor['away_player']}"),
             ): anchor
             for anchor in anchors
         }
         for future in as_completed(futures):
             anchor = futures[future]
+            match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
             try:
                 compared = future.result()
             except Exception as exc:
-                match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
                 log.warning("Compare ignore %s: %s", match_key, exc)
+                with progress_lock:
+                    partial_by_match.pop(match_key, None)
                 continue
+            with progress_lock:
+                partial_by_match.pop(match_key, None)
             results.append(compared)
             log.info(
                 "%s | %d comparable(s)",

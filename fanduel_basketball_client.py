@@ -8,6 +8,9 @@ from typing import Any
 
 from basketball_constants import (
     FANDUEL_BASKETBALL_EVENT_TYPE_ID,
+    FANDUEL_NBA_COMPETITION_ID,
+    FANDUEL_NBA_CONTENT_PAGE,
+    FANDUEL_NBA_EVENT_TABS,
     FANDUEL_WNBA_COMPETITION_ID,
     FANDUEL_WNBA_EVENT_TABS,
 )
@@ -43,15 +46,7 @@ def split_basketball_teams(name: str) -> tuple[str, str]:
 
 
 class FanDuelBasketballClient(FanDuelClient):
-    def list_wnba_events(self) -> list[FanDuelBasketballEvent]:
-        payload = self._get(
-            "/api/competition-page",
-            {
-                "page": "COMPETITION",
-                "competitionId": FANDUEL_WNBA_COMPETITION_ID,
-                "eventTypeId": FANDUEL_BASKETBALL_EVENT_TYPE_ID,
-            },
-        )
+    def _events_from_payload(self, payload: dict[str, Any]) -> list[FanDuelBasketballEvent]:
         events = (payload.get("attachments") or {}).get("events") or {}
         results: list[FanDuelBasketballEvent] = []
         for event_id, event in events.items():
@@ -70,8 +65,44 @@ class FanDuelBasketballClient(FanDuelClient):
             )
         return results
 
-    def build_event_payload(self, event: FanDuelBasketballEvent) -> dict[str, Any]:
-        markets = self.get_event_markets(event.event_id, tabs=FANDUEL_WNBA_EVENT_TABS)
+    def _list_competition_events(self, competition_id: str) -> list[FanDuelBasketballEvent]:
+        payload = self._get(
+            "/api/competition-page",
+            {
+                "page": "COMPETITION",
+                "competitionId": competition_id,
+                "eventTypeId": FANDUEL_BASKETBALL_EVENT_TYPE_ID,
+            },
+        )
+        return self._events_from_payload(payload)
+
+    def _list_content_page_events(self, page_id: str) -> list[FanDuelBasketballEvent]:
+        payload = self._get(
+            "/api/content-managed-page",
+            {
+                "page": "CUSTOM",
+                "customPageId": page_id,
+                "eventTypeId": FANDUEL_BASKETBALL_EVENT_TYPE_ID,
+            },
+        )
+        return self._events_from_payload(payload)
+
+    def list_wnba_events(self) -> list[FanDuelBasketballEvent]:
+        return self._list_competition_events(FANDUEL_WNBA_COMPETITION_ID)
+
+    def list_nba_events(self) -> list[FanDuelBasketballEvent]:
+        events = self._list_competition_events(FANDUEL_NBA_COMPETITION_ID)
+        if events:
+            return events
+        return self._list_content_page_events(FANDUEL_NBA_CONTENT_PAGE)
+
+    def build_event_payload(
+        self,
+        event: FanDuelBasketballEvent,
+        *,
+        tabs: tuple[str, ...] = FANDUEL_WNBA_EVENT_TABS,
+    ) -> dict[str, Any]:
+        markets = self.get_event_markets(event.event_id, tabs=tabs)
         return {
             "event_id": event.event_id,
             "event": event.name,
@@ -81,3 +112,6 @@ class FanDuelBasketballClient(FanDuelClient):
             "market_count": len(markets),
             "markets": markets,
         }
+
+    def build_nba_event_payload(self, event: FanDuelBasketballEvent) -> dict[str, Any]:
+        return self.build_event_payload(event, tabs=FANDUEL_NBA_EVENT_TABS)

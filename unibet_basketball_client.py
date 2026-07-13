@@ -53,6 +53,46 @@ class UnibetBasketballClient(UnibetClient):
                 )
         return sorted(events.values(), key=lambda item: item.name)
 
+    def list_nba_events(self) -> list[UnibetBasketballEvent]:
+        html = self.get_tennis_listing_html(UNIBET_BASKETBALL_LISTING_PATH)
+        events: dict[str, UnibetBasketballEvent] = {}
+        for match in re.finditer(
+            r'href="(/paris-basketball/usa/nba/\d+/[^"]+)"',
+            html,
+            flags=re.I,
+        ):
+            path = match.group(1)
+            slug = path.rsplit("/", 1)[-1]
+            event_id = path.split("/")[-2]
+            home, away = self._teams_from_nba_slug(slug)
+            if not home or not away:
+                continue
+            name = f"{home} - {away}"
+            key = f"{home}|{away}".lower()
+            url = f"{self.base_url}{path}"
+            existing = events.get(key)
+            if existing is None or len(url) > len(existing.url):
+                events[key] = UnibetBasketballEvent(
+                    event_id=str(event_id),
+                    name=name,
+                    home_team=home,
+                    away_team=away,
+                    url=url,
+                    competition="NBA",
+                )
+        return sorted(events.values(), key=lambda item: item.name)
+
+    @staticmethod
+    def _teams_from_nba_slug(slug: str) -> tuple[str, str]:
+        body = slug.replace("-vs-", "|").replace("-at-", "|")
+        if "|" not in body:
+            return "", ""
+        left, right = body.split("|", 1)
+        return (
+            " ".join(part.capitalize() for part in left.split("-")),
+            " ".join(part.capitalize() for part in right.split("-")),
+        )
+
     @staticmethod
     def _teams_from_slug(slug: str) -> tuple[str, str]:
         aliases = {

@@ -19,6 +19,65 @@ import {
   WNBA_STAT_FILTERS,
   type WnbaBookFilter,
 } from "@/lib/wnba";
+import {
+  clearCachedNbaResults,
+  filterNbaRows,
+  hasNbaData,
+  loadCachedNbaResults,
+  NBA_BOOK_FILTERS,
+  NBA_STAT_FILTERS,
+  saveCachedNbaResults,
+  type NbaBookFilter,
+} from "@/lib/nba";
+
+type BasketballLeague = "wnba" | "nba";
+type BookFilter = WnbaBookFilter | NbaBookFilter;
+
+function leagueConfig(league: BasketballLeague) {
+  if (league === "nba") {
+    return {
+      label: "NBA",
+      apiSport: "nba" as const,
+      marketKind: "nba" as const,
+      source: "nba_player_props_comparable",
+      hasData: hasNbaData,
+      loadCache: loadCachedNbaResults,
+      saveCache: saveCachedNbaResults,
+      clearCache: clearCachedNbaResults,
+      statFilters: NBA_STAT_FILTERS,
+      bookFilters: NBA_BOOK_FILTERS,
+      filterRows: filterNbaRows,
+    };
+  }
+  return {
+    label: "WNBA",
+    apiSport: "wnba" as const,
+    marketKind: "wnba" as const,
+    source: "wnba_player_props_comparable",
+    hasData: hasWnbaData,
+    loadCache: loadCachedWnbaResults,
+    saveCache: saveCachedWnbaResults,
+    clearCache: clearCachedWnbaResults,
+    statFilters: WNBA_STAT_FILTERS,
+    bookFilters: WNBA_BOOK_FILTERS,
+    filterRows: filterWnbaRows,
+  };
+}
+
+function emptyBasketballPayload(source: string): MarketPayload {
+  return {
+    source,
+    generated_at: "",
+    partial: true,
+    comparable_count: 0,
+    fr_higher_count: 0,
+    comparables: [],
+    fr_higher_comparables: [],
+    fr_only_comparables: [],
+    fd_only_comparables: [],
+    match_progress: [],
+  };
+}
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
 const SECTION_IDS = ["progress", "comparables", "frHigher", "frOnly", "fdOnly"] as const;
@@ -45,28 +104,14 @@ function defaultOpenSections(): Record<SectionId, boolean> {
   };
 }
 
-function emptyWnbaPayload(): MarketPayload {
-  return {
-    source: "wnba_player_props_comparable",
-    generated_at: "",
-    partial: true,
-    comparable_count: 0,
-    fr_higher_count: 0,
-    comparables: [],
-    fr_higher_comparables: [],
-    fr_only_comparables: [],
-    fd_only_comparables: [],
-    match_progress: [],
-  };
-}
-
-export function WnbaDashboard() {
+export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLeague }) {
+  const cfg = leagueConfig(league);
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
   const [globalSearch, setGlobalSearch] = useState("");
   const [displayMatchFilter, setDisplayMatchFilter] = useState("");
   const [statFilter, setStatFilter] = useState("all");
-  const [bookFilter, setBookFilter] = useState<WnbaBookFilter>("Tous");
+  const [bookFilter, setBookFilter] = useState<BookFilter>("Tous");
   const [progressSearch, setProgressSearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(defaultOpenSections);
   const [payload, setPayload] = useState<MarketPayload | null>(null);
@@ -88,7 +133,7 @@ export function WnbaDashboard() {
     if (saved) {
       setSecret(saved);
     }
-    const cached = loadCachedWnbaResults();
+    const cached = cfg.loadCache();
     if (cached) {
       setPayload(cached.payload);
       setStatus(cached.status);
@@ -97,20 +142,20 @@ export function WnbaDashboard() {
   }, []);
 
   const applyResults = useCallback((nextPayload: MarketPayload | null, nextStatus: RunStatus | null) => {
-    if (nextPayload && hasWnbaData(nextPayload)) {
+    if (nextPayload && cfg.hasData(nextPayload)) {
       setPayload(nextPayload);
-      saveCachedWnbaResults(nextPayload, nextStatus);
+      cfg.saveCache(nextPayload, nextStatus);
       setCacheSavedAt(new Date().toISOString());
     }
     if (nextStatus) {
       setStatus(nextStatus);
     }
-  }, []);
+  }, [cfg]);
 
   const refresh = useCallback(
     async (options?: { silent?: boolean }) => {
       try {
-        const response = await fetch("/api/results?sport=wnba", { cache: "no-store" });
+        const response = await fetch(`/api/results?sport=${cfg.apiSport}`, { cache: "no-store" });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -120,7 +165,7 @@ export function WnbaDashboard() {
         const runStartedAt = resolveRunStartedAt(runStartedAtRef.current, nextStatus);
         const payloadFromCurrentRun =
           nextPayload &&
-          hasWnbaData(nextPayload) &&
+          cfg.hasData(nextPayload) &&
           isPayloadFromRun(nextPayload, runStartedAt);
 
         if (payloadFromCurrentRun) {
@@ -129,14 +174,14 @@ export function WnbaDashboard() {
             setWarning("");
           }
         } else if (suppressCacheRef.current) {
-          setPayload(emptyWnbaPayload());
+          setPayload(emptyBasketballPayload(cfg.source));
           setCacheSavedAt(null);
           if (nextStatus) {
             setStatus(nextStatus);
           }
         } else if (data.source === "runner-unreachable") {
           if (!suppressCacheRef.current) {
-            const cached = loadCachedWnbaResults();
+            const cached = cfg.loadCache();
             if (cached) {
               setPayload(cached.payload);
               setStatus(cached.status);
@@ -161,7 +206,7 @@ export function WnbaDashboard() {
         };
       } catch (exc) {
         if (!suppressCacheRef.current) {
-          const cached = loadCachedWnbaResults();
+          const cached = cfg.loadCache();
           if (cached) {
             setPayload(cached.payload);
             setStatus(cached.status);
@@ -188,13 +233,13 @@ export function WnbaDashboard() {
         };
       }
     },
-    [applyResults],
+    [applyResults, cfg],
   );
 
   useEffect(() => {
     refresh({ silent: true }).catch((exc) => {
-      if (!loadCachedWnbaResults()) {
-        setError(exc instanceof Error ? exc.message : "Impossible de charger les resultats WNBA.");
+      if (!cfg.loadCache()) {
+        setError(exc instanceof Error ? exc.message : `Impossible de charger les resultats ${cfg.label}.`);
       }
     });
   }, [refresh]);
@@ -241,26 +286,26 @@ export function WnbaDashboard() {
           setInfo(`${totalRows} ligne(s) affichee(s), comparaison en cours...`);
         }
       } else if (currentStatus === "running") {
-        setInfo(data.status?.message || "Comparaison WNBA en cours...");
+        setInfo(data.status?.message || `Comparaison ${cfg.label} en cours...`);
       }
 
-      if (data.source === "runner-unreachable" && !hasWnbaData(data.payload) && !loadCachedWnbaResults()) {
+      if (data.source === "runner-unreachable" && !cfg.hasData(data.payload) && !cfg.loadCache()) {
         throw new Error(
           "Runner EU injoignable. Mets a jour RUNNER_URL sur Vercel (URL Cloudflare).",
         );
       }
 
       if (currentStatus === "cancelled") {
-        setInfo("Comparaison WNBA annulee.");
+        setInfo(`Comparaison ${cfg.label} annulee.`);
         return;
       }
 
       if (currentStatus === "error") {
-        if (totalRows > 0 || matchesDone > 0 || loadCachedWnbaResults()) {
+        if (totalRows > 0 || matchesDone > 0 || cfg.loadCache()) {
           setInfo(`${matchesDone}/${anchorsTotal || "?"} match(s), ${totalRows} ligne(s) (partiel).`);
           return;
         }
-        throw new Error(data.status?.message || "La comparaison WNBA a echoue.");
+        throw new Error(data.status?.message || `La comparaison ${cfg.label} a echoue.`);
       }
 
       if (currentStatus === "success" || isFinalPayload) {
@@ -280,7 +325,7 @@ export function WnbaDashboard() {
       return;
     }
     throw new Error("Delai depasse (~8 min). Recharge la page.");
-  }, [refresh]);
+  }, [refresh, cfg]);
 
   const onCancel = async () => {
     if (!secret.trim()) {
@@ -293,13 +338,13 @@ export function WnbaDashboard() {
       const response = await fetch("/api/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: secret.trim(), sport: "wnba" }),
+        body: JSON.stringify({ secret: secret.trim(), sport: cfg.apiSport }),
       });
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || "Impossible d'arreter la comparaison WNBA.");
+        setError(data.error || `Impossible d'arreter la comparaison ${cfg.label}.`);
       } else {
-        setInfo(data.message || "Comparaison WNBA arretee.");
+        setInfo(data.message || `Comparaison ${cfg.label} arretee.`);
         setStatus({
           status: "cancelled",
           message: "Comparaison annulee par l'utilisateur.",
@@ -326,14 +371,14 @@ export function WnbaDashboard() {
     }
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
-    clearCachedWnbaResults();
+    cfg.clearCache();
     suppressCacheRef.current = true;
     runStartedAtRef.current = new Date().toISOString();
     setBusy(true);
-    setPayload(emptyWnbaPayload());
+    setPayload(emptyBasketballPayload(cfg.source));
     setCacheSavedAt(null);
-    setStatus({ status: "running", message: "Comparaison WNBA en cours..." });
-    setInfo("Lancement WNBA en cours...");
+    setStatus({ status: "running", message: `Comparaison ${cfg.label} en cours...` });
+    setInfo(`Lancement ${cfg.label} en cours...`);
     runAbortRef.current = new AbortController();
     const runSignal = runAbortRef.current.signal;
 
@@ -341,7 +386,7 @@ export function WnbaDashboard() {
       const response = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: secret.trim(), match: match.trim(), sport: "wnba" }),
+        body: JSON.stringify({ secret: secret.trim(), match: match.trim(), sport: cfg.apiSport }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -351,13 +396,13 @@ export function WnbaDashboard() {
         runStartedAtRef.current = data.started_at.trim();
       }
 
-      setInfo("Scrape WNBA live en cours...");
+      setInfo(`Scrape ${cfg.label} live en cours...`);
       await waitForCompletion(runSignal);
       if (runSignal.aborted) {
         return;
       }
       await refresh({ silent: true });
-      setInfo("Comparaison WNBA terminee.");
+      setInfo(`Comparaison ${cfg.label} terminee.`);
     } catch (exc) {
       if (!runSignal.aborted) {
         setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
@@ -383,19 +428,19 @@ export function WnbaDashboard() {
   );
 
   const comparables = useMemo(
-    () => filterWnbaRows(payload?.comparables ?? [], filterOptions),
-    [payload, filterOptions],
+    () => cfg.filterRows(payload?.comparables ?? [], filterOptions),
+    [payload, filterOptions, cfg],
   );
   const frHigherRows = useMemo(
-    () => filterWnbaRows(payload?.fr_higher_comparables ?? [], filterOptions),
-    [payload, filterOptions],
+    () => cfg.filterRows(payload?.fr_higher_comparables ?? [], filterOptions),
+    [payload, filterOptions, cfg],
   );
   const frOnlyRows = useMemo(
-    () => filterWnbaRows(payload?.fr_only_comparables ?? [], filterOptions),
-    [payload, filterOptions],
+    () => cfg.filterRows(payload?.fr_only_comparables ?? [], filterOptions),
+    [payload, filterOptions, cfg],
   );
   const fdOnlyRows = useMemo(
-    () => filterWnbaRows(payload?.fd_only_comparables ?? [], filterOptions),
+    () => cfg.filterRows(payload?.fd_only_comparables ?? [], filterOptions),
     [payload, filterOptions],
   );
   const statCounts = useMemo(
@@ -426,7 +471,7 @@ export function WnbaDashboard() {
       return "Des props joueuses existent cote FR, mais FanDuel ne les propose pas sur ces matchs.";
     }
     if (fdEvents > 0 && frEvents === 0) {
-      return "FanDuel propose des props WNBA, mais les books FR n'ont pas de lignes comparables.";
+      return `FanDuel propose des props ${cfg.label}, mais les books FR n'ont pas de lignes comparables.`;
     }
     if (fdEvents > 0 && frEvents > 0) {
       return "FR et FanDuel ont des props, mais pas sur les memes matchs ou pas aux memes seuils.";
@@ -463,11 +508,11 @@ export function WnbaDashboard() {
   return (
     <>
       <header className="hero">
-        <p className="eyebrow">Basket WNBA</p>
-        <h1>Props joueuses — books FR vs FanDuel</h1>
+        <p className="eyebrow">Basket {cfg.label}</p>
+        <h1>Props joueurs — books FR vs FanDuel</h1>
         <p className="lead">
-          Compare les stats joueuses <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
-          (Unibet, Betclic, Winamax) avec FanDuel.
+          Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
+          ({cfg.label} — Unibet, Betclic, Winamax) avec FanDuel.
         </p>
       </header>
 
@@ -492,7 +537,7 @@ export function WnbaDashboard() {
           />
         </label>
         <button type="button" onClick={onSubmit} disabled={busy}>
-          {busy ? "Comparaison WNBA..." : "Lancer comparaison WNBA"}
+          {busy ? `Comparaison ${cfg.label}...` : `Lancer comparaison ${cfg.label}`}
         </button>
         {info ? <p className="info">{info}</p> : null}
         {warning ? <p className="warning">{warning}</p> : null}
@@ -501,7 +546,7 @@ export function WnbaDashboard() {
 
       <RunningBanner
         active={isRunning}
-        label="Comparaison WNBA en cours"
+        label={`Comparaison ${cfg.label} en cours`}
         message={status?.message || info || "Scrape live en cours — les anciens resultats ont ete effaces."}
         onCancel={onCancel}
         cancelBusy={cancelBusy}
@@ -547,7 +592,7 @@ export function WnbaDashboard() {
         <label>
           Book FR
           <select value={bookFilter} onChange={(event) => setBookFilter(event.target.value as WnbaBookFilter)}>
-            {WNBA_BOOK_FILTERS.map((book) => (
+            {cfg.bookFilters.map((book) => (
               <option key={book} value={book}>
                 {book}
               </option>
@@ -556,7 +601,7 @@ export function WnbaDashboard() {
         </label>
 
         <div className="filter-chips" role="group" aria-label="Filtrer par stat">
-          {WNBA_STAT_FILTERS.map((stat) => {
+          {cfg.statFilters.map((stat) => {
             const count =
               stat.id === "all"
                 ? (payload?.comparable_count ?? 0)
@@ -690,7 +735,7 @@ export function WnbaDashboard() {
         <ResultsTable
           title=""
           rows={comparables}
-          marketKind="wnba"
+          marketKind={cfg.marketKind}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -707,7 +752,7 @@ export function WnbaDashboard() {
         <ResultsTable
           title=""
           rows={frHigherRows}
-          marketKind="wnba"
+          marketKind={cfg.marketKind}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -724,7 +769,7 @@ export function WnbaDashboard() {
         <ResultsTable
           title=""
           rows={frOnlyRows}
-          marketKind="wnba"
+          marketKind={cfg.marketKind}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -741,7 +786,7 @@ export function WnbaDashboard() {
         <ResultsTable
           title=""
           rows={fdOnlyRows}
-          marketKind="wnba"
+          marketKind={cfg.marketKind}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -750,4 +795,8 @@ export function WnbaDashboard() {
       </CollapsibleSection>
     </>
   );
+}
+
+export function WnbaDashboard() {
+  return <BasketballDashboard league="wnba" />;
 }

@@ -5,12 +5,16 @@ from __future__ import annotations
 # FanDuel sbapi
 FANDUEL_BASKETBALL_EVENT_TYPE_ID = "7522"
 FANDUEL_WNBA_COMPETITION_ID = "11295025"
+FANDUEL_NBA_COMPETITION_ID = "10547864"
+FANDUEL_NBA_CONTENT_PAGE = "nba"
 FANDUEL_WNBA_EVENT_TABS = (
     "popular",
     "all-markets",
     "player-props",
     "same-game-parlay-",
 )
+
+FANDUEL_NBA_EVENT_TABS = FANDUEL_WNBA_EVENT_TABS
 
 # Winamax Socket.IO
 WINAMAX_BASKETBALL_SPORT_ID = 2
@@ -20,6 +24,8 @@ UNIBET_BASKETBALL_LISTING_PATH = "/paris-basketball"
 
 # Betclic listing + catégories gRPC stats joueuses
 BETCLIC_WNBA_LISTING_PATH = "/basketball-sbasketball"
+BETCLIC_NBA_LISTING_PATH = "/basketball-snba"
+UNIBET_NBA_PATH_FRAGMENT = "/paris-basketball/usa/nba/"
 BETCLIC_BASKETBALL_GRPC_CATEGORIES = (
     "ca_bkb_pts",
     "ca_bkb_pprp",

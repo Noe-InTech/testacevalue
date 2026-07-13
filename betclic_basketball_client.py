@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from basketball_constants import BETCLIC_BASKETBALL_GRPC_CATEGORIES, BETCLIC_WNBA_LISTING_PATH
+from basketball_constants import BETCLIC_BASKETBALL_GRPC_CATEGORIES, BETCLIC_NBA_LISTING_PATH, BETCLIC_WNBA_LISTING_PATH
 from betclic_client import BetclicClient
 
 WNBA_TEAM_SLUGS: tuple[tuple[str, str], ...] = (
@@ -57,6 +57,43 @@ class BetclicBasketballClient(BetclicClient):
                 away_team=away,
             )
         return sorted(links.values(), key=lambda item: item.url)
+
+    def list_nba_matches(self) -> list[BetclicBasketballMatchLink]:
+        html = self.get_page_html(BETCLIC_NBA_LISTING_PATH)
+        links: dict[str, BetclicBasketballMatchLink] = {}
+        for href in re.findall(
+            r'href="(/basketball-sbasketball/nba[^"]+-m\d+)"',
+            html,
+            flags=re.I,
+        ):
+            match = re.search(r"-m(\d+)$", href)
+            if not match:
+                continue
+            slug = href.rsplit("/", 1)[-1]
+            home, away = self._teams_from_nba_slug(slug)
+            if not home or not away:
+                continue
+            match_id = match.group(1)
+            links[match_id] = BetclicBasketballMatchLink(
+                match_id=match_id,
+                url=f"{self.base_url}{href}",
+                slug=slug,
+                home_team=home,
+                away_team=away,
+            )
+        return sorted(links.values(), key=lambda item: item.url)
+
+    @staticmethod
+    def _teams_from_nba_slug(slug: str) -> tuple[str, str]:
+        body = re.sub(r"-m\d+$", "", slug)
+        for sep in ("-vs-", "-v-"):
+            if sep in body:
+                left, right = body.split(sep, 1)
+                return (
+                    " ".join(part.capitalize() for part in left.split("-")),
+                    " ".join(part.capitalize() for part in right.split("-")),
+                )
+        return "", ""
 
     @staticmethod
     def _teams_from_slug(slug: str) -> tuple[str, str]:

@@ -76,8 +76,8 @@ export interface CombinedPropsPayload {
   breaks: MarketPayload;
 }
 
-export type SportKey = "tennis" | "wnba";
-export type MarketKind = "aces" | "breaks" | "wnba";
+export type SportKey = "tennis" | "wnba" | "nba";
+export type MarketKind = "aces" | "breaks" | "wnba" | "nba";
 
 export type AcesPayload = MarketPayload;
 
@@ -149,7 +149,7 @@ function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
   const key =
     marketKind === "breaks"
       ? "ligne_breaks_fr"
-      : marketKind === "wnba"
+      : marketKind === "wnba" || marketKind === "nba"
         ? "ligne_props_fr"
         : "ligne_aces_fr";
   const explicit = row[key]?.trim();
@@ -180,13 +180,13 @@ export function getTableColumns(marketKind: MarketKind) {
   const pariLabel =
     marketKind === "breaks"
       ? "Pari breaks"
-      : marketKind === "wnba"
-        ? "Prop joueuse"
+      : marketKind === "wnba" || marketKind === "nba"
+        ? "Prop joueur"
         : "Pari aces";
   const lineKey =
     marketKind === "breaks"
       ? "ligne_breaks"
-      : marketKind === "wnba"
+      : marketKind === "wnba" || marketKind === "nba"
         ? "ligne_props"
         : "ligne_aces";
 
@@ -202,8 +202,8 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "marche_fanduel" as const,
       label: "Equiv. FanDuel",
       hint:
-        marketKind === "wnba"
-          ? "Meme prop joueuse chez FanDuel (libelle anglais)"
+        marketKind === "wnba" || marketKind === "nba"
+          ? "Meme prop joueur chez FanDuel (libelle anglais)"
           : "Meme marche chez FanDuel (libelle anglais)",
     },
     {
@@ -240,7 +240,7 @@ export function getTableColumns(marketKind: MarketKind) {
     },
   ];
 
-  if (marketKind === "wnba") {
+  if (marketKind === "wnba" || marketKind === "nba") {
     return coreColumns;
   }
 

@@ -24,7 +24,7 @@ function filterRows(rows: ComparableRow[], query: string, marketKind: MarketKind
   const lineKey =
     marketKind === "breaks"
       ? "ligne_breaks_fr"
-      : marketKind === "wnba"
+      : marketKind === "wnba" || marketKind === "nba"
         ? "ligne_props_fr"
         : "ligne_aces_fr";
   return rows.filter((row) => {

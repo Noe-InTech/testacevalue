@@ -52,6 +52,14 @@ SPORTS: dict[str, SportConfig] = {
         combined=False,
         timeout=600,
     ),
+    "nba": SportConfig(
+        key="nba",
+        script="compare_nba_props_vs_fanduel.py",
+        result_json=DATA_DIR / "latest_nba.json",
+        status_json=DATA_DIR / "run_status_nba.json",
+        combined=False,
+        timeout=600,
+    ),
 }
 
 
@@ -105,9 +113,9 @@ def wipe_result_file(sport: SportConfig) -> None:
 
 
 def empty_payload(sport: SportConfig) -> dict[str, Any]:
-    if sport.key == "wnba":
+    if sport.key in {"wnba", "nba"}:
         return {
-            "source": "wnba_player_props_comparable",
+            "source": f"{sport.key}_player_props_comparable",
             "generated_at": "",
             "partial": True,
             "anchors_total": 0,
@@ -294,7 +302,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         sport = self._resolve_sport(self.path)
         if sport is None:
-            self._json_response(400, {"error": "Sport inconnu (tennis ou wnba)."})
+            self._json_response(400, {"error": "Sport inconnu (tennis, wnba ou nba)."})
             return
         payload = read_json(sport.result_json, empty_payload(sport))
         status = read_json(
@@ -339,7 +347,7 @@ class Handler(BaseHTTPRequestHandler):
         sport_key = str(body.get("sport", "tennis")).strip().lower()
         sport = SPORTS.get(sport_key)
         if sport is None:
-            self._json_response(400, {"error": "Sport inconnu (tennis ou wnba)."})
+            self._json_response(400, {"error": "Sport inconnu (tennis, wnba ou nba)."})
             return
 
         match_filter = str(body.get("match", "")).strip()
@@ -417,7 +425,7 @@ def main() -> None:
             raise SystemExit(f"Script introuvable: {sport.script}")
         write_status(sport, "idle", "Runner pret.")
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Props runner live sur http://{host}:{port} (tennis + wnba)")
+    print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba)")
     server.serve_forever()
 
 

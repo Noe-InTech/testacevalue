@@ -39,6 +39,31 @@ class WinamaxBasketballClient(WinamaxClient):
         links.sort(key=lambda item: (item.start_date, item.title))
         return links
 
+    def list_nba_matches(self) -> list[WinamaxBasketballMatchLink]:
+        payload = self.fetch_route(f"sport:{WINAMAX_BASKETBALL_SPORT_ID}")
+        if not payload:
+            return []
+        matches = payload.get("matches") or {}
+        links: list[WinamaxBasketballMatchLink] = []
+        for match_id, match in matches.items():
+            if not isinstance(match, dict):
+                continue
+            if int(match.get("sportId") or 0) not in (0, WINAMAX_BASKETBALL_SPORT_ID):
+                continue
+            parsed = self._parse_basketball_match(str(match_id), match)
+            if parsed and self._looks_like_nba(parsed):
+                links.append(parsed)
+        links.sort(key=lambda item: (item.start_date, item.title))
+        return links
+
+    @staticmethod
+    def _looks_like_nba(link: WinamaxBasketballMatchLink) -> bool:
+        blob = f"{link.title} {link.competition}".lower()
+        if "wnba" in blob:
+            return False
+        nba_markers = ("nba", "lakers", "celtics", "warriors", "knicks", "bulls", "heat")
+        return any(marker in blob for marker in nba_markers)
+
     @staticmethod
     def _looks_like_wnba(link: WinamaxBasketballMatchLink) -> bool:
         blob = f"{link.title} {link.competition}".lower()
