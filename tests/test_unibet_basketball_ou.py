@@ -37,6 +37,22 @@ class UnibetBasketballOuTests(unittest.TestCase):
         self.assertEqual(odds["Over"], 1.95)
         self.assertEqual(odds["Under"], 1.5)
 
+    def test_extract_markets_do_not_mix_players_in_chunk(self) -> None:
+        html = (
+            '{"id":1,"description":"Moins 4.5","price":"1,50","spread":4.5,'
+            '"marketDesc":"Plus / Moins Rebonds - Jordin Canada - Match"}'
+            '{"id":2,"description":"Plus 8.5","price":"1,95","spread":8.5,'
+            '"marketDesc":"Plus / Moins Rebonds - Dearica Hamby - Match"}'
+            '{"id":3,"description":"Plus 4.5","price":"1,95","spread":4.5,'
+            '"marketDesc":"Plus / Moins Rebonds - Jordin Canada - Match"}'
+        )
+        markets = UnibetBasketballClient().extract_basketball_player_markets_from_html(html)
+        canada = next(market for market in markets if "Canada" in market.label)
+        by_label = {outcome.label: outcome.odds for outcome in canada.outcomes}
+        self.assertEqual(by_label["Moins 4.5"], 1.5)
+        self.assertEqual(by_label["Plus 4.5"], 1.95)
+        self.assertNotIn("Plus 8.5", by_label)
+
 
 if __name__ == "__main__":
     unittest.main()

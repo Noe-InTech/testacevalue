@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
 from basketball_constants import UNIBET_BASKETBALL_LISTING_PATH, UNIBET_NBA_HUB_PATHS
 from basketball_listings import is_basketball_outright_slug
 from unibet_client import UnibetClient, UnibetMarket, UnibetOutcome
+
+_EMBEDDED_OUTCOME_BLOCK_RE = re.compile(
+    r'\{[^{}]*?"marketDesc":"([^"]+)"[^{}]*?\}',
+    flags=re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -130,31 +136,59 @@ class UnibetBasketballClient(UnibetClient):
         return home, away
 
     def extract_basketball_player_markets_from_html(self, html: str) -> list[UnibetMarket]:
-        merged: dict[str, UnibetMarket] = {}
+        grouped: dict[str, dict[str, UnibetOutcome]] = defaultdict(dict)
 
-        for match in re.finditer(r'"marketDesc":"([^"]+)"', html):
-            market_desc = match.group(1).strip()
+        for market_desc, description, odds in self._iter_embedded_outcome_blocks(html):
             lower = self._strip_html(market_desc).lower()
             if not self._is_player_market_desc(lower):
                 continue
-            chunk = html[match.start() : match.start() + 2200]
-            outcomes = self._parse_ou_outcomes(chunk)
-            if outcomes:
-                existing = merged.get(market_desc)
-                if existing is None or len(outcomes) > len(existing.outcomes):
-                    merged[market_desc] = UnibetMarket(label=market_desc, outcomes=tuple(outcomes))
+            if odds is None or not description:
                 continue
 
-            performance_outcomes = self._parse_performance_outcomes(chunk)
-            if performance_outcomes:
-                existing = merged.get(market_desc)
-                if existing is None or len(performance_outcomes) > len(existing.outcomes):
-                    merged[market_desc] = UnibetMarket(
-                        label=market_desc,
-                        outcomes=tuple(performance_outcomes),
-                    )
+            label = description.strip()
+            if re.search(r"\d+\+$", label):
+                grouped[market_desc][label] = UnibetOutcome(label=label, odds=odds)
+                continue
+            if not re.search(r"[\d.,]", label):
+                continue
+            grouped[market_desc][label] = UnibetOutcome(label=label, odds=odds)
 
-        return list(merged.values())
+        return [
+            UnibetMarket(label=market_desc, outcomes=tuple(outcome_map.values()))
+            for market_desc, outcome_map in grouped.items()
+            if outcome_map
+        ]
+
+    def _iter_embedded_outcome_blocks(
+        self,
+        html: str,
+    ):
+        for match in _EMBEDDED_OUTCOME_BLOCK_RE.finditer(html):
+            block = match.group(0)
+            market_desc = self._extract_json_string(block, "marketDesc")
+            description = self._extract_json_string(block, "description")
+            if not market_desc or not description:
+                continue
+            odds = self._parse_decimal_odds(self._extract_json_string(block, "price") or "")
+            spread_raw = self._extract_json_number(block, "spread")
+            if spread_raw is not None and re.match(r"^(?:Plus|Moins)$", description.strip(), flags=re.I):
+                description = f"{description.strip()} {spread_raw}"
+            yield market_desc.strip(), description.strip(), odds
+
+    @staticmethod
+    def _extract_json_string(block: str, key: str) -> str | None:
+        field = re.search(rf'"{re.escape(key)}":"([^"]*)"', block)
+        return field.group(1).strip() if field else None
+
+    @staticmethod
+    def _extract_json_number(block: str, key: str) -> float | None:
+        field = re.search(rf'"{re.escape(key)}":(-?[\d.]+)', block)
+        if not field:
+            return None
+        try:
+            return float(field.group(1))
+        except ValueError:
+            return None
 
     @staticmethod
     def _is_player_market_desc(lower: str) -> bool:
