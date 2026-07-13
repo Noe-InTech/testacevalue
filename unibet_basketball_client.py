@@ -179,21 +179,51 @@ class UnibetBasketballClient(UnibetClient):
     def _parse_ou_outcomes(self, chunk: str) -> list[UnibetOutcome]:
         outcomes: list[UnibetOutcome] = []
         seen: set[str] = set()
+
+        def add_outcome(label: str, odds: float | None) -> None:
+            cleaned = label.strip()
+            if odds is None or not cleaned:
+                return
+            if not re.match(r"^(?:Plus|Moins)\b", cleaned, flags=re.I):
+                return
+            if cleaned in seen:
+                return
+            seen.add(cleaned)
+            outcomes.append(UnibetOutcome(label=cleaned, odds=odds))
+
         for match in re.finditer(
-            r'"description":"(Plus|Moins) ([\d.]+)"[^}]*?"price":"([^"]+)"',
+            r'"description":"((?:Plus|Moins)(?:\s+de)?\s+[\d.,]+)"[^}]*?"price":"([^"]+)"',
+            chunk,
+            flags=re.I,
+        ):
+            add_outcome(match.group(1), self._parse_decimal_odds(match.group(2)))
+
+        for match in re.finditer(
+            r'"description":"(Plus|Moins)"[^}]*?"(?:handicap|line)":([\d.,]+)[^}]*?"price":"([^"]+)"',
             chunk,
             flags=re.I,
         ):
             side = match.group(1).capitalize()
-            line = match.group(2)
-            label = f"{side} {line}"
-            if label in seen:
-                continue
-            odds = self._parse_decimal_odds(match.group(3))
-            if odds is None:
-                continue
-            seen.add(label)
-            outcomes.append(UnibetOutcome(label=label, odds=odds))
+            line = match.group(2).replace(",", ".")
+            add_outcome(f"{side} {line}", self._parse_decimal_odds(match.group(3)))
+
+        for match in re.finditer(
+            r'"description":"(Plus|Moins) ([\d.,]+)"[^}]*?"price":"([^"]+)"',
+            chunk,
+            flags=re.I,
+        ):
+            side = match.group(1).capitalize()
+            line = match.group(2).replace(",", ".")
+            add_outcome(f"{side} {line}", self._parse_decimal_odds(match.group(3)))
+
+        if len(outcomes) >= 2:
+            by_side: dict[str, float] = {}
+            for outcome in outcomes:
+                side = "Over" if outcome.label.lower().startswith("plus") else "Under"
+                by_side[side] = float(outcome.odds)
+            if by_side.get("Over") == by_side.get("Under"):
+                return []
+
         return outcomes
 
     def _parse_performance_outcomes(self, chunk: str) -> list[UnibetOutcome]:

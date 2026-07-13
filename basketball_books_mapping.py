@@ -564,18 +564,34 @@ def normalize_unibet_market(
         if not match:
             continue
         player_name = match_player_name(match.group(1).strip(), roster)
-        outcome_map = {
-            normalize_ou_label(raw): float(odds)
-            for raw, odds in outcomes
-            if odds is not None
-        }
+        outcome_map: dict[str, float] = {}
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            aligned = normalize_ou_label(str(raw))
+            if aligned not in {"Over", "Under"}:
+                continue
+            outcome_map[aligned] = float(odds)
         if not outcome_map:
+            return []
+        if (
+            "Over" in outcome_map
+            and "Under" in outcome_map
+            and outcome_map["Over"] == outcome_map["Under"]
+        ):
             return []
         line_value = ""
         for raw, _odds in outcomes:
-            parsed = re.search(r"([\d.]+)", str(raw))
-            if parsed:
-                line_value = format_line(parsed.group(1))
+            line_match = re.search(
+                r"(?:Plus|Moins)(?:\s+de)?\s+([\d.,]+)",
+                str(raw),
+                flags=re.I,
+            )
+            if not line_match:
+                continue
+            parsed = parse_french_number(line_match.group(1))
+            if parsed is not None:
+                line_value = format_line(parsed)
                 break
         if not line_value:
             return []
