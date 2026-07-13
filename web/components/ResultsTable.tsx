@@ -110,17 +110,6 @@ function CaptureDetail({
             </dd>
           </>
         ) : null}
-        {hasFr && row.cote_fr_contraire ? (
-          <>
-            <dt>
-              FR contraire{row.issue_fr_contraire ? ` (${row.issue_fr_contraire})` : ""}
-            </dt>
-            <dd>
-              {row.cote_fr_contraire}
-              {row.bookmaker_fr_contraire ? ` · ${row.bookmaker_fr_contraire}` : ""}
-            </dd>
-          </>
-        ) : null}
         <dt>Run global</dt>
         <dd>{formatCaptureTime(runGeneratedAt || row.captured_at)}</dd>
       </dl>
