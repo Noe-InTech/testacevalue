@@ -195,7 +195,6 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     () => payload?.fr_higher_comparables ?? [],
     [payload],
   );
-  const valueRows = useMemo(() => payload?.value_comparables ?? [], [payload]);
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
   const fdOnlyRows = useMemo(() => payload?.fd_only_comparables ?? [], [payload]);
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
@@ -334,15 +333,6 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           <strong>{payload?.fr_higher_count ?? 0}</strong>
         </div>
         <div>
-          <span
-            className="meta-label"
-            title="Lignes avec paire Over/Under FanDuel complete et EV positif"
-          >
-            Values (EV+)
-          </span>
-          <strong>{payload?.value_count ?? 0}</strong>
-        </div>
-        <div>
           <span className="meta-label" title="Lignes FR sans equivalent FanDuel sur la meme ligne">
             FR sans FD
           </span>
@@ -409,16 +399,11 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       ) : null}
 
       <ResultsTable
-        title="Values — EV positif (paire Over/Under FanDuel requise)"
-        rows={valueRows}
-        marketKind={marketTab}
-        emptyMessage="Aucune value detectee. Il faut la cote US et son contraire chez FanDuel."
-      />
-
-      <ResultsTable
         title={`Toutes les lignes ${marketTab} comparees`}
         rows={payload?.comparables ?? []}
         marketKind={marketTab}
+        showCaptureDetails
+        runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
         emptyMessage="Aucun resultat pour le moment. Lance une comparaison."
       />
 
@@ -426,6 +411,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         title="Lignes ou le book FR paie mieux que FanDuel"
         rows={frHigherRows}
         marketKind={marketTab}
+        showCaptureDetails
+        runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
         emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
       />
 
@@ -439,16 +426,14 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           placeholder: "Match, book, ligne...",
         }}
       >
-        <p className="hint-box">
-          La colonne <strong>FR contraire</strong> reste vide si le book ne publie qu&apos;un sens
-          (ex. Betclic « + de X,Y » sans Under, ou cote oppose suspendue en live).
-        </p>
         <ResultsTable
           title=""
           rows={frOnlyRows}
           marketKind={marketTab}
           searchQuery={frOnlySearch}
           embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
           emptyMessage={`Toutes les lignes FR ont un equivalent FanDuel, ou pas de marche ${marketTab} FR.`}
         />
       </CollapsibleSection>
@@ -469,6 +454,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           marketKind={marketTab}
           searchQuery={fdOnlySearch}
           embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
           emptyMessage={`Toutes les lignes FanDuel ont un equivalent FR, ou pas de marche ${marketTab} FanDuel.`}
         />
       </CollapsibleSection>

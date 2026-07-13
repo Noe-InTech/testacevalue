@@ -183,6 +183,55 @@ def props_outcome_label_fr(outcome: str) -> str:
     return outcome
 
 
+def opposite_prop_outcome(outcome: str) -> str | None:
+    if outcome == "Over":
+        return "Under"
+    if outcome == "Under":
+        return "Over"
+    return None
+
+
+def compute_wnba_paired_fields(
+    *,
+    outcome: str,
+    fr_market: dict[str, Any],
+    fd_market: dict[str, Any],
+) -> dict[str, Any]:
+    opposite = opposite_prop_outcome(outcome)
+    fields: dict[str, Any] = {
+        "cote_fr_contraire": "",
+        "bookmaker_fr_contraire": "",
+        "cote_us_fanduel_contraire": "",
+        "cote_fr_fanduel_contraire": "",
+        "issue_fr_contraire": "",
+        "paire_fd_complete": False,
+    }
+    if not opposite:
+        return fields
+
+    fields["issue_fr_contraire"] = props_outcome_label_fr(opposite)
+    fr_opposite = fr_market["outcomes"].get(opposite)
+    if fr_opposite:
+        fields["cote_fr_contraire"] = format_french_decimal(float(fr_opposite["odds"]))
+        fields["bookmaker_fr_contraire"] = fr_opposite.get("bookmaker_label", "")
+
+    fd_side = fd_market["outcomes"].get(outcome)
+    fd_opposite = fd_market["outcomes"].get(opposite)
+    if fd_opposite:
+        fields["cote_us_fanduel_contraire"] = format_american_moneyline(fd_opposite.get("american"))
+        if fd_opposite.get("decimal_fr") is not None:
+            fields["cote_fr_fanduel_contraire"] = format_french_decimal(float(fd_opposite["decimal_fr"]))
+
+    if (
+        fd_side
+        and fd_opposite
+        and fd_side.get("decimal_fr") is not None
+        and fd_opposite.get("decimal_fr") is not None
+    ):
+        fields["paire_fd_complete"] = True
+    return fields
+
+
 def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
     fr_odds = round(float(row["best_fr_odds"]), 2)
     fd_decimal = round(float(row["fanduel_odds"]), 2)
@@ -309,6 +358,11 @@ def compare_normalized_props(
                     "best_fr_bookmaker": fr_payload["bookmaker_label"],
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
+                    **compute_wnba_paired_fields(
+                        outcome=outcome,
+                        fr_market=fr_market,
+                        fd_market=fd_market,
+                    ),
                 }
             )
             rows.append(row)

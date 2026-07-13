@@ -99,6 +99,28 @@ function CaptureDetail({
             <dd>{formatCaptureTime(row.fd_captured_at || row.captured_at || runGeneratedAt)}</dd>
           </>
         ) : null}
+        {hasFd && row.cote_us_fanduel_contraire ? (
+          <>
+            <dt>
+              FanDuel contraire{row.issue_fr_contraire ? ` (${row.issue_fr_contraire})` : ""}
+            </dt>
+            <dd>
+              {row.cote_us_fanduel_contraire}
+              {row.cote_fr_fanduel_contraire ? ` · ${row.cote_fr_fanduel_contraire} (FR)` : ""}
+            </dd>
+          </>
+        ) : null}
+        {hasFr && row.cote_fr_contraire ? (
+          <>
+            <dt>
+              FR contraire{row.issue_fr_contraire ? ` (${row.issue_fr_contraire})` : ""}
+            </dt>
+            <dd>
+              {row.cote_fr_contraire}
+              {row.bookmaker_fr_contraire ? ` · ${row.bookmaker_fr_contraire}` : ""}
+            </dd>
+          </>
+        ) : null}
         <dt>Run global</dt>
         <dd>{formatCaptureTime(runGeneratedAt || row.captured_at)}</dd>
       </dl>

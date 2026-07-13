@@ -223,33 +223,7 @@ export function getTableColumns(marketKind: MarketKind) {
     return coreColumns;
   }
 
-  return [
-    ...coreColumns.slice(0, 5),
-    {
-      key: "cote_fr_contraire" as const,
-      label: "FR contraire",
-      hint:
-        "Cote FR du cote oppose (Under si Over). Vide si le book ne propose qu'un seul sens (+ de X,Y Betclic, tiers live, ou cote suspendue).",
-    },
-    ...coreColumns.slice(5, 7),
-    {
-      key: "cote_us_fanduel_contraire" as const,
-      label: "FD contraire (US)",
-      hint: "Cote FanDuel US du cote oppose — necessaire pour calculer la fair prob",
-    },
-    coreColumns[7],
-    {
-      key: "prob_fair_fanduel" as const,
-      label: "Prob. fair",
-      hint: "Probabilite implicite sans vig, derivee de la paire Over/Under FanDuel",
-    },
-    {
-      key: "ev_percent" as const,
-      label: "EV %",
-      hint: "Expected value : prob. fair FanDuel x cote FR - 1",
-    },
-    ...coreColumns.slice(8),
-  ];
+  return coreColumns;
 }
 
 export const TABLE_COLUMNS = getTableColumns("aces");
