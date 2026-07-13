@@ -70,6 +70,18 @@ def american_to_decimal_fr(price: int | float | None) -> float | None:
     return round(1 + 100.0 / abs(price), 2)
 
 
+def decimal_fr_to_american(decimal_fr: float | int | None) -> int | None:
+    """Convertit une cote decimale FR en moneyline US (arrondi entier)."""
+    if decimal_fr in (None, ""):
+        return None
+    decimal = float(decimal_fr)
+    if decimal <= 1:
+        return None
+    if decimal >= 2:
+        return int(round((decimal - 1) * 100))
+    return int(round(-100 / (decimal - 1)))
+
+
 def format_american_moneyline(price: int | float | None) -> str:
     if price in (None, 0):
         return ""

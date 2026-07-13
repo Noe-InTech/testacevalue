@@ -82,7 +82,7 @@ export type MarketKind = "aces" | "breaks" | "wnba";
 export type AcesPayload = MarketPayload;
 
 export interface RunStatus {
-  status: "idle" | "running" | "success" | "error";
+  status: "idle" | "running" | "success" | "error" | "cancelled";
   message: string;
   sport?: SportKey;
   match_filter?: string;
@@ -161,6 +161,20 @@ function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
   return row.marche_fr || row.issue_fr || "—";
 }
 
+export function formatFdContraire(row: ComparableRow): string {
+  const us = row.cote_us_fanduel_contraire?.trim();
+  const fr = row.cote_fr_fanduel_contraire?.trim();
+  if (!us && !fr) {
+    return "—";
+  }
+  const side = row.issue_fr_contraire?.trim();
+  const prefix = side ? `${side} · ` : "";
+  if (us && fr) {
+    return `${prefix}${us} (${fr})`;
+  }
+  return `${prefix}${us || fr || "—"}`;
+}
+
 export function getTableColumns(marketKind: MarketKind) {
   const pariLabel =
     marketKind === "breaks"
@@ -206,6 +220,12 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "cote_fr_fanduel" as const,
       label: "FD (FR)",
       hint: "Cote FanDuel convertie en decimal FR",
+    },
+    {
+      key: "cote_us_fanduel_contraire" as const,
+      label: "FD contraire",
+      hint: "Cote FanDuel du cote oppose (ex. Moins si la ligne est Plus)",
+      format: (row: ComparableRow) => formatFdContraire(row),
     },
     {
       key: "ecart_fr_moins_fd" as const,

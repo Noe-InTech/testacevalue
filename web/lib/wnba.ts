@@ -65,6 +65,13 @@ export function loadCachedWnbaResults(): WnbaCachedResults | null {
   }
 }
 
+export function clearCachedWnbaResults(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(WNBA_CACHE_KEY);
+}
+
 export function saveCachedWnbaResults(payload: MarketPayload, status: RunStatus | null): void {
   if (typeof window === "undefined" || !hasWnbaData(payload)) {
     return;

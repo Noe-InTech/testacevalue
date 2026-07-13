@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
+import { RunningBanner } from "@/components/RunningBanner";
 import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
+import {
+  clearCachedTennisResults,
+  hasTennisData,
+  loadCachedTennisResults,
+  saveCachedTennisResults,
+} from "@/lib/tennisCache";
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
 
@@ -20,6 +27,18 @@ function formatTimestamp(value?: string): string {
   return date.toLocaleString("fr-FR");
 }
 
+function emptyTennisPayload(): ApiPayload {
+  return {
+    source: "tennis_aces_comparable",
+    generated_at: "",
+    partial: true,
+    comparable_count: 0,
+    fr_higher_count: 0,
+    comparables: [],
+    fr_higher_comparables: [],
+  };
+}
+
 export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
@@ -32,11 +51,21 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const suppressCacheRef = useRef(false);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  const isRunning = busy || status?.status === "running";
 
   useEffect(() => {
     const saved = window.localStorage.getItem(SECRET_STORAGE_KEY);
     if (saved) {
       setSecret(saved);
+    }
+    const cached = loadCachedTennisResults();
+    if (cached) {
+      setRawPayload(cached.payload);
+      setStatus(cached.status);
     }
   }, []);
 
@@ -46,8 +75,32 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       throw new Error("Impossible de charger les resultats.");
     }
     const data = await response.json();
-    setRawPayload(data.payload ?? null);
-    setStatus(data.status ?? null);
+    const nextPayload = (data.payload as ApiPayload) ?? null;
+    const nextStatus = (data.status as RunStatus) ?? null;
+
+    if (hasTennisData(nextPayload)) {
+      setRawPayload(nextPayload);
+      if (!suppressCacheRef.current) {
+        saveCachedTennisResults(nextPayload!, nextStatus);
+      }
+    } else if (
+      suppressCacheRef.current &&
+      nextStatus?.status === "running" &&
+      !hasTennisData(nextPayload)
+    ) {
+      setRawPayload(emptyTennisPayload());
+    } else if (!suppressCacheRef.current && data.source === "runner-unreachable") {
+      const cached = loadCachedTennisResults();
+      if (cached) {
+        setRawPayload(cached.payload);
+        setStatus(cached.status);
+      }
+    }
+
+    if (nextStatus) {
+      setStatus(nextStatus);
+    }
+
     return data as {
       payload: ApiPayload | null;
       status: RunStatus | null;
@@ -60,23 +113,29 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!busy && status?.status !== "running") {
+    if (!isRunning) {
       return;
     }
     const timer = window.setInterval(() => {
       refresh().catch(() => undefined);
     }, 500);
     return () => window.clearInterval(timer);
-  }, [busy, status?.status, refresh]);
+  }, [isRunning, refresh]);
 
   const waitForCompletion = useCallback(
-    async () => {
+    async (signal?: AbortSignal) => {
       const deadline = Date.now() + 5 * 60 * 1000;
       let lastRows = 0;
       let lastMatches = 0;
 
       while (Date.now() < deadline) {
+        if (signal?.aborted) {
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, 500));
+        if (signal?.aborted) {
+          return;
+        }
         const data = await refresh();
         const progress = getPayloadProgressSnapshot(data.payload);
         const currentStatus = data.status?.status;
@@ -107,6 +166,11 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           );
         }
 
+        if (currentStatus === "cancelled") {
+          setInfo("Comparaison annulee.");
+          return;
+        }
+
         if (currentStatus === "error") {
           if (totalRows > 0 || matchesDone > 0) {
             setInfo(
@@ -122,6 +186,10 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         }
       }
 
+      if (signal?.aborted) {
+        return;
+      }
+
       const finalData = await refresh();
       const finalProgress = getPayloadProgressSnapshot(finalData.payload);
       const finalRows = finalProgress.comparable_count + finalProgress.fr_only_count;
@@ -134,6 +202,39 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     [refresh],
   );
 
+  const onCancel = async () => {
+    if (!secret.trim()) {
+      setError("Saisis ton code secret pour arreter la comparaison.");
+      return;
+    }
+    setCancelBusy(true);
+    runAbortRef.current?.abort();
+    try {
+      const response = await fetch("/api/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: secret.trim(), sport: "tennis" }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Impossible d'arreter la comparaison.");
+      } else {
+        setInfo(data.message || "Comparaison arretee.");
+        setStatus({
+          status: "cancelled",
+          message: "Comparaison annulee par l'utilisateur.",
+        });
+      }
+      await refresh();
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "Erreur lors de l'arret.");
+    } finally {
+      suppressCacheRef.current = false;
+      setBusy(false);
+      setCancelBusy(false);
+    }
+  };
+
   const onSubmit = async () => {
     setError("");
     setInfo("");
@@ -143,17 +244,14 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     }
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
+    clearCachedTennisResults();
+    suppressCacheRef.current = true;
     setBusy(true);
-    setRawPayload({
-      source: "tennis_aces_comparable",
-      generated_at: "",
-      partial: true,
-      comparable_count: 0,
-      fr_higher_count: 0,
-      comparables: [],
-      fr_higher_comparables: [],
-    });
-    setInfo("Lancement en cours...");
+    setRawPayload(emptyTennisPayload());
+    setStatus({ status: "running", message: "Comparaison tennis en cours..." });
+    setInfo("Lancement en cours — anciens resultats effaces.");
+    runAbortRef.current = new AbortController();
+    const runSignal = runAbortRef.current.signal;
 
     try {
       const response = await fetch("/api/trigger", {
@@ -167,12 +265,22 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       }
 
       setInfo("Scrape live en cours...");
-      await waitForCompletion();
+      await waitForCompletion(runSignal);
+      if (runSignal.aborted) {
+        return;
+      }
+      await refresh();
       setInfo("Comparaison terminee.");
     } catch (exc) {
-      setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
+      if (!runSignal.aborted) {
+        setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
+      }
     } finally {
-      setBusy(false);
+      if (!runSignal.aborted) {
+        suppressCacheRef.current = false;
+        setBusy(false);
+      }
+      runAbortRef.current = null;
     }
   };
 
@@ -268,6 +376,14 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         {info ? <p className="info">{info}</p> : null}
         {error ? <p className="error">{error}</p> : null}
       </section>
+
+      <RunningBanner
+        active={isRunning}
+        label="Comparaison tennis en cours"
+        message={status?.message || info || "Scrape live en cours — les anciens resultats ont ete effaces."}
+        onCancel={onCancel}
+        cancelBusy={cancelBusy}
+      />
 
       <div className="market-tabs">
         <button

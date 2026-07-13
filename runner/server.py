@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,6 +21,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 LOCK = threading.Lock()
 RUNNING = False
 CURRENT_SPORT = ""
+CURRENT_PROC: subprocess.Popen[str] | None = None
+CANCEL_REQUESTED = False
 
 
 @dataclass(frozen=True)
@@ -133,8 +136,10 @@ def empty_payload(sport: SportConfig) -> dict[str, Any]:
 
 
 def run_compare(sport: SportConfig, match_filter: str) -> None:
-    global RUNNING, CURRENT_SPORT
+    global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
+    proc: subprocess.Popen[str] | None = None
     try:
+        CANCEL_REQUESTED = False
         write_status(sport, "running", "Comparaison live en cours...", match_filter=match_filter)
         cmd = [
             sys.executable,
@@ -150,18 +155,45 @@ def run_compare(sport: SportConfig, match_filter: str) -> None:
             cmd.append("--combined")
         if match_filter:
             cmd.extend(["--match", match_filter])
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=sport.timeout,
-            check=False,
         )
+        with LOCK:
+            CURRENT_PROC = proc
+        try:
+            stdout, stderr = proc.communicate(timeout=sport.timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            write_status(
+                sport,
+                "error",
+                f"Comparaison live interrompue apres {sport.timeout // 60} minutes (timeout).",
+                match_filter=match_filter,
+            )
+            return
+        finally:
+            with LOCK:
+                if CURRENT_PROC is proc:
+                    CURRENT_PROC = None
+
+        if CANCEL_REQUESTED:
+            write_status(
+                sport,
+                "cancelled",
+                "Comparaison annulee par l'utilisateur.",
+                match_filter=match_filter,
+            )
+            return
+
         if proc.returncode != 0:
-            detail = (proc.stderr or proc.stdout or "Erreur inconnue.")[-2000:]
+            detail = (stderr or stdout or "Erreur inconnue.")[-2000:]
             current = read_json(sport.status_json, {})
-            if current.get("status") != "error":
+            if current.get("status") not in {"error", "cancelled"}:
                 write_status(
                     sport,
                     "error",
@@ -170,21 +202,45 @@ def run_compare(sport: SportConfig, match_filter: str) -> None:
                 )
             return
         current = read_json(sport.status_json, {})
-        if current.get("status") != "success":
+        if current.get("status") not in {"success", "cancelled"}:
             write_status(sport, "success", "Comparaison live terminee.", match_filter=match_filter)
-    except subprocess.TimeoutExpired:
-        write_status(
-            sport,
-            "error",
-            f"Comparaison live interrompue apres {sport.timeout // 60} minutes (timeout).",
-            match_filter=match_filter,
-        )
     except Exception as exc:
-        write_status(sport, "error", f"Exception runner: {exc}", match_filter=match_filter)
+        if not CANCEL_REQUESTED:
+            write_status(sport, "error", f"Exception runner: {exc}", match_filter=match_filter)
     finally:
         with LOCK:
             RUNNING = False
             CURRENT_SPORT = ""
+            if proc is not None and CURRENT_PROC is proc:
+                CURRENT_PROC = None
+            CANCEL_REQUESTED = False
+
+
+def request_cancel(sport_key: str = "") -> tuple[bool, str]:
+    """Demande l'arret du processus de comparaison en cours."""
+    global CANCEL_REQUESTED
+    with LOCK:
+        if not RUNNING:
+            return False, "Aucune comparaison active."
+        if sport_key and CURRENT_SPORT and sport_key != CURRENT_SPORT:
+            return False, f"Comparaison {CURRENT_SPORT} en cours (pas {sport_key})."
+        CANCEL_REQUESTED = True
+        proc = CURRENT_PROC
+        active_sport = CURRENT_SPORT
+
+    sport = SPORTS.get(active_sport) if active_sport else None
+    if sport is not None:
+        write_status(sport, "running", "Arret de la comparaison en cours...", match_filter="")
+
+    if proc is not None and proc.poll() is None:
+        proc.terminate()
+        deadline = time.time() + 5
+        while time.time() < deadline and proc.poll() is None:
+            time.sleep(0.2)
+        if proc.poll() is None:
+            proc.kill()
+
+    return True, "Arret demande."
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -241,6 +297,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/cancel":
+            self._handle_cancel()
+            return
         if path != "/api/trigger":
             self._json_response(404, {"error": "Not found"})
             return
@@ -283,6 +342,34 @@ class Handler(BaseHTTPRequestHandler):
         self._json_response(
             200,
             {"ok": True, "mode": "live", "sport": sport.key, "started_at": utc_now()},
+        )
+
+    def _handle_cancel(self) -> None:
+        if not self._authorized():
+            self._json_response(401, {"error": "Secret incorrect."})
+            return
+
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError:
+            self._json_response(400, {"error": "JSON invalide."})
+            return
+
+        sport_key = str(body.get("sport", "")).strip().lower()
+        ok, message = request_cancel(sport_key)
+        if not ok and sport_key and "en cours" in message:
+            self._json_response(409, {"error": message})
+            return
+        self._json_response(
+            200,
+            {
+                "ok": True,
+                "cancelled": ok,
+                "message": message,
+                "sport": sport_key or CURRENT_SPORT or "",
+            },
         )
 
     def log_message(self, format: str, *args: Any) -> None:

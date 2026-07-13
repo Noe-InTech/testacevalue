@@ -33,7 +33,12 @@ from basketball_market_mapping import (
 )
 from betclic_basketball_client import BetclicBasketballClient
 from fanduel_basketball_client import FanDuelBasketballClient
-from fanduel_client import format_american_moneyline, format_french_decimal, runner_fanduel_price_bundle
+from fanduel_client import (
+    decimal_fr_to_american,
+    format_american_moneyline,
+    format_french_decimal,
+    runner_fanduel_price_bundle,
+)
 from tennis_market_mapping import players_match
 from unibet_basketball_client import UnibetBasketballClient
 from winamax_basketball_client import WinamaxBasketballClient
@@ -218,7 +223,10 @@ def compute_wnba_paired_fields(
     fd_side = fd_market["outcomes"].get(outcome)
     fd_opposite = fd_market["outcomes"].get(opposite)
     if fd_opposite:
-        fields["cote_us_fanduel_contraire"] = format_american_moneyline(fd_opposite.get("american"))
+        opp_american = fd_opposite.get("american")
+        if opp_american is None and fd_opposite.get("decimal_fr") is not None:
+            opp_american = decimal_fr_to_american(float(fd_opposite["decimal_fr"]))
+        fields["cote_us_fanduel_contraire"] = format_american_moneyline(opp_american)
         if fd_opposite.get("decimal_fr") is not None:
             fields["cote_fr_fanduel_contraire"] = format_french_decimal(float(fd_opposite["decimal_fr"]))
 

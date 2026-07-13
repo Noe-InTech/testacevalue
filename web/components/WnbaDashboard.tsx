@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
+import { RunningBanner } from "@/components/RunningBanner";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
 import {
+  clearCachedWnbaResults,
   countRowsByStat,
   filterWnbaRows,
   hasWnbaData,
@@ -42,6 +44,21 @@ function defaultOpenSections(): Record<SectionId, boolean> {
   };
 }
 
+function emptyWnbaPayload(): MarketPayload {
+  return {
+    source: "wnba_player_props_comparable",
+    generated_at: "",
+    partial: true,
+    comparable_count: 0,
+    fr_higher_count: 0,
+    comparables: [],
+    fr_higher_comparables: [],
+    fr_only_comparables: [],
+    fd_only_comparables: [],
+    match_progress: [],
+  };
+}
+
 export function WnbaDashboard() {
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
@@ -58,6 +75,11 @@ export function WnbaDashboard() {
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [info, setInfo] = useState("");
+  const suppressCacheRef = useRef(false);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+
+  const isRunning = busy || status?.status === "running";
 
   useEffect(() => {
     const saved = window.localStorage.getItem(SECRET_STORAGE_KEY);
@@ -100,21 +122,27 @@ export function WnbaDashboard() {
             setWarning("");
           }
         } else if (data.source === "runner-unreachable") {
-          const cached = loadCachedWnbaResults();
-          if (cached) {
-            setPayload(cached.payload);
-            setStatus(cached.status);
-            setCacheSavedAt(cached.savedAt);
-            setWarning(
-              "Runner EU injoignable — derniers resultats en memoire affiches. Mets a jour RUNNER_URL sur Vercel.",
-            );
-          } else if (!options?.silent) {
-            setWarning(
-              "Runner EU injoignable. Mets a jour RUNNER_URL (URL Cloudflare https://....trycloudflare.com).",
-            );
+          if (!suppressCacheRef.current) {
+            const cached = loadCachedWnbaResults();
+            if (cached) {
+              setPayload(cached.payload);
+              setStatus(cached.status);
+              setCacheSavedAt(cached.savedAt);
+              setWarning(
+                "Runner EU injoignable — derniers resultats en memoire affiches. Mets a jour RUNNER_URL sur Vercel.",
+              );
+            } else if (!options?.silent) {
+              setWarning(
+                "Runner EU injoignable. Mets a jour RUNNER_URL (URL Cloudflare https://....trycloudflare.com).",
+              );
+            }
           }
         } else if (nextStatus) {
           setStatus(nextStatus);
+          if (suppressCacheRef.current && nextStatus.status === "running" && !hasWnbaData(nextPayload)) {
+            setPayload(emptyWnbaPayload());
+            setCacheSavedAt(null);
+          }
         }
 
         return data as {
@@ -123,21 +151,23 @@ export function WnbaDashboard() {
           source?: string;
         };
       } catch (exc) {
-        const cached = loadCachedWnbaResults();
-        if (cached) {
-          setPayload(cached.payload);
-          setStatus(cached.status);
-          setCacheSavedAt(cached.savedAt);
-          setWarning(
-            exc instanceof Error
-              ? `Connexion instable (${exc.message}) — derniers resultats en memoire.`
-              : "Connexion instable — derniers resultats en memoire.",
-          );
-          return {
-            payload: cached.payload,
-            status: cached.status,
-            source: "cache",
-          };
+        if (!suppressCacheRef.current) {
+          const cached = loadCachedWnbaResults();
+          if (cached) {
+            setPayload(cached.payload);
+            setStatus(cached.status);
+            setCacheSavedAt(cached.savedAt);
+            setWarning(
+              exc instanceof Error
+                ? `Connexion instable (${exc.message}) — derniers resultats en memoire.`
+                : "Connexion instable — derniers resultats en memoire.",
+            );
+            return {
+              payload: cached.payload,
+              status: cached.status,
+              source: "cache",
+            };
+          }
         }
         if (!options?.silent) {
           throw exc;
@@ -161,22 +191,28 @@ export function WnbaDashboard() {
   }, [refresh]);
 
   useEffect(() => {
-    if (!busy && status?.status !== "running") {
+    if (!isRunning) {
       return;
     }
     const timer = window.setInterval(() => {
       refresh({ silent: true }).catch(() => undefined);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [busy, status?.status, refresh]);
+  }, [isRunning, refresh]);
 
-  const waitForCompletion = useCallback(async () => {
+  const waitForCompletion = useCallback(async (signal?: AbortSignal) => {
     const deadline = Date.now() + 8 * 60 * 1000;
     let lastRows = 0;
     let lastMatches = 0;
 
     while (Date.now() < deadline) {
+      if (signal?.aborted) {
+        return;
+      }
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (signal?.aborted) {
+        return;
+      }
       const data = await refresh({ silent: true });
       const progress = getPayloadProgressSnapshot(data.payload);
       const currentStatus = data.status?.status;
@@ -205,6 +241,11 @@ export function WnbaDashboard() {
         );
       }
 
+      if (currentStatus === "cancelled") {
+        setInfo("Comparaison WNBA annulee.");
+        return;
+      }
+
       if (currentStatus === "error") {
         if (totalRows > 0 || matchesDone > 0 || loadCachedWnbaResults()) {
           setInfo(`${matchesDone}/${anchorsTotal || "?"} match(s), ${totalRows} ligne(s) (partiel).`);
@@ -218,6 +259,10 @@ export function WnbaDashboard() {
       }
     }
 
+    if (signal?.aborted) {
+      return;
+    }
+
     const finalData = await refresh({ silent: true });
     const finalProgress = getPayloadProgressSnapshot(finalData.payload);
     const finalRows = finalProgress.comparable_count + finalProgress.fr_only_count;
@@ -227,6 +272,39 @@ export function WnbaDashboard() {
     }
     throw new Error("Delai depasse (~8 min). Recharge la page.");
   }, [refresh]);
+
+  const onCancel = async () => {
+    if (!secret.trim()) {
+      setError("Saisis ton code secret pour arreter la comparaison.");
+      return;
+    }
+    setCancelBusy(true);
+    runAbortRef.current?.abort();
+    try {
+      const response = await fetch("/api/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: secret.trim(), sport: "wnba" }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Impossible d'arreter la comparaison WNBA.");
+      } else {
+        setInfo(data.message || "Comparaison WNBA arretee.");
+        setStatus({
+          status: "cancelled",
+          message: "Comparaison annulee par l'utilisateur.",
+        });
+      }
+      await refresh({ silent: true });
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "Erreur lors de l'arret.");
+    } finally {
+      suppressCacheRef.current = false;
+      setBusy(false);
+      setCancelBusy(false);
+    }
+  };
 
   const onSubmit = async () => {
     setError("");
@@ -238,8 +316,15 @@ export function WnbaDashboard() {
     }
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
+    clearCachedWnbaResults();
+    suppressCacheRef.current = true;
     setBusy(true);
+    setPayload(emptyWnbaPayload());
+    setCacheSavedAt(null);
+    setStatus({ status: "running", message: "Comparaison WNBA en cours..." });
     setInfo("Lancement WNBA en cours...");
+    runAbortRef.current = new AbortController();
+    const runSignal = runAbortRef.current.signal;
 
     try {
       const response = await fetch("/api/trigger", {
@@ -253,21 +338,22 @@ export function WnbaDashboard() {
       }
 
       setInfo("Scrape WNBA live en cours...");
-      await waitForCompletion();
+      await waitForCompletion(runSignal);
+      if (runSignal.aborted) {
+        return;
+      }
       await refresh({ silent: true });
       setInfo("Comparaison WNBA terminee.");
     } catch (exc) {
-      if (loadCachedWnbaResults()) {
-        setWarning(
-          exc instanceof Error
-            ? `${exc.message} — derniers resultats conserves.`
-            : "Erreur — derniers resultats conserves.",
-        );
-      } else {
+      if (!runSignal.aborted) {
         setError(exc instanceof Error ? exc.message : "Erreur inconnue.");
       }
     } finally {
-      setBusy(false);
+      if (!runSignal.aborted) {
+        suppressCacheRef.current = false;
+        setBusy(false);
+      }
+      runAbortRef.current = null;
     }
   };
 
@@ -397,6 +483,14 @@ export function WnbaDashboard() {
         {warning ? <p className="warning">{warning}</p> : null}
         {error ? <p className="error">{error}</p> : null}
       </section>
+
+      <RunningBanner
+        active={isRunning}
+        label="Comparaison WNBA en cours"
+        message={status?.message || info || "Scrape live en cours — les anciens resultats ont ete effaces."}
+        onCancel={onCancel}
+        cancelBusy={cancelBusy}
+      />
 
       <section className="panel filters-panel">
         <div className="filters-header">

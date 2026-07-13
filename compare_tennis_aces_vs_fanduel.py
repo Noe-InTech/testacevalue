@@ -17,6 +17,7 @@ from fanduel_client import (
     FANDUEL_PROPS_TABS,
     DEFAULT_TENNIS_PAGE_CANDIDATES,
     FanDuelClient,
+    decimal_fr_to_american,
     format_american_moneyline,
     format_french_decimal,
     merge_event_market_payloads,
@@ -139,6 +140,8 @@ def compute_paired_value_fields(
     if fd_opposite:
         opp_american = fd_opposite.get("american")
         opp_decimal = fd_opposite.get("decimal_fr")
+        if opp_american is None and opp_decimal is not None:
+            opp_american = decimal_fr_to_american(float(opp_decimal))
         fields["cote_us_fanduel_contraire"] = format_american_moneyline(opp_american)
         if opp_decimal is not None:
             fields["cote_fr_fanduel_contraire"] = format_french_decimal(float(opp_decimal))
