@@ -60,15 +60,19 @@ export async function GET(request: Request) {
   const sport = (new URL(request.url).searchParams.get("sport") || "tennis") as SportKey;
 
   if (runnerEnabled()) {
-    const runnerData = await fetchRunnerResults(sport);
-    if (runnerData) {
-      return NextResponse.json({
-        payload: runnerData.payload,
-        status: runnerData.status,
-        source: "runner-live",
-        sport,
-        fetched_at: new Date().toISOString(),
-      });
+    try {
+      const runnerData = await fetchRunnerResults(sport);
+      if (runnerData) {
+        return NextResponse.json({
+          payload: runnerData.payload,
+          status: runnerData.status,
+          source: "runner-live",
+          sport,
+          fetched_at: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // timeout ou runner injoignable — retomber sur le payload vide ci-dessous
     }
 
     return NextResponse.json({

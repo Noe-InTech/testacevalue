@@ -525,6 +525,8 @@ def build_results_payload(
     anchors_total: int | None = None,
     book_warnings: list[str] | None = None,
     league: str = "wnba",
+    include_fd_only_rows: bool = False,
+    max_fr_only_rows: int | None = 200,
 ) -> dict[str, Any]:
     comparable_rows = collect_comparable_rows(results)
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
@@ -534,6 +536,10 @@ def build_results_payload(
     fd_events = sum(1 for result in results if int(result.get("fd_prop_market_count", 0)) > 0)
     fr_events = sum(1 for result in results if int(result.get("fr_prop_market_count", 0)) > 0)
     league_label = league.upper()
+    if max_fr_only_rows is not None:
+        fr_only_export = fr_only_rows[:max_fr_only_rows]
+    else:
+        fr_only_export = fr_only_rows
     return {
         "source": f"{league}_player_props_comparable",
         "generated_at": utc_now(),
@@ -550,8 +556,8 @@ def build_results_payload(
         "comparables": comparable_rows,
         "fr_higher_comparables": fr_higher_rows,
         "value_comparables": [],
-        "fr_only_comparables": fr_only_rows,
-        "fd_only_comparables": fd_only_rows,
+        "fr_only_comparables": fr_only_export,
+        "fd_only_comparables": fd_only_rows if include_fd_only_rows else [],
         "match_progress": match_progress,
         "notes": [
             f"Pipeline {league_label} séparé du tennis.",
@@ -578,9 +584,13 @@ def write_progress_json(
         partial=partial,
         anchors_total=anchors_total,
         league=league,
+        include_fd_only_rows=False,
     )
     tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.write_text(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
     tmp_path.replace(path)
 
 

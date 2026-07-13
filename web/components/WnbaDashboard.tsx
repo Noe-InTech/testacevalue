@@ -173,6 +173,16 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           if (!options?.silent) {
             setWarning("");
           }
+        } else if (
+          nextStatus?.status === "success" &&
+          nextPayload &&
+          cfg.hasData(nextPayload) &&
+          data.source === "runner-live"
+        ) {
+          applyResults(nextPayload, nextStatus);
+          if (!options?.silent) {
+            setWarning("");
+          }
         } else if (suppressCacheRef.current) {
           setPayload(emptyBasketballPayload(cfg.source));
           setCacheSavedAt(null);

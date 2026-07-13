@@ -93,12 +93,16 @@ export async function fetchRunnerResults(sport = "tennis"): Promise<{
   if (!baseUrl) {
     return null;
   }
-  const response = await fetch(`${baseUrl}/api/results?sport=${encodeURIComponent(sport)}`, {
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!response.ok) {
+  try {
+    const response = await fetch(`${baseUrl}/api/results?sport=${encodeURIComponent(sport)}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) {
+      return null;
+    }
+    return response.json();
+  } catch {
     return null;
   }
-  return response.json();
 }
