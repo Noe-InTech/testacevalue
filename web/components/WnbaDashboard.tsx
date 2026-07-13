@@ -7,6 +7,7 @@ import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
+import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
 import {
   clearCachedWnbaResults,
   countRowsByStat,
@@ -76,6 +77,7 @@ export function WnbaDashboard() {
   const [warning, setWarning] = useState("");
   const [info, setInfo] = useState("");
   const suppressCacheRef = useRef(false);
+  const runStartedAtRef = useRef<string | null>(null);
   const runAbortRef = useRef<AbortController | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
 
@@ -115,11 +117,22 @@ export function WnbaDashboard() {
         const data = await response.json();
         const nextPayload = (data.payload as MarketPayload) ?? null;
         const nextStatus = (data.status as RunStatus) ?? null;
+        const runStartedAt = resolveRunStartedAt(runStartedAtRef.current, nextStatus);
+        const payloadFromCurrentRun =
+          nextPayload &&
+          hasWnbaData(nextPayload) &&
+          isPayloadFromRun(nextPayload, runStartedAt);
 
-        if (hasWnbaData(nextPayload)) {
+        if (payloadFromCurrentRun) {
           applyResults(nextPayload, nextStatus);
           if (!options?.silent) {
             setWarning("");
+          }
+        } else if (suppressCacheRef.current) {
+          setPayload(emptyWnbaPayload());
+          setCacheSavedAt(null);
+          if (nextStatus) {
+            setStatus(nextStatus);
           }
         } else if (data.source === "runner-unreachable") {
           if (!suppressCacheRef.current) {
@@ -137,12 +150,8 @@ export function WnbaDashboard() {
               );
             }
           }
-        } else if (nextStatus) {
+        } else if (nextStatus && !suppressCacheRef.current) {
           setStatus(nextStatus);
-          if (suppressCacheRef.current && nextStatus.status === "running" && !hasWnbaData(nextPayload)) {
-            setPayload(emptyWnbaPayload());
-            setCacheSavedAt(null);
-          }
         }
 
         return data as {
@@ -303,6 +312,7 @@ export function WnbaDashboard() {
       suppressCacheRef.current = false;
       setBusy(false);
       setCancelBusy(false);
+      runStartedAtRef.current = null;
     }
   };
 
@@ -318,6 +328,7 @@ export function WnbaDashboard() {
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
     clearCachedWnbaResults();
     suppressCacheRef.current = true;
+    runStartedAtRef.current = new Date().toISOString();
     setBusy(true);
     setPayload(emptyWnbaPayload());
     setCacheSavedAt(null);
@@ -336,6 +347,9 @@ export function WnbaDashboard() {
       if (!response.ok) {
         throw new Error(data.error || "Echec du declenchement.");
       }
+      if (typeof data.started_at === "string" && data.started_at.trim()) {
+        runStartedAtRef.current = data.started_at.trim();
+      }
 
       setInfo("Scrape WNBA live en cours...");
       await waitForCompletion(runSignal);
@@ -353,6 +367,7 @@ export function WnbaDashboard() {
         suppressCacheRef.current = false;
         setBusy(false);
       }
+      runStartedAtRef.current = null;
       runAbortRef.current = null;
     }
   };

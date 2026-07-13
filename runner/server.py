@@ -71,14 +71,20 @@ def write_status(
     message: str,
     *,
     match_filter: str = "",
+    run_started_at: str | None = None,
+    clear_run_started_at: bool = False,
 ) -> None:
+    existing = read_json(sport.status_json, {})
     payload: dict[str, Any] = {
         "status": status,
         "message": message,
-        "match_filter": match_filter,
+        "match_filter": match_filter or str(existing.get("match_filter", "")),
         "sport": sport.key,
         "updated_at": utc_now(),
     }
+    started = run_started_at or (None if clear_run_started_at else existing.get("run_started_at"))
+    if started:
+        payload["run_started_at"] = started
     if status == "success" and sport.result_json.is_file():
         data = json.loads(sport.result_json.read_text(encoding="utf-8"))
         payload["generated_at"] = data.get("generated_at", "")
@@ -88,6 +94,14 @@ def write_status(
         payload["anchors_total"] = data.get("anchors_total", 0)
         payload["fr_only_count"] = data.get("fr_only_count", 0)
     sport.status_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def wipe_result_file(sport: SportConfig) -> None:
+    sport.result_json.parent.mkdir(parents=True, exist_ok=True)
+    sport.result_json.write_text(
+        json.dumps(empty_payload(sport), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def empty_payload(sport: SportConfig) -> dict[str, Any]:
@@ -187,6 +201,7 @@ def run_compare(sport: SportConfig, match_filter: str) -> None:
                 "cancelled",
                 "Comparaison annulee par l'utilisateur.",
                 match_filter=match_filter,
+                clear_run_started_at=True,
             )
             return
 
@@ -203,7 +218,13 @@ def run_compare(sport: SportConfig, match_filter: str) -> None:
             return
         current = read_json(sport.status_json, {})
         if current.get("status") not in {"success", "cancelled"}:
-            write_status(sport, "success", "Comparaison live terminee.", match_filter=match_filter)
+            write_status(
+                sport,
+                "success",
+                "Comparaison live terminee.",
+                match_filter=match_filter,
+                clear_run_started_at=True,
+            )
     except Exception as exc:
         if not CANCEL_REQUESTED:
             write_status(sport, "error", f"Exception runner: {exc}", match_filter=match_filter)
@@ -337,11 +358,21 @@ class Handler(BaseHTTPRequestHandler):
             RUNNING = True
             CURRENT_SPORT = sport.key
 
+        started_at = utc_now()
+        wipe_result_file(sport)
+        write_status(
+            sport,
+            "running",
+            "Comparaison live en cours...",
+            match_filter=match_filter,
+            run_started_at=started_at,
+        )
+
         thread = threading.Thread(target=run_compare, args=(sport, match_filter), daemon=True)
         thread.start()
         self._json_response(
             200,
-            {"ok": True, "mode": "live", "sport": sport.key, "started_at": utc_now()},
+            {"ok": True, "mode": "live", "sport": sport.key, "started_at": started_at},
         )
 
     def _handle_cancel(self) -> None:

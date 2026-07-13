@@ -7,6 +7,7 @@ import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
 import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
+import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
 import {
   clearCachedTennisResults,
   hasTennisData,
@@ -52,6 +53,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const suppressCacheRef = useRef(false);
+  const runStartedAtRef = useRef<string | null>(null);
   const runAbortRef = useRef<AbortController | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
 
@@ -77,19 +79,23 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     const data = await response.json();
     const nextPayload = (data.payload as ApiPayload) ?? null;
     const nextStatus = (data.status as RunStatus) ?? null;
+    const runStartedAt = resolveRunStartedAt(runStartedAtRef.current, nextStatus);
+    const payloadFromCurrentRun =
+      nextPayload &&
+      hasTennisData(nextPayload) &&
+      isPayloadFromRun(nextPayload, runStartedAt);
 
-    if (hasTennisData(nextPayload)) {
+    if (payloadFromCurrentRun) {
       setRawPayload(nextPayload);
       if (!suppressCacheRef.current) {
-        saveCachedTennisResults(nextPayload!, nextStatus);
+        saveCachedTennisResults(nextPayload, nextStatus);
       }
-    } else if (
-      suppressCacheRef.current &&
-      nextStatus?.status === "running" &&
-      !hasTennisData(nextPayload)
-    ) {
+    } else if (suppressCacheRef.current) {
       setRawPayload(emptyTennisPayload());
-    } else if (!suppressCacheRef.current && data.source === "runner-unreachable") {
+      if (nextStatus) {
+        setStatus(nextStatus);
+      }
+    } else if (data.source === "runner-unreachable") {
       const cached = loadCachedTennisResults();
       if (cached) {
         setRawPayload(cached.payload);
@@ -97,7 +103,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       }
     }
 
-    if (nextStatus) {
+    if (nextStatus && !suppressCacheRef.current) {
       setStatus(nextStatus);
     }
 
@@ -232,6 +238,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       suppressCacheRef.current = false;
       setBusy(false);
       setCancelBusy(false);
+      runStartedAtRef.current = null;
     }
   };
 
@@ -246,6 +253,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
     clearCachedTennisResults();
     suppressCacheRef.current = true;
+    runStartedAtRef.current = new Date().toISOString();
     setBusy(true);
     setRawPayload(emptyTennisPayload());
     setStatus({ status: "running", message: "Comparaison tennis en cours..." });
@@ -262,6 +270,9 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Echec du declenchement.");
+      }
+      if (typeof data.started_at === "string" && data.started_at.trim()) {
+        runStartedAtRef.current = data.started_at.trim();
       }
 
       setInfo("Scrape live en cours...");
@@ -280,6 +291,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         suppressCacheRef.current = false;
         setBusy(false);
       }
+      runStartedAtRef.current = null;
       runAbortRef.current = null;
     }
   };

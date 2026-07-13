@@ -87,6 +87,7 @@ export interface RunStatus {
   sport?: SportKey;
   match_filter?: string;
   updated_at?: string;
+  run_started_at?: string;
   generated_at?: string;
   anchors_total?: number;
   matches_done?: number;
