@@ -726,6 +726,7 @@ def compare_anchor(
     betclic: BetclicBasketballClient,
     winamax: WinamaxBasketballClient,
     fanduel: FanDuelBasketballClient,
+    league: str = "wnba",
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
 ) -> dict[str, Any]:
     book_events: dict[str, dict[str, Any]] = {}
@@ -825,9 +826,14 @@ def compare_anchor(
             None,
         )
         if event:
+            build_fd_payload = (
+                fanduel.build_nba_event_payload
+                if league == "nba"
+                else fanduel.build_event_payload
+            )
             fanduel_payload = _safe_call(
                 "FanDuel",
-                lambda: fanduel.build_event_payload(event),
+                lambda: build_fd_payload(event),
                 None,
             )
             if fanduel_payload:
@@ -884,6 +890,7 @@ def run_compare(*, match_filter: str = "", league: str = "wnba") -> dict[str, An
             betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
+            league=league,
         )
         for anchor in anchors
     ]
@@ -1012,6 +1019,7 @@ def run_live_compare(
             betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
+            league=league,
             on_partial=on_anchor_partial,
         )
         results.append(compared)

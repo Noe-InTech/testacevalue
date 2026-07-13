@@ -321,6 +321,10 @@ def is_wnba_player_prop_label(label: str) -> bool:
     return any(pattern.regex.search(lower) for pattern in PLAYER_PROP_PATTERNS)
 
 
+# Alias explicite — mêmes marchés props joueur pour WNBA et NBA.
+is_basketball_player_prop_label = is_wnba_player_prop_label
+
+
 def match_player_name(label: str, roster: list[str]) -> str:
     for name in roster:
         if players_match(label, name):

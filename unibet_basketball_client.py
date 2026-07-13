@@ -6,7 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from basketball_constants import UNIBET_BASKETBALL_LISTING_PATH
+from basketball_constants import UNIBET_BASKETBALL_LISTING_PATH, UNIBET_NBA_HUB_PATHS
+from basketball_listings import is_basketball_outright_slug
 from unibet_client import UnibetClient, UnibetMarket, UnibetOutcome
 
 
@@ -54,15 +55,29 @@ class UnibetBasketballClient(UnibetClient):
         return sorted(events.values(), key=lambda item: item.name)
 
     def list_nba_events(self) -> list[UnibetBasketballEvent]:
-        html = self.get_tennis_listing_html(UNIBET_BASKETBALL_LISTING_PATH)
         events: dict[str, UnibetBasketballEvent] = {}
+        pages = [UNIBET_BASKETBALL_LISTING_PATH, *UNIBET_NBA_HUB_PATHS]
+        for page in pages:
+            html = self.get_tennis_listing_html(page)
+            self._ingest_unibet_nba_paths(html, events)
+        return sorted(events.values(), key=lambda item: item.name)
+
+    def _ingest_unibet_nba_paths(
+        self,
+        html: str,
+        events: dict[str, UnibetBasketballEvent],
+    ) -> None:
         for match in re.finditer(
-            r'href="(/paris-basketball/usa/nba/\d+/[^"]+)"',
+            r'href="(/paris-basketball/usa/nba/\d+/[^"#?]+)"',
             html,
             flags=re.I,
         ):
-            path = match.group(1)
+            path = match.group(1).rstrip("/")
+            if "nba-cup" in path.lower():
+                continue
             slug = path.rsplit("/", 1)[-1]
+            if is_basketball_outright_slug(slug):
+                continue
             event_id = path.split("/")[-2]
             home, away = self._teams_from_nba_slug(slug)
             if not home or not away:
@@ -80,7 +95,6 @@ class UnibetBasketballClient(UnibetClient):
                     url=url,
                     competition="NBA",
                 )
-        return sorted(events.values(), key=lambda item: item.name)
 
     @staticmethod
     def _teams_from_nba_slug(slug: str) -> tuple[str, str]:

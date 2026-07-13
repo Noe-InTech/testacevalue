@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -61,7 +62,40 @@ class WinamaxBasketballClient(WinamaxClient):
         blob = f"{link.title} {link.competition}".lower()
         if "wnba" in blob:
             return False
-        nba_markers = ("nba", "lakers", "celtics", "warriors", "knicks", "bulls", "heat")
+        if any(token in blob for token in ("saison 20", "futures", "vainqueur", "outright")):
+            return False
+        if "summer league" in blob or re.search(r"\bnba\b", blob):
+            return True
+        nba_markers = (
+            "lakers",
+            "celtics",
+            "warriors",
+            "knicks",
+            "bulls",
+            "heat",
+            "raptors",
+            "pacers",
+            "pistons",
+            "hawks",
+            "mavericks",
+            "grizzlies",
+            "cavaliers",
+            "jazz",
+            "suns",
+            "bucks",
+            "timberwolves",
+            "blazers",
+            "spurs",
+            "rockets",
+            "nets",
+            "sixers",
+            "nuggets",
+            "clippers",
+            "pelicans",
+            "magic",
+            "wizards",
+            "hornets",
+        )
         return any(marker in blob for marker in nba_markers)
 
     @staticmethod
