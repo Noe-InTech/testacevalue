@@ -25,6 +25,9 @@ export interface ComparableRow {
   market_family?: string;
   player_name?: string;
   outcome?: string;
+  captured_at?: string;
+  fr_captured_at?: string;
+  fd_captured_at?: string;
 }
 
 export interface MatchProgressRow {

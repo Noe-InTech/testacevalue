@@ -583,6 +583,8 @@ export function WnbaDashboard() {
           rows={comparables}
           marketKind="wnba"
           embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at}
           emptyMessage="Aucun resultat pour ces filtres. Lance une comparaison ou elargis les filtres."
         />
       </CollapsibleSection>
@@ -598,6 +600,8 @@ export function WnbaDashboard() {
           rows={frHigherRows}
           marketKind="wnba"
           embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at}
           emptyMessage="Aucune ligne ou la cote FR bat FanDuel pour ces filtres."
         />
       </CollapsibleSection>
@@ -613,6 +617,8 @@ export function WnbaDashboard() {
           rows={frOnlyRows}
           marketKind="wnba"
           embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at}
           emptyMessage="Toutes les lignes FR ont un equivalent FanDuel, ou pas de prop FR."
         />
       </CollapsibleSection>
@@ -628,6 +634,8 @@ export function WnbaDashboard() {
           rows={fdOnlyRows}
           marketKind="wnba"
           embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at}
           emptyMessage="Toutes les lignes FanDuel ont un equivalent FR, ou pas de prop FanDuel."
         />
       </CollapsibleSection>

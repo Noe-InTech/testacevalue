@@ -585,6 +585,21 @@ def fetch_live_wnba_listings(
     return unibet_events, betclic_links, winamax_links, fanduel_events, warnings
 
 
+def attach_capture_times(
+    rows: list[dict[str, Any]],
+    *,
+    fr_scraped_at: str | None = None,
+    fd_scraped_at: str | None = None,
+) -> list[dict[str, Any]]:
+    for row in rows:
+        if fr_scraped_at:
+            row["fr_captured_at"] = fr_scraped_at
+        if fd_scraped_at:
+            row["fd_captured_at"] = fd_scraped_at
+        row["captured_at"] = fd_scraped_at or fr_scraped_at or utc_now()
+    return rows
+
+
 def compare_anchor(
     anchor: dict[str, Any],
     *,
@@ -658,7 +673,9 @@ def compare_anchor(
                 None,
             )
 
+    fr_scraped_at = utc_now()
     fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+    fd_scraped_at = utc_now()
     fd_map = build_fanduel_player_props_map(fanduel_payload, roster=roster)
     comparable = compare_normalized_props(fr_map, fd_map)
 
@@ -701,6 +718,10 @@ def compare_anchor(
                     }
                 )
             )
+
+    attach_capture_times(comparable, fr_scraped_at=fr_scraped_at, fd_scraped_at=fd_scraped_at)
+    attach_capture_times(fr_only, fr_scraped_at=fr_scraped_at)
+    attach_capture_times(fd_only, fd_scraped_at=fd_scraped_at)
 
     return {
         "match": anchor["match"],
