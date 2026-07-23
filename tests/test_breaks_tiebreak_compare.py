@@ -69,6 +69,34 @@ class BreaksTiebreakCompareTests(unittest.TestCase):
         rows = compare_normalized_breaks(fr_map, fd_map)
         self.assertEqual(rows, [])
 
+    def test_breaks_7_5_does_not_match_fd_6_5(self) -> None:
+        fr_map = {
+            "breaks_total|7.5": {
+                "compare_key": "breaks_total|7.5",
+                "market_family": "breaks_total",
+                "market_label_raw": "Nombre de breaks",
+                "outcomes": {
+                    "Over": {
+                        "odds": 2.2,
+                        "bookmaker": "unibet",
+                        "bookmaker_label": "Unibet",
+                    },
+                },
+            }
+        }
+        fd_map = {
+            "breaks_total|6.5": {
+                "compare_key": "breaks_total|6.5",
+                "market_label": "Total Breaks 6.5",
+                "outcomes": {
+                    "Over": {"decimal_fr": 1.8, "decimal_raw": 1.8, "american": -125},
+                },
+                "fd_line_source": "ou",
+            }
+        }
+        rows = compare_normalized_breaks(fr_map, fd_map)
+        self.assertEqual(rows, [])
+
 
 if __name__ == "__main__":
     unittest.main()

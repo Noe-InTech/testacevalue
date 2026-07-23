@@ -151,11 +151,13 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
 
   const waitForCompletion = useCallback(
     async (signal?: AbortSignal) => {
-      const deadline = Date.now() + 5 * 60 * 1000;
+      // Tant que le runner dit "running", on continue (hard cap 20 min).
+      const hardDeadline = Date.now() + 20 * 60 * 1000;
       let lastRows = 0;
       let lastMatches = 0;
+      let unreachableStreak = 0;
 
-      while (Date.now() < deadline) {
+      while (Date.now() < hardDeadline) {
         if (signal?.aborted) {
           return;
         }
@@ -173,6 +175,21 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         const anchorsTotal = data.status?.anchors_total ?? progress.anchors_total;
         const isFinalPayload = progress.partial === false;
 
+        if (data.source === "runner-unreachable") {
+          unreachableStreak += 1;
+          if (unreachableStreak === 1 || unreachableStreak % 10 === 0) {
+            setError(
+              "Connexion runner instable — le scrape EU continue; on garde les resultats partiels.",
+            );
+          }
+          continue;
+        }
+        if (unreachableStreak > 0) {
+          unreachableStreak = 0;
+          setError("");
+          setInfo("Connexion runner retablie — reprise du suivi...");
+        }
+
         if (matchesDone > lastMatches || totalRows > lastRows) {
           lastMatches = matchesDone;
           lastRows = totalRows;
@@ -185,13 +202,6 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           }
         } else if (currentStatus === "running") {
           setInfo(data.status?.message || "Comparaison en cours...");
-        }
-
-        if (data.source === "runner-unreachable") {
-          setError(
-            "Connexion runner instable — on garde les derniers resultats a l'ecran.",
-          );
-          continue;
         }
 
         if (currentStatus === "cancelled") {
@@ -221,11 +231,19 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       const finalData = await refresh();
       const finalProgress = getPayloadProgressSnapshot(finalData.payload);
       const finalRows = finalProgress.comparable_count + finalProgress.fr_only_count;
-      if (finalRows > 0 || (finalData.status?.matches_done ?? finalProgress.matches_done) > 0) {
+      const finalMatches =
+        finalData.status?.matches_done ?? finalProgress.matches_done;
+      if (finalData.status?.status === "running") {
+        setInfo(
+          `${finalMatches} match(s), ${finalRows} ligne(s) — le runner continue encore. Recharge ou reclique "Lancer" pour reprendre le suivi (sans perdre la progression EU).`,
+        );
+        return;
+      }
+      if (finalRows > 0 || finalMatches > 0) {
         setInfo(`${finalRows} ligne(s) affichees (delai max atteint).`);
         return;
       }
-      throw new Error("Delai depasse (~5 min). Recharge la page.");
+      throw new Error("Delai depasse (~20 min). Recharge la page.");
     },
     [refresh],
   );
@@ -273,13 +291,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     }
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
-    clearCachedTennisResults();
-    suppressCacheRef.current = true;
-    runStartedAtRef.current = new Date().toISOString();
     setBusy(true);
-    setRawPayload(emptyTennisPayload());
-    setStatus({ status: "running", message: "Comparaison tennis en cours..." });
-    setInfo("Lancement en cours — anciens resultats effaces.");
     runAbortRef.current = new AbortController();
     const runSignal = runAbortRef.current.signal;
 
@@ -290,13 +302,42 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         body: JSON.stringify({ secret: secret.trim(), match: match.trim() }),
       });
       const data = await response.json();
+
+      if (response.status === 409 && data.already_running) {
+        // Une compare EU tourne deja : on reprend le suivi sans tout effacer.
+        suppressCacheRef.current = true;
+        if (typeof data.started_at === "string" && data.started_at.trim()) {
+          runStartedAtRef.current = data.started_at.trim();
+        }
+        setStatus({
+          status: "running",
+          message: data.message || "Comparaison deja en cours...",
+          matches_done: data.matches_done,
+          anchors_total: data.anchors_total,
+        });
+        setInfo(
+          `Comparaison deja active (${data.matches_done ?? 0}/${data.anchors_total ?? "?"}) — reprise du suivi sans reset.`,
+        );
+        await waitForCompletion(runSignal);
+        if (!runSignal.aborted) {
+          await refresh();
+          setInfo("Comparaison terminee.");
+        }
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Echec du declenchement.");
       }
-      if (typeof data.started_at === "string" && data.started_at.trim()) {
-        runStartedAtRef.current = data.started_at.trim();
-      }
 
+      clearCachedTennisResults();
+      suppressCacheRef.current = true;
+      runStartedAtRef.current =
+        typeof data.started_at === "string" && data.started_at.trim()
+          ? data.started_at.trim()
+          : new Date().toISOString();
+      setRawPayload(emptyTennisPayload());
+      setStatus({ status: "running", message: "Comparaison tennis en cours..." });
       setInfo("Scrape live en cours...");
       await waitForCompletion(runSignal);
       if (runSignal.aborted) {

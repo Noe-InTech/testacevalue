@@ -267,11 +267,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   }, [isRunning, refresh]);
 
   const waitForCompletion = useCallback(async (signal?: AbortSignal) => {
-    const deadline = Date.now() + 8 * 60 * 1000;
+    const hardDeadline = Date.now() + 20 * 60 * 1000;
     let lastRows = 0;
     let lastMatches = 0;
+    let unreachableStreak = 0;
 
-    while (Date.now() < deadline) {
+    while (Date.now() < hardDeadline) {
       if (signal?.aborted) {
         return;
       }
@@ -289,6 +290,21 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       const anchorsTotal = data.status?.anchors_total ?? progress.anchors_total;
       const isFinalPayload = progress.partial === false;
 
+      if (data.source === "runner-unreachable") {
+        unreachableStreak += 1;
+        if (unreachableStreak === 1 || unreachableStreak % 10 === 0) {
+          setError(
+            "Connexion runner instable — le scrape EU continue; on garde les resultats partiels.",
+          );
+        }
+        continue;
+      }
+      if (unreachableStreak > 0) {
+        unreachableStreak = 0;
+        setError("");
+        setInfo("Connexion runner retablie — reprise du suivi...");
+      }
+
       if (matchesDone > lastMatches || totalRows > lastRows) {
         lastMatches = matchesDone;
         lastRows = totalRows;
@@ -299,12 +315,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         }
       } else if (currentStatus === "running") {
         setInfo(data.status?.message || `Comparaison ${cfg.label} en cours...`);
-      }
-
-      if (data.source === "runner-unreachable" && !cfg.hasData(data.payload) && !cfg.loadCache()) {
-        throw new Error(
-          "Runner EU injoignable. Mets a jour RUNNER_URL sur Vercel (URL Cloudflare).",
-        );
       }
 
       if (currentStatus === "cancelled") {
@@ -332,11 +342,18 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     const finalData = await refresh({ silent: true });
     const finalProgress = getPayloadProgressSnapshot(finalData.payload);
     const finalRows = finalProgress.comparable_count + finalProgress.fr_only_count;
-    if (finalRows > 0 || (finalData.status?.matches_done ?? finalProgress.matches_done) > 0) {
+    const finalMatches = finalData.status?.matches_done ?? finalProgress.matches_done;
+    if (finalData.status?.status === "running") {
+      setInfo(
+        `${finalMatches} match(s), ${finalRows} ligne(s) — le runner continue encore. Recharge ou reclique "Lancer" pour reprendre le suivi.`,
+      );
+      return;
+    }
+    if (finalRows > 0 || finalMatches > 0) {
       setInfo(`${finalRows} ligne(s) affichees (delai max atteint).`);
       return;
     }
-    throw new Error("Delai depasse (~8 min). Recharge la page.");
+    throw new Error("Delai depasse (~20 min). Recharge la page.");
   }, [refresh, cfg]);
 
   const onCancel = async () => {
@@ -383,14 +400,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     }
 
     window.localStorage.setItem(SECRET_STORAGE_KEY, secret.trim());
-    cfg.clearCache();
-    suppressCacheRef.current = true;
-    runStartedAtRef.current = new Date().toISOString();
     setBusy(true);
-    setPayload(emptyBasketballPayload(cfg.source));
-    setCacheSavedAt(null);
-    setStatus({ status: "running", message: `Comparaison ${cfg.label} en cours...` });
-    setInfo(`Lancement ${cfg.label} en cours...`);
     runAbortRef.current = new AbortController();
     const runSignal = runAbortRef.current.signal;
 
@@ -401,13 +411,42 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         body: JSON.stringify({ secret: secret.trim(), match: match.trim(), sport: cfg.apiSport }),
       });
       const data = await response.json();
+
+      if (response.status === 409 && data.already_running) {
+        suppressCacheRef.current = true;
+        if (typeof data.started_at === "string" && data.started_at.trim()) {
+          runStartedAtRef.current = data.started_at.trim();
+        }
+        setStatus({
+          status: "running",
+          message: data.message || `Comparaison ${cfg.label} deja en cours...`,
+          matches_done: data.matches_done,
+          anchors_total: data.anchors_total,
+        });
+        setInfo(
+          `Comparaison deja active (${data.matches_done ?? 0}/${data.anchors_total ?? "?"}) — reprise du suivi sans reset.`,
+        );
+        await waitForCompletion(runSignal);
+        if (!runSignal.aborted) {
+          await refresh({ silent: true });
+          setInfo(`Comparaison ${cfg.label} terminee.`);
+        }
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.error || "Echec du declenchement.");
       }
-      if (typeof data.started_at === "string" && data.started_at.trim()) {
-        runStartedAtRef.current = data.started_at.trim();
-      }
 
+      cfg.clearCache();
+      suppressCacheRef.current = true;
+      runStartedAtRef.current =
+        typeof data.started_at === "string" && data.started_at.trim()
+          ? data.started_at.trim()
+          : new Date().toISOString();
+      setPayload(emptyBasketballPayload(cfg.source));
+      setCacheSavedAt(null);
+      setStatus({ status: "running", message: `Comparaison ${cfg.label} en cours...` });
       setInfo(`Scrape ${cfg.label} live en cours...`);
       await waitForCompletion(runSignal);
       if (runSignal.aborted) {

@@ -90,8 +90,9 @@ def _find_break_market_near_line(
     fr_compare_key: str,
     fd_map: dict[str, dict[str, Any]],
     *,
-    max_delta: float = 2.0,
+    max_delta: float = 0.0,
 ) -> tuple[str | None, dict[str, Any] | None, float | None]:
+    """Aligne FR↔FD breaks: meme famille + meme ligne (pas de 7.5↔6.5)."""
     exact = fd_map.get(fr_compare_key)
     if exact:
         return fr_compare_key, exact, 0.0

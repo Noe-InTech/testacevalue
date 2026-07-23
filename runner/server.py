@@ -46,7 +46,7 @@ SPORTS: dict[str, SportConfig] = {
         result_json=DATA_DIR / "latest_aces.json",
         status_json=DATA_DIR / "run_status.json",
         combined=True,
-        timeout=480,
+        timeout=900,
     ),
     "wnba": SportConfig(
         key="wnba",
@@ -454,12 +454,21 @@ class Handler(BaseHTTPRequestHandler):
         recover_stuck_run()
         with LOCK:
             if RUNNING:
+                running_sport = CURRENT_SPORT or sport.key
+                running_cfg = SPORTS.get(running_sport) or sport
+                status = read_json(running_cfg.status_json, {})
                 self._json_response(
                     409,
                     {
                         "error": (
-                            f"Une comparaison {CURRENT_SPORT or 'en cours'} est deja active."
+                            f"Une comparaison {running_sport} est deja active."
                         ),
+                        "already_running": True,
+                        "sport": running_sport,
+                        "started_at": status.get("run_started_at") or status.get("updated_at") or "",
+                        "matches_done": status.get("matches_done", 0),
+                        "anchors_total": status.get("anchors_total", 0),
+                        "message": status.get("message", ""),
                     },
                 )
                 return

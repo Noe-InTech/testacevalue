@@ -38,6 +38,69 @@ class SetAcesCompareTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["best_fr_bookmaker"], "Betclic")
 
+    def test_aces_7_5_does_not_match_fd_6_5(self) -> None:
+        fr_map = {
+            "aces_player|gonzalo_bueno|7.5": {
+                "compare_key": "aces_player|gonzalo_bueno|7.5",
+                "market_family": "aces_player",
+                "market_label_raw": "Nombre d'aces Bueno",
+                "outcomes": {
+                    "Over": {
+                        "odds": 2.4,
+                        "bookmaker": "winamax",
+                        "bookmaker_label": "Winamax",
+                    },
+                    "Under": {
+                        "odds": 1.5,
+                        "bookmaker": "winamax",
+                        "bookmaker_label": "Winamax",
+                    },
+                },
+            }
+        }
+        fd_map = {
+            "aces_player|gonzalo_bueno|6.5": {
+                "compare_key": "aces_player|gonzalo_bueno|6.5",
+                "market_label": "Gonzalo Bueno Aces",
+                "outcomes": {
+                    "Over": {"decimal_fr": 1.9, "decimal_raw": 1.9, "american": -111},
+                    "Under": {"decimal_fr": 1.85, "decimal_raw": 1.85, "american": -118},
+                },
+                "fd_line_source": "ou",
+            }
+        }
+        rows = compare_normalized_aces(fr_map, fd_map)
+        self.assertEqual(rows, [])
+
+    def test_aces_same_line_different_player_token_still_matches(self) -> None:
+        fr_map = {
+            "aces_player|gonzalo|6.5": {
+                "compare_key": "aces_player|gonzalo|6.5",
+                "market_family": "aces_player",
+                "market_label_raw": "Aces Bueno",
+                "outcomes": {
+                    "Over": {
+                        "odds": 1.9,
+                        "bookmaker": "unibet",
+                        "bookmaker_label": "Unibet",
+                    }
+                },
+            }
+        }
+        fd_map = {
+            "aces_player|gonzalo_bueno|6.5": {
+                "compare_key": "aces_player|gonzalo_bueno|6.5",
+                "market_label": "Gonzalo Bueno Aces",
+                "outcomes": {
+                    "Over": {"decimal_fr": 1.85, "decimal_raw": 1.85, "american": -118},
+                },
+                "fd_line_source": "ou",
+            }
+        }
+        rows = compare_normalized_aces(fr_map, fd_map)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["line_delta"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()

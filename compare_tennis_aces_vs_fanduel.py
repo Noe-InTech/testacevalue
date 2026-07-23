@@ -751,8 +751,13 @@ def _find_fd_market_near_line(
     fr_compare_key: str,
     fd_map: dict[str, dict[str, Any]],
     *,
-    max_delta: float = 2.0,
+    max_delta: float = 0.0,
 ) -> tuple[str | None, dict[str, Any] | None, float | None]:
+    """Aligne FR↔FD: meme famille + meme ligne (delta=0).
+
+    Un ecart de ligne (ex. 7.5 vs 6.5) n'est jamais accepte. Le fuzzy ne sert
+    qu'aux tokens joueur (orthographe) a ligne egale.
+    """
     exact = fd_map.get(fr_compare_key)
     if exact:
         return fr_compare_key, exact, 0.0
