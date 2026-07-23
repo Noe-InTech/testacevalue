@@ -9,10 +9,17 @@ import logging
 import re
 import threading
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeout,
+    as_completed,
+    wait,
+)
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+import time
 
 from fanduel_client import (
     FANDUEL_PROPS_TABS,
@@ -89,6 +96,50 @@ COMPARABLE_CSV_FIELDS = [
     "ecart_fr_moins_fd",
     "meilleur_cote",
 ]
+
+# Timeout par book / par match: un match bloque n'arrete pas le run.
+BOOK_STEP_TIMEOUT = 25.0
+ANCHOR_TIMEOUT = 90.0
+
+
+def _run_with_timeout(
+    callback: Callable[[], Any],
+    *,
+    timeout: float,
+    label: str,
+) -> Any | None:
+    """Execute un scrape book avec timeout — None si depasse (on passe a la suite)."""
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(callback)
+        try:
+            return future.result(timeout=timeout)
+        except FuturesTimeout:
+            log.warning("%s: timeout apres %.0fs — on passe", label, timeout)
+            return None
+        except Exception as exc:
+            log.warning("%s: %s — on passe", label, exc)
+            return None
+
+
+def _skipped_anchor_result(match_key: str, *, reason: str) -> dict[str, Any]:
+    return {
+        "match": match_key,
+        "comparable_ace_count": 0,
+        "fr_only_ace_count": 0,
+        "fd_only_ace_count": 0,
+        "fr_ace_market_count": 0,
+        "fd_ace_market_count": 0,
+        "comparable_break_count": 0,
+        "fr_only_break_count": 0,
+        "fanduel_event_id": None,
+        "comparables": [],
+        "fr_only_aces": [],
+        "fd_only_aces": [],
+        "comparable_breaks": [],
+        "fr_only_breaks": [],
+        "skipped": True,
+        "skip_reason": reason,
+    }
 
 
 def opposite_ou_outcome(outcome: str) -> str | None:
@@ -1015,6 +1066,8 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "fr_ace_market_count": int(result.get("fr_ace_market_count", 0)),
                 "fd_ace_market_count": int(result.get("fd_ace_market_count", 0)),
                 "fanduel_found": bool(result.get("fanduel_event_id")),
+                "skipped": bool(result.get("skipped")),
+                "skip_reason": str(result.get("skip_reason") or ""),
             }
         )
     return rows
@@ -1268,39 +1321,49 @@ def _compare_anchor_live(
 
     unibet_event = find_event_by_players(home, away, unibet_meta, home_key="home", away_key="away")
     if unibet_event:
-        try:
-            book_events["unibet"] = unibet.build_event_payload(unibet_event)
+        payload = _run_with_timeout(
+            lambda: unibet.build_event_payload(unibet_event),
+            timeout=BOOK_STEP_TIMEOUT,
+            label=f"Unibet {match_key}",
+        )
+        if payload:
+            book_events["unibet"] = payload
             fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
             flush_aces("unibet")
-        except Exception as exc:
-            log.warning("Unibet ignore %s: %s", match_key, exc)
 
     betclic_link = find_betclic_link_for_players(betclic_links, home, away)
     betclic_payload: dict[str, Any] | None = None
     if betclic_link:
-        try:
-            betclic_payload = betclic.build_event_payload(
+        betclic_payload = _run_with_timeout(
+            lambda: betclic.build_event_payload(
                 betclic_link.url,
                 grpc_categories=BETCLIC_ACES_GRPC,
-            )
+            ),
+            timeout=BOOK_STEP_TIMEOUT,
+            label=f"Betclic {match_key}",
+        )
+        if betclic_payload:
             book_events["betclic"] = betclic_payload
             fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
             flush_aces("betclic")
-        except Exception as exc:
-            log.warning("Betclic ignore %s: %s", match_key, exc)
 
     winamax_link = find_winamax_link_for_players(winamax_links, home, away)
     if winamax_link:
-        try:
-            payloads = winamax.build_event_payloads([winamax_link])
-            if payloads:
-                book_events["winamax"] = payloads[0]
-                fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-                flush_aces("winamax")
-        except Exception as exc:
-            log.warning("Winamax ignore %s: %s", match_key, exc)
+        payloads = _run_with_timeout(
+            lambda: winamax.build_event_payloads([winamax_link]),
+            timeout=BOOK_STEP_TIMEOUT,
+            label=f"Winamax {match_key}",
+        )
+        if payloads:
+            book_events["winamax"] = payloads[0]
+            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            flush_aces("winamax")
 
-    fanduel_event = fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list)
+    fanduel_event = _run_with_timeout(
+        lambda: fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list),
+        timeout=BOOK_STEP_TIMEOUT,
+        label=f"FanDuel {match_key}",
+    )
     fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
     if not fr_map and book_events:
         fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
@@ -1317,16 +1380,19 @@ def _compare_anchor_live(
         fr_break_map=fr_break_map,
         fd_break_map=fd_break_map,
     ):
-        try:
-            book_events["betclic"] = betclic.build_event_payload(
+        full_payload = _run_with_timeout(
+            lambda: betclic.build_event_payload(
                 betclic_link.url,
                 grpc_categories=None,
-            )
+            ),
+            timeout=BOOK_STEP_TIMEOUT,
+            label=f"Betclic-full {match_key}",
+        )
+        if full_payload:
+            book_events["betclic"] = full_payload
             fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
             fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away)
             flush_aces("betclic-full")
-        except Exception as exc:
-            log.warning("Betclic (full) ignore %s: %s", match_key, exc)
 
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
@@ -1404,28 +1470,60 @@ def _compare_anchors_parallel(
             ): anchor
             for anchor in anchors
         }
-        for future in as_completed(futures):
-            anchor = futures[future]
-            match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
-            try:
-                compared = future.result()
-            except Exception as exc:
-                log.warning("Compare ignore %s: %s", match_key, exc)
+        pending = set(futures)
+        started_at = {future: time.monotonic() for future in pending}
+        while pending:
+            done, pending = wait(pending, timeout=1.0, return_when=FIRST_COMPLETED)
+            now = time.monotonic()
+            timed_out = [
+                future
+                for future in list(pending)
+                if now - started_at[future] >= ANCHOR_TIMEOUT
+            ]
+            for future in timed_out:
+                pending.discard(future)
+                anchor = futures[future]
+                match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
+                log.warning(
+                    "Match timeout %s apres %.0fs — on passe au suivant",
+                    match_key,
+                    ANCHOR_TIMEOUT,
+                )
                 with progress_lock:
                     partial_by_match.pop(match_key, None)
-                continue
-            with progress_lock:
-                partial_by_match.pop(match_key, None)
-            results.append(compared)
-            log.info(
-                "%s | %d comparable(s)",
-                compared["match"],
-                compared["comparable_ace_count"],
-            )
-            notify(
-                f"{compared['match']} — {compared['comparable_ace_count']} comparee(s)"
-                f", {compared.get('fr_only_ace_count', 0)} FR seul"
-            )
+                skipped = _skipped_anchor_result(
+                    match_key,
+                    reason=f"timeout apres {ANCHOR_TIMEOUT:.0f}s",
+                )
+                results.append(skipped)
+                notify(f"{match_key} — timeout, passe au suivant")
+
+            for future in done:
+                anchor = futures[future]
+                match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
+                try:
+                    compared = future.result(timeout=0)
+                except Exception as exc:
+                    log.warning("Compare ignore %s: %s", match_key, exc)
+                    with progress_lock:
+                        partial_by_match.pop(match_key, None)
+                    results.append(
+                        _skipped_anchor_result(match_key, reason=f"erreur: {exc}")
+                    )
+                    notify(f"{match_key} — erreur, passe au suivant")
+                    continue
+                with progress_lock:
+                    partial_by_match.pop(match_key, None)
+                results.append(compared)
+                log.info(
+                    "%s | %d comparable(s)",
+                    compared["match"],
+                    compared["comparable_ace_count"],
+                )
+                notify(
+                    f"{compared['match']} — {compared['comparable_ace_count']} comparee(s)"
+                    f", {compared.get('fr_only_ace_count', 0)} FR seul"
+                )
     return results
 
 

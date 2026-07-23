@@ -626,7 +626,13 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
                     </td>
                     <td data-label="FR seul">{row.fr_only_count}</td>
                     <td data-label="FD seul">{row.fd_only_count ?? 0}</td>
-                    <td data-label="FanDuel">{row.fanduel_found ? "oui" : "non"}</td>
+                    <td data-label="FanDuel">
+                      {row.skipped
+                        ? `skip${row.skip_reason ? ` (${row.skip_reason})` : ""}`
+                        : row.fanduel_found
+                          ? "oui"
+                          : "non"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

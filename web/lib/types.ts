@@ -41,6 +41,8 @@ export interface MatchProgressRow {
   fr_market_count?: number;
   fd_market_count?: number;
   fanduel_found: boolean;
+  skipped?: boolean;
+  skip_reason?: string;
 }
 
 export interface MarketPayload {
