@@ -2,6 +2,7 @@ export interface ComparableRow {
   match: string;
   ligne_aces_fr?: string;
   ligne_breaks_fr?: string;
+  ligne_victoires_fr?: string;
   ligne_props_fr?: string;
   issue_fr: string;
   issue_fr_contraire?: string;
@@ -75,12 +76,15 @@ export interface CombinedPropsPayload {
   partial?: boolean;
   anchors_total?: number;
   matches_done?: number;
+  markets?: string[];
   aces: MarketPayload;
   breaks: MarketPayload;
+  victoires?: MarketPayload;
 }
 
 export type SportKey = "tennis" | "wnba" | "nba";
-export type MarketKind = "aces" | "breaks" | "wnba" | "nba";
+export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba";
+export type TennisMarketKind = "aces" | "breaks" | "victoires";
 
 export type AcesPayload = MarketPayload;
 
@@ -108,13 +112,19 @@ export function isCombinedPayload(payload: ApiPayload | null): payload is Combin
 
 export function pickMarketPayload(
   payload: ApiPayload | null,
-  market: "aces" | "breaks",
+  market: TennisMarketKind,
 ): MarketPayload | null {
   if (!payload) {
     return null;
   }
   if (isCombinedPayload(payload)) {
-    return market === "aces" ? payload.aces : payload.breaks;
+    if (market === "aces") {
+      return payload.aces;
+    }
+    if (market === "breaks") {
+      return payload.breaks;
+    }
+    return payload.victoires ?? null;
   }
   return market === "aces" ? payload : null;
 }
@@ -130,13 +140,18 @@ export function getPayloadProgressSnapshot(payload: ApiPayload | null) {
     };
   }
   if (isCombinedPayload(payload)) {
-    const aces = payload.aces;
+    const sections = [payload.aces, payload.breaks, payload.victoires].filter(
+      (section): section is MarketPayload => Boolean(section),
+    );
+    const comparable_count = sections.reduce((sum, section) => sum + (section.comparable_count ?? 0), 0);
+    const fr_only_count = sections.reduce((sum, section) => sum + (section.fr_only_count ?? 0), 0);
+    const primary = payload.aces ?? payload.breaks ?? payload.victoires;
     return {
-      comparable_count: aces.comparable_count,
-      fr_only_count: aces.fr_only_count ?? 0,
-      partial: payload.partial ?? aces.partial ?? true,
-      matches_done: payload.matches_done ?? aces.matches_done ?? 0,
-      anchors_total: payload.anchors_total ?? aces.anchors_total ?? 0,
+      comparable_count,
+      fr_only_count,
+      partial: payload.partial ?? primary?.partial ?? true,
+      matches_done: payload.matches_done ?? primary?.matches_done ?? 0,
+      anchors_total: payload.anchors_total ?? primary?.anchors_total ?? 0,
     };
   }
   return {
@@ -152,9 +167,11 @@ function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
   const key =
     marketKind === "breaks"
       ? "ligne_breaks_fr"
-      : marketKind === "wnba" || marketKind === "nba"
-        ? "ligne_props_fr"
-        : "ligne_aces_fr";
+      : marketKind === "victoires"
+        ? "ligne_victoires_fr"
+        : marketKind === "wnba" || marketKind === "nba"
+          ? "ligne_props_fr"
+          : "ligne_aces_fr";
   const explicit = row[key]?.trim();
   if (explicit) {
     return explicit;
@@ -183,22 +200,29 @@ export function getTableColumns(marketKind: MarketKind) {
   const pariLabel =
     marketKind === "breaks"
       ? "Pari breaks"
-      : marketKind === "wnba" || marketKind === "nba"
-        ? "Prop joueur"
-        : "Pari aces";
+      : marketKind === "victoires"
+        ? "Pari victoire"
+        : marketKind === "wnba" || marketKind === "nba"
+          ? "Prop joueur"
+          : "Pari aces";
   const lineKey =
     marketKind === "breaks"
       ? "ligne_breaks"
-      : marketKind === "wnba" || marketKind === "nba"
-        ? "ligne_props"
-        : "ligne_aces";
+      : marketKind === "victoires"
+        ? "ligne_victoires"
+        : marketKind === "wnba" || marketKind === "nba"
+          ? "ligne_props"
+          : "ligne_aces";
 
   const coreColumns = [
     { key: "match" as const, label: "Match", hint: "Joueur A vs joueur B" },
     {
       key: lineKey as "match",
       label: pariLabel,
-      hint: "Ligne comparee : seuil, joueur concerne, Plus ou Moins",
+      hint:
+        marketKind === "victoires"
+          ? "Vainqueur du match (moneyline)"
+          : "Ligne comparee : seuil, joueur concerne, Plus ou Moins",
       format: (row: ComparableRow) => ligneLabel(row, marketKind),
     },
     {
@@ -207,7 +231,9 @@ export function getTableColumns(marketKind: MarketKind) {
       hint:
         marketKind === "wnba" || marketKind === "nba"
           ? "Meme prop joueur chez FanDuel (libelle anglais)"
-          : "Meme marche chez FanDuel (libelle anglais)",
+          : marketKind === "victoires"
+            ? "Moneyline FanDuel"
+            : "Meme marche chez FanDuel (libelle anglais)",
     },
     {
       key: "cote_fr" as const,
@@ -228,7 +254,10 @@ export function getTableColumns(marketKind: MarketKind) {
     {
       key: "cote_us_fanduel_contraire" as const,
       label: "FD contraire",
-      hint: "Cote FanDuel du cote oppose (ex. Moins si la ligne est Plus)",
+      hint:
+        marketKind === "victoires"
+          ? "Cote FanDuel du joueur adverse"
+          : "Cote FanDuel du cote oppose (ex. Moins si la ligne est Plus)",
       format: (row: ComparableRow) => formatFdContraire(row),
     },
     {

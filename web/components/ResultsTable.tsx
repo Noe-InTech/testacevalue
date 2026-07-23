@@ -25,9 +25,11 @@ function filterRows(rows: ComparableRow[], query: string, marketKind: MarketKind
   const lineKey =
     marketKind === "breaks"
       ? "ligne_breaks_fr"
-      : marketKind === "wnba" || marketKind === "nba"
-        ? "ligne_props_fr"
-        : "ligne_aces_fr";
+      : marketKind === "victoires"
+        ? "ligne_victoires_fr"
+        : marketKind === "wnba" || marketKind === "nba"
+          ? "ligne_props_fr"
+          : "ligne_aces_fr";
   return rows.filter((row) => {
     const haystack = [
       row.match,
@@ -36,6 +38,7 @@ function filterRows(rows: ComparableRow[], query: string, marketKind: MarketKind
       row.marche_fanduel,
       row.ligne_aces_fr,
       row.ligne_breaks_fr,
+      row.ligne_victoires_fr,
       row.ligne_props_fr,
       row[lineKey as keyof ComparableRow],
     ]

@@ -174,7 +174,7 @@ def compute_paired_value_fields(
     fr_market: dict[str, Any],
     fd_market: dict[str, Any],
 ) -> dict[str, Any]:
-    """Calcule cotes contraires et EV via paire Over/Under FanDuel (sans vig)."""
+    """Calcule cotes contraires et EV (O/U ou marche a 2 issues type h2h)."""
     opposite = opposite_ou_outcome(outcome)
     fields: dict[str, Any] = {
         "cote_fr_contraire": "",
@@ -188,7 +188,11 @@ def compute_paired_value_fields(
         "issue_fr_contraire": "",
     }
     if not opposite:
-        return fields
+        other_keys = [key for key in (fd_market.get("outcomes") or {}) if key != outcome]
+        if len(other_keys) == 1:
+            opposite = other_keys[0]
+        else:
+            return fields
 
     fields["issue_fr_contraire"] = aces_outcome_label_fr(opposite)
     fr_opposite = fr_market["outcomes"].get(opposite)
@@ -222,26 +226,35 @@ def compute_paired_value_fields(
     if not over_bundle or not under_bundle:
         over_bundle = over_bundle or fd_market["outcomes"].get("Oui")
         under_bundle = under_bundle or fd_market["outcomes"].get("Non")
-    if not over_bundle or not under_bundle:
-        return fields
-    if over_bundle.get("fd_tier_runner") or under_bundle.get("fd_tier_runner"):
-        return fields
-    if over_bundle.get("decimal_fr") is None or under_bundle.get("decimal_fr") is None:
-        return fields
 
-    odds_pair = {
-        "Over": float(over_bundle["decimal_fr"]),
-        "Under": float(under_bundle["decimal_fr"]),
-    }
-    fair = remove_vig_multiplicative(odds_pair)
-    fair_key = outcome
-    if outcome in {"Oui", "Non"}:
-        fair_key = "Over" if outcome == "Oui" else "Under"
-    elif outcome == "Over":
-        fair_key = "Over"
-    elif outcome == "Under":
-        fair_key = "Under"
-    fair_prob = fair.get(fair_key, 0.0)
+    if over_bundle and under_bundle:
+        if over_bundle.get("fd_tier_runner") or under_bundle.get("fd_tier_runner"):
+            return fields
+        if over_bundle.get("decimal_fr") is None or under_bundle.get("decimal_fr") is None:
+            return fields
+        odds_pair = {
+            "Over": float(over_bundle["decimal_fr"]),
+            "Under": float(under_bundle["decimal_fr"]),
+        }
+        fair = remove_vig_multiplicative(odds_pair)
+        fair_key = outcome
+        if outcome in {"Oui", "Non"}:
+            fair_key = "Over" if outcome == "Oui" else "Under"
+        elif outcome == "Over":
+            fair_key = "Over"
+        elif outcome == "Under":
+            fair_key = "Under"
+        fair_prob = fair.get(fair_key, 0.0)
+    else:
+        if fd_side.get("decimal_fr") is None or fd_opposite.get("decimal_fr") is None:
+            return fields
+        odds_pair = {
+            outcome: float(fd_side["decimal_fr"]),
+            opposite: float(fd_opposite["decimal_fr"]),
+        }
+        fair = remove_vig_multiplicative(odds_pair)
+        fair_prob = fair.get(outcome, 0.0)
+
     fields["prob_fair_fanduel"] = f"{fair_prob * 100:.1f}%".replace(".", ",")
     fields["paire_fd_complete"] = True
     fr_odds = float(fr_payload["odds"])
@@ -1125,6 +1138,7 @@ def write_progress_json(
     partial: bool,
     anchors_total: int | None = None,
     combined: bool = False,
+    markets: frozenset[str] | set[str] | None = None,
 ) -> None:
     if path is None:
         return
@@ -1133,7 +1147,10 @@ def write_progress_json(
         from compare_tennis_breaks import build_combined_payload
 
         payload = build_combined_payload(
-            results, partial=partial, anchors_total=anchors_total
+            results,
+            partial=partial,
+            anchors_total=anchors_total,
+            markets=markets,
         )
     else:
         payload = build_results_payload(
@@ -1293,7 +1310,21 @@ def _compare_anchor_live(
     winamax_links: list[Any],
     fanduel_event_list: list[Any],
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
+    markets: frozenset[str] | set[str] | None = None,
 ) -> dict[str, Any]:
+    from compare_tennis_breaks import (
+        ALL_TENNIS_MARKETS,
+        attach_breaks_to_anchor_result,
+        build_best_fr_breaks_map,
+        build_fanduel_breaks_normalized_map,
+    )
+    from compare_tennis_victoires import attach_victoires_to_anchor_result
+
+    selected = frozenset(markets) if markets is not None else ALL_TENNIS_MARKETS
+    selected &= ALL_TENNIS_MARKETS
+    if not selected:
+        selected = ALL_TENNIS_MARKETS
+
     home = anchor["home_player"]
     away = anchor["away_player"]
     match_key = f"{home} vs {away}"
@@ -1309,12 +1340,6 @@ def _compare_anchor_live(
     book_events: dict[str, dict[str, Any]] = {}
     fr_map: dict[str, dict[str, Any]] = {}
     fanduel_event: dict[str, Any] | None = None
-
-    from compare_tennis_breaks import (
-        attach_breaks_to_anchor_result,
-        build_best_fr_breaks_map,
-        build_fanduel_breaks_normalized_map,
-    )
 
     def flush_aces(step: str) -> None:
         if on_partial is None:
@@ -1406,13 +1431,23 @@ def _compare_anchor_live(
     compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
     compared["match"] = match_key
 
-    return attach_breaks_to_anchor_result(
-        compared,
-        fanduel_event=fanduel_event,
-        book_events=book_events,
-        home=home,
-        away=away,
-    )
+    if "breaks" in selected:
+        compared = attach_breaks_to_anchor_result(
+            compared,
+            fanduel_event=fanduel_event,
+            book_events=book_events,
+            home=home,
+            away=away,
+        )
+    if "victoires" in selected:
+        compared = attach_victoires_to_anchor_result(
+            compared,
+            fanduel_event=fanduel_event,
+            book_events=book_events,
+            home=home,
+            away=away,
+        )
+    return compared
 
 
 def _compare_anchors_parallel(
@@ -1423,6 +1458,7 @@ def _compare_anchors_parallel(
     winamax_links: list[Any],
     fanduel_event_list: list[Any],
     on_progress: Callable[[list[dict[str, Any]], str], None] | None = None,
+    markets: frozenset[str] | set[str] | None = None,
 ) -> list[dict[str, Any]]:
     from betclic_client import BetclicClient
     from unibet_client import UnibetClient
@@ -1483,6 +1519,7 @@ def _compare_anchors_parallel(
                 winamax_links=winamax_links,
                 fanduel_event_list=fanduel_event_list,
                 on_partial=make_on_partial(match_key),
+                markets=markets,
             )
             futures[future] = anchor
             started_at[future] = time.monotonic()
@@ -1856,7 +1893,15 @@ def run_live_compare(
     progress_json: Path | None = None,
     status_json: Path | None = None,
     combined: bool = False,
+    markets: frozenset[str] | set[str] | None = None,
 ) -> Path:
+    from compare_tennis_breaks import ALL_TENNIS_MARKETS, parse_tennis_markets
+
+    selected = (
+        parse_tennis_markets(",".join(sorted(markets)))
+        if markets is not None
+        else ALL_TENNIS_MARKETS
+    )
     anchors_total = 0
     last_progress_write = 0.0
     progress_lock = threading.Lock()
@@ -1875,6 +1920,7 @@ def run_live_compare(
             partial=True,
             anchors_total=anchors_total,
             combined=combined,
+            markets=selected,
         )
         write_run_status_file(
             status_json,
@@ -1891,7 +1937,9 @@ def run_live_compare(
         "Chargement des matchs tennis...",
         match_filter=match_filter,
     )
-    write_progress_json(progress_json, [], partial=True, combined=combined)
+    write_progress_json(
+        progress_json, [], partial=True, combined=combined, markets=selected
+    )
 
     def on_listing_status(message: str) -> None:
         write_run_status_file(status_json, "running", message, match_filter=match_filter)
@@ -1909,7 +1957,12 @@ def run_live_compare(
         anchors_total=anchors_total,
     )
     write_progress_json(
-        progress_json, [], partial=True, anchors_total=anchors_total, combined=combined
+        progress_json,
+        [],
+        partial=True,
+        anchors_total=anchors_total,
+        combined=combined,
+        markets=selected,
     )
     results = _compare_anchors_parallel(
         anchors,
@@ -1918,10 +1971,16 @@ def run_live_compare(
         winamax_links=winamax_links,
         fanduel_event_list=fanduel_event_list,
         on_progress=on_progress,
+        markets=selected,
     )
     csv_path = _export_results(results, output)
     write_progress_json(
-        progress_json, results, partial=False, anchors_total=anchors_total, combined=combined
+        progress_json,
+        results,
+        partial=False,
+        anchors_total=anchors_total,
+        combined=combined,
+        markets=selected,
     )
     write_run_status_file(
         status_json,
@@ -2025,9 +2084,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--combined",
         action="store_true",
-        help="Inclure aces + breaks dans le JSON (sections aces/breaks)",
+        help="Inclure aces + breaks + victoires dans le JSON (sections combinees)",
+    )
+    parser.add_argument(
+        "--markets",
+        default="",
+        help="Marches a comparer: aces,breaks,victoires (defaut: tous)",
     )
     args = parser.parse_args()
+    from compare_tennis_breaks import parse_tennis_markets
+
+    selected_markets = parse_tennis_markets(args.markets)
     if args.scan_json:
         run_from_scan_json(args.scan_json, args.output, match_filter=args.match or "")
     else:
@@ -2037,4 +2104,5 @@ if __name__ == "__main__":
             progress_json=args.progress_json,
             status_json=args.status_json,
             combined=args.combined,
+            markets=selected_markets,
         )

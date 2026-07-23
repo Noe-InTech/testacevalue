@@ -27,7 +27,10 @@ export function hasTennisData(payload: ApiPayload | null | undefined): boolean {
         (payload.aces?.match_progress?.length ?? 0) > 0 ||
         (payload.breaks?.comparables?.length ?? 0) > 0 ||
         (payload.breaks?.fr_only_comparables?.length ?? 0) > 0 ||
-        (payload.breaks?.match_progress?.length ?? 0) > 0,
+        (payload.breaks?.match_progress?.length ?? 0) > 0 ||
+        (payload.victoires?.comparables?.length ?? 0) > 0 ||
+        (payload.victoires?.fr_only_comparables?.length ?? 0) > 0 ||
+        (payload.victoires?.match_progress?.length ?? 0) > 0,
     );
   }
   return Boolean(
@@ -49,6 +52,12 @@ function slimTennisPayload(payload: ApiPayload): ApiPayload {
         ...payload.breaks,
         fd_only_comparables: [],
       },
+      victoires: payload.victoires
+        ? {
+            ...payload.victoires,
+            fd_only_comparables: [],
+          }
+        : payload.victoires,
     };
   }
   return {

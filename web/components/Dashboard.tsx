@@ -7,7 +7,7 @@ import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
 import { ValuesTable } from "@/components/ValuesTable";
 import { buildValueRows } from "@/lib/mptoValue";
-import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
+import type { ApiPayload, RunStatus, TennisMarketKind } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/lib/tennisCache";
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
+const ALL_TENNIS_MARKETS: TennisMarketKind[] = ["aces", "breaks", "victoires"];
 
 const SECTION_IDS = ["progress", "comparables", "frHigher", "values", "frOnly", "fdOnly"] as const;
 type SectionId = (typeof SECTION_IDS)[number];
@@ -55,10 +56,23 @@ function emptyTennisPayload(): ApiPayload {
   };
 }
 
+function marketsQuery(selected: Record<TennisMarketKind, boolean>): string {
+  const active = ALL_TENNIS_MARKETS.filter((key) => selected[key]);
+  if (active.length === 0 || active.length === ALL_TENNIS_MARKETS.length) {
+    return "";
+  }
+  return active.join(",");
+}
+
 export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
-  const [marketTab, setMarketTab] = useState<"aces" | "breaks">("aces");
+  const [selectedMarkets, setSelectedMarkets] = useState<Record<TennisMarketKind, boolean>>({
+    aces: true,
+    breaks: true,
+    victoires: true,
+  });
+  const [marketTab, setMarketTab] = useState<TennisMarketKind>("aces");
   const [progressSearch, setProgressSearch] = useState("");
   const [frOnlySearch, setFrOnlySearch] = useState("");
   const [fdOnlySearch, setFdOnlySearch] = useState("");
@@ -304,10 +318,16 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     const runSignal = runAbortRef.current.signal;
 
     try {
+      const markets = marketsQuery(selectedMarkets);
       const response = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: secret.trim(), match: match.trim() }),
+        body: JSON.stringify({
+          secret: secret.trim(),
+          match: match.trim(),
+          sport: "tennis",
+          ...(markets ? { markets } : {}),
+        }),
       });
       const data = await response.json();
 
@@ -374,10 +394,19 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     () => pickMarketPayload(rawPayload, "breaks"),
     [rawPayload],
   );
-  const payload = useMemo(
-    () => (marketTab === "aces" ? acesPayload : breaksPayload),
-    [marketTab, acesPayload, breaksPayload],
+  const victoiresPayload = useMemo(
+    () => pickMarketPayload(rawPayload, "victoires"),
+    [rawPayload],
   );
+  const payload = useMemo(() => {
+    if (marketTab === "aces") {
+      return acesPayload;
+    }
+    if (marketTab === "breaks") {
+      return breaksPayload;
+    }
+    return victoiresPayload;
+  }, [marketTab, acesPayload, breaksPayload, victoiresPayload]);
   const combined = useMemo(() => isCombinedPayload(rawPayload), [rawPayload]);
   const rootMeta = rawPayload;
 
@@ -404,7 +433,12 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     if ((payload?.comparable_count ?? 0) > 0) {
       return "";
     }
-    const label = marketTab === "breaks" ? "breaks / tie-breaks" : "aces";
+    const label =
+      marketTab === "breaks"
+        ? "breaks / tie-breaks"
+        : marketTab === "victoires"
+          ? "victoires (moneyline)"
+          : "aces";
     const fdEvents = payload?.fd_event_count ?? payload?.fd_ace_event_count ?? 0;
     const frEvents = payload?.fr_event_count ?? payload?.fr_ace_event_count ?? 0;
     if (marketTab === "aces" && fdEvents === 0 && (payload?.fr_only_count ?? 0) > 0) {
@@ -412,6 +446,9 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     }
     if (marketTab === "breaks" && fdEvents > 0 && frEvents === 0) {
       return "FanDuel propose des tie-breaks O/U ou premier break, mais les books FR n'ont pas le même marché ce soir (ex. seulement tie-break par set, ou FD sans ligne 0,5).";
+    }
+    if (marketTab === "victoires" && fdEvents === 0 && (payload?.fr_only_count ?? 0) > 0) {
+      return "FanDuel n'a pas de moneyline alignee sur ces matchs FR — les vainqueurs restent en « FR seul ».";
     }
     if (fdEvents > 0 && frEvents === 0) {
       return `FanDuel propose des ${label}, mais les books FR n'ont pas de lignes comparables sur ces matchs.`;
@@ -457,10 +494,11 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     <>
       <header className="hero">
         <p className="eyebrow">Tennis props</p>
-        <h1>Aces & breaks — books FR vs FanDuel</h1>
+        <h1>Aces, breaks & victoires — books FR vs FanDuel</h1>
         <p className="lead">
-          Compare les lignes <strong>aces</strong> et <strong>breaks</strong> (Unibet, Betclic,
-          Winamax) avec FanDuel — prematch et matchs en cours (~25 s).
+          Compare les lignes <strong>aces</strong>, <strong>breaks</strong> et{" "}
+          <strong>victoires</strong> (Unibet, Betclic, Winamax) avec FanDuel — prematch et matchs en
+          cours.
         </p>
       </header>
 
@@ -484,6 +522,35 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
             placeholder="sinner, fery..."
           />
         </label>
+        <fieldset className="market-select" disabled={busy}>
+          <legend>Marches a comparer</legend>
+          {(
+            [
+              ["aces", "Aces"],
+              ["breaks", "Breaks"],
+              ["victoires", "Victoires"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="market-check">
+              <input
+                type="checkbox"
+                checked={selectedMarkets[key]}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setSelectedMarkets((current) => {
+                    const next = { ...current, [key]: checked };
+                    if (!ALL_TENNIS_MARKETS.some((market) => next[market])) {
+                      return current;
+                    }
+                    return next;
+                  });
+                }}
+              />
+              {label}
+            </label>
+          ))}
+          <p className="hint">Tout coche = tous les marches (defaut).</p>
+        </fieldset>
         <button type="button" onClick={onSubmit} disabled={busy}>
           {busy ? "Comparaison en cours..." : "Lancer comparaison"}
         </button>
@@ -517,6 +584,20 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         >
           Breaks
           {combined ? ` (${breaksPayload?.comparable_count ?? 0})` : ""}
+        </button>
+        <button
+          type="button"
+          className={`market-tab${marketTab === "victoires" ? " active" : ""}`}
+          onClick={() => setMarketTab("victoires")}
+          disabled={!combined || !victoiresPayload}
+          title={
+            combined && victoiresPayload
+              ? ""
+              : "Victoires disponibles apres redeploiement runner"
+          }
+        >
+          Victoires
+          {combined && victoiresPayload ? ` (${victoiresPayload.comparable_count ?? 0})` : ""}
         </button>
         <button
           type="button"

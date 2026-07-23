@@ -528,22 +528,127 @@ def build_breaks_section_payload(
     }
 
 
+def empty_market_section(
+    source: str,
+    *,
+    partial: bool,
+    anchors_total: int | None,
+    matches_done: int = 0,
+) -> dict[str, Any]:
+    return {
+        "source": source,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "partial": partial,
+        "anchors_total": anchors_total if anchors_total is not None else matches_done,
+        "matches_done": matches_done,
+        "comparable_count": 0,
+        "fr_higher_count": 0,
+        "value_count": 0,
+        "fr_only_count": 0,
+        "fd_only_count": 0,
+        "fd_event_count": 0,
+        "fr_event_count": 0,
+        "comparables": [],
+        "fr_higher_comparables": [],
+        "value_comparables": [],
+        "fr_only_comparables": [],
+        "fd_only_comparables": [],
+        "match_progress": [],
+    }
+
+
+ALL_TENNIS_MARKETS = frozenset({"aces", "breaks", "victoires"})
+_MARKET_ALIASES = {
+    "ace": "aces",
+    "break": "breaks",
+    "victoire": "victoires",
+    "ml": "victoires",
+    "h2h": "victoires",
+    "moneyline": "victoires",
+    "winner": "victoires",
+    "vainqueur": "victoires",
+}
+
+
+def parse_tennis_markets(raw: str | None) -> frozenset[str]:
+    """Parse 'aces,breaks,victoires' — vide / all = les trois."""
+    if raw is None or not str(raw).strip():
+        return ALL_TENNIS_MARKETS
+    parts = {
+        token.strip().lower()
+        for token in str(raw).replace(";", ",").split(",")
+        if token.strip()
+    }
+    if not parts or "all" in parts or "tout" in parts:
+        return ALL_TENNIS_MARKETS
+    selected: set[str] = set()
+    for token in parts:
+        key = _MARKET_ALIASES.get(token, token)
+        if key in ALL_TENNIS_MARKETS:
+            selected.add(key)
+    return frozenset(selected) if selected else ALL_TENNIS_MARKETS
+
+
 def build_combined_payload(
     results: list[dict[str, Any]],
     *,
     partial: bool,
     anchors_total: int | None,
+    markets: frozenset[str] | set[str] | None = None,
 ) -> dict[str, Any]:
     from compare_tennis_aces_vs_fanduel import build_results_payload
+    from compare_tennis_victoires import build_victoires_section_payload
 
-    aces = build_results_payload(results, partial=partial, anchors_total=anchors_total)
-    breaks = build_breaks_section_payload(results, partial=partial, anchors_total=anchors_total)
+    selected = frozenset(markets) if markets is not None else ALL_TENNIS_MARKETS
+    selected &= ALL_TENNIS_MARKETS
+    if not selected:
+        selected = ALL_TENNIS_MARKETS
+
+    matches_done = len(results)
+    total = anchors_total if anchors_total is not None else matches_done
+
+    if "aces" in selected:
+        aces = build_results_payload(results, partial=partial, anchors_total=anchors_total)
+    else:
+        aces = empty_market_section(
+            "tennis_aces_comparable",
+            partial=partial,
+            anchors_total=total,
+            matches_done=matches_done,
+        )
+
+    if "breaks" in selected:
+        breaks = build_breaks_section_payload(
+            results, partial=partial, anchors_total=anchors_total
+        )
+    else:
+        breaks = empty_market_section(
+            "tennis_breaks_comparable",
+            partial=partial,
+            anchors_total=total,
+            matches_done=matches_done,
+        )
+
+    if "victoires" in selected:
+        victoires = build_victoires_section_payload(
+            results, partial=partial, anchors_total=anchors_total
+        )
+    else:
+        victoires = empty_market_section(
+            "tennis_victoires_comparable",
+            partial=partial,
+            anchors_total=total,
+            matches_done=matches_done,
+        )
+
     return {
         "source": "tennis_props_comparable",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "partial": partial,
-        "anchors_total": anchors_total if anchors_total is not None else aces.get("anchors_total"),
-        "matches_done": aces.get("matches_done", 0),
+        "anchors_total": total,
+        "matches_done": aces.get("matches_done", matches_done),
+        "markets": sorted(selected),
         "aces": aces,
         "breaks": breaks,
+        "victoires": victoires,
     }

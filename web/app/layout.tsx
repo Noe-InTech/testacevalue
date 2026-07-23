@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Props FR vs FanDuel — Tennis & WNBA",
   description:
-    "Compare les cotes tennis (aces, breaks) et basket WNBA (props joueuses) des books FR contre FanDuel.",
+    "Compare les cotes tennis (aces, breaks, victoires) et basket WNBA (props joueuses) des books FR contre FanDuel.",
 };
 
 export const viewport: Viewport = {

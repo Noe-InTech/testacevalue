@@ -221,6 +221,7 @@ def empty_payload(sport: SportConfig) -> dict[str, Any]:
         "partial": True,
         "anchors_total": 0,
         "matches_done": 0,
+        "markets": ["aces", "breaks", "victoires"],
         "aces": {
             "source": "tennis_aces_comparable",
             "generated_at": "",
@@ -237,10 +238,26 @@ def empty_payload(sport: SportConfig) -> dict[str, Any]:
             "comparables": [],
             "fr_higher_comparables": [],
         },
+        "victoires": {
+            "source": "tennis_victoires_comparable",
+            "generated_at": "",
+            "comparable_count": 0,
+            "fr_higher_count": 0,
+            "comparables": [],
+            "fr_higher_comparables": [],
+        },
     }
 
 
-def run_compare(sport: SportConfig, match_filter: str) -> None:
+def normalize_markets_arg(raw: Any) -> str:
+    if raw is None:
+        return ""
+    if isinstance(raw, list):
+        return ",".join(str(item).strip() for item in raw if str(item).strip())
+    return str(raw).strip()
+
+
+def run_compare(sport: SportConfig, match_filter: str, markets: str = "") -> None:
     global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
     proc: subprocess.Popen[str] | None = None
     try:
@@ -258,6 +275,8 @@ def run_compare(sport: SportConfig, match_filter: str) -> None:
         ]
         if sport.combined:
             cmd.append("--combined")
+        if markets:
+            cmd.extend(["--markets", markets])
         if match_filter:
             cmd.extend(["--match", match_filter])
         proc = subprocess.Popen(
@@ -450,6 +469,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         match_filter = str(body.get("match", "")).strip()
+        markets = normalize_markets_arg(body.get("markets"))
         global RUNNING, CURRENT_SPORT
         recover_stuck_run()
         with LOCK:
@@ -485,11 +505,19 @@ class Handler(BaseHTTPRequestHandler):
             run_started_at=started_at,
         )
 
-        thread = threading.Thread(target=run_compare, args=(sport, match_filter), daemon=True)
+        thread = threading.Thread(
+            target=run_compare, args=(sport, match_filter, markets), daemon=True
+        )
         thread.start()
         self._json_response(
             200,
-            {"ok": True, "mode": "live", "sport": sport.key, "started_at": started_at},
+            {
+                "ok": True,
+                "mode": "live",
+                "sport": sport.key,
+                "started_at": started_at,
+                "markets": markets or "aces,breaks,victoires",
+            },
         )
 
     def _handle_cancel(self) -> None:

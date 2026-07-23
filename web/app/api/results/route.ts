@@ -45,8 +45,10 @@ const idlePayload: ApiPayload = {
   partial: true,
   anchors_total: 0,
   matches_done: 0,
+  markets: ["aces", "breaks", "victoires"],
   aces: emptyMarketPayload("tennis_aces_comparable"),
   breaks: emptyMarketPayload("tennis_breaks_comparable"),
+  victoires: emptyMarketPayload("tennis_victoires_comparable"),
 };
 
 const runnerUnreachableStatus: RunStatus = {

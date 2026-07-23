@@ -36,6 +36,7 @@ class CompareTennisBreaksTests(unittest.TestCase):
         self.assertEqual(payload["aces"]["comparable_count"], 0)
         self.assertEqual(payload["breaks"]["comparable_count"], 0)
         self.assertEqual(payload["matches_done"], 1)
+        self.assertIn("victoires", payload)
 
     def test_yes_no_set_tiebreak_is_not_break_market(self) -> None:
         self.assertFalse(

@@ -86,13 +86,24 @@ export function formatBetLabel(row: ComparableRow, marketKind?: MarketKind): str
   if (marketKind === "breaks" && row.ligne_breaks_fr) {
     return row.ligne_breaks_fr;
   }
+  if (marketKind === "victoires" && row.ligne_victoires_fr) {
+    return row.ligne_victoires_fr;
+  }
   if ((marketKind === "wnba" || marketKind === "nba") && row.ligne_props_fr) {
     return row.ligne_props_fr;
   }
   if (marketKind === "aces" && row.ligne_aces_fr) {
     return row.ligne_aces_fr;
   }
-  return row.ligne_props_fr || row.ligne_aces_fr || row.ligne_breaks_fr || row.marche_fr || row.issue_fr || "—";
+  return (
+    row.ligne_props_fr ||
+    row.ligne_aces_fr ||
+    row.ligne_breaks_fr ||
+    row.ligne_victoires_fr ||
+    row.marche_fr ||
+    row.issue_fr ||
+    "—"
+  );
 }
 
 export function computeValueFromComparable(

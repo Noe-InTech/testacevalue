@@ -9,7 +9,11 @@ export function runnerEnabled(): boolean {
   return Boolean(baseUrl && secret);
 }
 
-export async function triggerRunner(match: string, sport = "tennis"): Promise<Response> {
+export async function triggerRunner(
+  match: string,
+  sport = "tennis",
+  markets = "",
+): Promise<Response> {
   const { baseUrl, secret } = runnerConfig();
   if (!baseUrl || !secret) {
     return new Response(
@@ -26,7 +30,7 @@ export async function triggerRunner(match: string, sport = "tennis"): Promise<Re
         "Content-Type": "application/json",
         "X-Runner-Secret": secret,
       },
-      body: JSON.stringify({ match, sport }),
+      body: JSON.stringify({ match, sport, markets: markets || undefined }),
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
     });

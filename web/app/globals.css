@@ -212,6 +212,38 @@ td.side {
   margin-bottom: 16px;
 }
 
+.market-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0;
+}
+
+.market-select legend {
+  padding: 0 4px;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.market-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 500;
+}
+
+.market-select .hint {
+  width: 100%;
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
 .market-tab,
 .sport-tab {
   border: 1px solid rgba(255, 255, 255, 0.12);
