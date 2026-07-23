@@ -92,42 +92,12 @@ def _find_break_market_near_line(
     *,
     max_delta: float = 0.0,
 ) -> tuple[str | None, dict[str, Any] | None, float | None]:
-    """Aligne FR↔FD breaks: meme famille + meme ligne (pas de 7.5↔6.5)."""
+    """Aligne FR↔FD breaks uniquement sur la cle exacte (pas de fuzzy ligne/joueur)."""
+    del max_delta
     exact = fd_map.get(fr_compare_key)
     if exact:
         return fr_compare_key, exact, 0.0
-
-    family, token, line = _parse_break_line_key(fr_compare_key)
-    if line is None and family not in {"tie_break_set"}:
-        return None, None, None
-
-    # Tie-break match: 0.5 (au moins un TB) ≠ 1.5 (total TB) — jamais de fuzzy match.
-    if family == "tie_break_match":
-        return None, None, None
-
-    best_key: str | None = None
-    best_market: dict[str, Any] | None = None
-    best_delta: float | None = None
-    for fd_key, fd_market in fd_map.items():
-        fd_family, fd_token, fd_line = _parse_break_line_key(fd_key)
-        if fd_family != family:
-            continue
-        if family == "tie_break_set":
-            if fd_token == token:
-                return fd_key, fd_market, 0.0
-            continue
-        if fd_line is None or line is None:
-            continue
-        if family == "breaks_player" and not _break_player_token_match(token, fd_token):
-            continue
-        delta = abs(fd_line - line)
-        if delta > max_delta:
-            continue
-        if best_delta is None or delta < best_delta:
-            best_key = fd_key
-            best_market = fd_market
-            best_delta = delta
-    return best_key, best_market, best_delta
+    return None, None, None
 
 
 def _skip_fr_break_market_label(label_lower: str) -> bool:
@@ -344,6 +314,8 @@ def build_fanduel_breaks_normalized_map(event: dict[str, Any]) -> dict[str, dict
                     "fd_line_source": "tier",
                 },
             )
+            if slot.get("fd_line_source") == "ou":
+                continue
             bundle = {**price_bundle, "fd_tier_runner": runner_name}
             current = slot["outcomes"].get("Over")
             if current is None or float(bundle["decimal_fr"]) > float(current["decimal_fr"]):

@@ -9,8 +9,11 @@ from tennis_market_mapping import (
     map_fanduel_breaks_market_to_compare_key,
     map_fanduel_market_to_compare_key,
     players_match,
+    same_tennis_match,
+    same_tennis_player,
 )
 from tennis_books_mapping import normalize_betclic_market
+from compare_tennis_aces_vs_fanduel import compute_paired_value_fields
 
 
 class TennisMarketMappingTests(unittest.TestCase):
@@ -75,6 +78,51 @@ class TennisMarketMappingTests(unittest.TestCase):
         self.assertTrue(players_match("P.CarrenoBusta", "Pablo Carreno Busta"))
         self.assertTrue(players_match("Grammatikopou", "Valentini Grammatikopoulou"))
         self.assertFalse(players_match("J.Sinner", "Carlos Alcaraz"))
+
+    def test_same_tennis_player_rejects_shared_firstname(self) -> None:
+        self.assertTrue(same_tennis_player("Gonzalo Bueno", "G. Bueno"))
+        self.assertTrue(same_tennis_player("Alexander Zverev", "A. Zverev"))
+        self.assertFalse(same_tennis_player("Jiri Lehecka", "Jiri Vesely"))
+        self.assertFalse(same_tennis_player("Daniil Medvedev", "Daria Medvedeva"))
+        self.assertFalse(
+            same_tennis_match(
+                "Jiri Lehecka",
+                "Taylor Fritz",
+                "Jiri Vesely",
+                "Maxime Fritz",
+            )
+        )
+        self.assertTrue(
+            same_tennis_match(
+                "Gonzalo Bueno",
+                "Jaime Faria",
+                "Jaime Faria",
+                "Gonzalo Bueno",
+            )
+        )
+
+    def test_tier_does_not_poison_ou_pair_for_values(self) -> None:
+        fd_market = {
+            "fd_line_source": "ou",
+            "outcomes": {
+                "Over": {"decimal_fr": 2.5, "fd_tier_runner": "7+"},
+                "Under": {"decimal_fr": 1.91},
+            },
+        }
+        fr_market = {
+            "outcomes": {
+                "Over": {"odds": 2.2, "bookmaker_label": "Unibet"},
+                "Under": {"odds": 1.7, "bookmaker_label": "Unibet"},
+            }
+        }
+        fields = compute_paired_value_fields(
+            outcome="Over",
+            fr_payload=fr_market["outcomes"]["Over"],
+            fr_market=fr_market,
+            fd_market=fd_market,
+        )
+        self.assertFalse(fields["paire_fd_complete"])
+        self.assertIsNone(fields["ev_percent_raw"])
 
     def test_betclic_ace_tier_labels(self) -> None:
         markets = normalize_betclic_market(

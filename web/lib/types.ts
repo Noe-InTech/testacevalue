@@ -22,6 +22,7 @@ export interface ComparableRow {
   ecart_fr_moins_fd: string;
   meilleur_cote: string;
   compare_key?: string;
+  fanduel_compare_key?: string;
   market_family?: string;
   player_name?: string;
   outcome?: string;

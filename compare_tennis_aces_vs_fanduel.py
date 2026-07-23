@@ -47,6 +47,7 @@ from tennis_market_mapping import (
     format_numeric_line,
     map_fanduel_aces_market_to_compare_key,
     players_match,
+    same_tennis_match,
 )
 from value_engine import remove_vig_multiplicative
 
@@ -153,12 +154,18 @@ def compute_paired_value_fields(
     if fd_market.get("fd_line_source") == "tier":
         return fields
 
+    # Paire hybride OU+tier = EV fausse — ignorer.
+    if fd_side.get("fd_tier_runner") or fd_opposite.get("fd_tier_runner"):
+        return fields
+
     over_bundle = fd_market["outcomes"].get("Over")
     under_bundle = fd_market["outcomes"].get("Under")
     if not over_bundle or not under_bundle:
         over_bundle = over_bundle or fd_market["outcomes"].get("Oui")
         under_bundle = under_bundle or fd_market["outcomes"].get("Non")
     if not over_bundle or not under_bundle:
+        return fields
+    if over_bundle.get("fd_tier_runner") or under_bundle.get("fd_tier_runner"):
         return fields
     if over_bundle.get("decimal_fr") is None or under_bundle.get("decimal_fr") is None:
         return fields
@@ -362,21 +369,14 @@ def _count_live_anchors(
         for meta in unibet_meta:
             if not UnibetClient._event_is_live(meta):
                 continue
-            if players_match(home, str(meta.get("home", ""))) and players_match(
-                away, str(meta.get("away", ""))
-            ):
-                live += 1
-                break
-            if players_match(home, str(meta.get("away", ""))) and players_match(
-                away, str(meta.get("home", ""))
-            ):
+            if same_tennis_match(home, away, str(meta.get("home", "")), str(meta.get("away", ""))):
                 live += 1
                 break
         else:
             for link in winamax_links:
                 if str(getattr(link, "status", "") or "").upper() != "LIVE":
                     continue
-                if players_match(home, link.home_player) and players_match(away, link.away_player):
+                if same_tennis_match(home, away, link.home_player, link.away_player):
                     live += 1
                     break
     return live
@@ -697,6 +697,9 @@ def build_fanduel_normalized_map(event: dict[str, Any]) -> dict[str, dict[str, A
                     "fd_line_source": "tier",
                 },
             )
+            # Ne jamais melanger un marche OU complet avec un tier (Over poisonné).
+            if slot.get("fd_line_source") == "ou":
+                continue
             current = slot["outcomes"].get("Over")
             bundle = {
                 **price_bundle,
@@ -728,23 +731,12 @@ def _parse_aces_line_key(compare_key: str) -> tuple[str, str, float | None]:
         except ValueError:
             return family, parts[1], None
     if family == "aces_set_player" and len(parts) >= 4:
+        # token = "set|player" pour exiger le meme set + meme joueur
         try:
-            return family, parts[2], float(parts[3])
+            return family, f"{parts[1]}|{parts[2]}", float(parts[3])
         except ValueError:
-            return family, parts[2], None
+            return family, f"{parts[1]}|{parts[2]}", None
     return family, "", None
-
-
-def _ace_player_token_match(token_a: str, token_b: str) -> bool:
-    if token_a == token_b:
-        return True
-    if players_match(token_a.replace("_", " "), token_b.replace("_", " ")):
-        return True
-    if len(token_a) >= 4 and len(token_b) >= 4 and (
-        token_a.startswith(token_b) or token_b.startswith(token_a)
-    ):
-        return True
-    return False
 
 
 def _find_fd_market_near_line(
@@ -753,38 +745,16 @@ def _find_fd_market_near_line(
     *,
     max_delta: float = 0.0,
 ) -> tuple[str | None, dict[str, Any] | None, float | None]:
-    """Aligne FR↔FD: meme famille + meme ligne (delta=0).
+    """Aligne FR↔FD uniquement sur la cle exacte (famille + joueur + ligne).
 
-    Un ecart de ligne (ex. 7.5 vs 6.5) n'est jamais accepte. Le fuzzy ne sert
-    qu'aux tokens joueur (orthographe) a ligne egale.
+    Aucun fuzzy de ligne ni de token joueur: un 7.5 ne matche jamais un 6.5,
+    et un joueur ne matche jamais un autre meme a ligne egale.
     """
+    del max_delta  # conserve pour compat signature / appels existants
     exact = fd_map.get(fr_compare_key)
     if exact:
         return fr_compare_key, exact, 0.0
-
-    family, token, line = _parse_aces_line_key(fr_compare_key)
-    if line is None:
-        return None, None, None
-
-    best_key: str | None = None
-    best_market: dict[str, Any] | None = None
-    best_delta: float | None = None
-    for fd_key, fd_market in fd_map.items():
-        fd_family, fd_token, fd_line = _parse_aces_line_key(fd_key)
-        if fd_family != family or fd_line is None:
-            continue
-        if family in {"aces_player", "aces_set_player"} and not _ace_player_token_match(token, fd_token):
-            continue
-        if family == "aces_set_total" and token and fd_token and token != fd_token:
-            continue
-        delta = abs(fd_line - line)
-        if delta > max_delta:
-            continue
-        if best_delta is None or delta < best_delta:
-            best_key = fd_key
-            best_market = fd_market
-            best_delta = delta
-    return best_key, best_market, best_delta
+    return None, None, None
 
 
 def _fanduel_display_label(fd_market: dict[str, Any], outcome: str) -> str:
@@ -1134,9 +1104,7 @@ def find_betclic_link_for_players(links: list[Any], home: str, away: str) -> Any
 
 def find_winamax_link_for_players(links: list[Any], home: str, away: str) -> Any | None:
     for link in links:
-        if players_match(home, link.home_player) and players_match(away, link.away_player):
-            return link
-        if players_match(home, link.away_player) and players_match(away, link.home_player):
+        if same_tennis_match(home, away, link.home_player, link.away_player):
             return link
     return None
 
@@ -1209,11 +1177,7 @@ def _merge_fanduel_anchors(
             continue
         found = False
         for anchor in merged:
-            if players_match(home, anchor["home_player"]) and players_match(away, anchor["away_player"]):
-                anchor.setdefault("sources", set()).add("fanduel")
-                found = True
-                break
-            if players_match(home, anchor["away_player"]) and players_match(away, anchor["home_player"]):
+            if same_tennis_match(home, away, anchor["home_player"], anchor["away_player"]):
                 anchor.setdefault("sources", set()).add("fanduel")
                 found = True
                 break
@@ -1615,9 +1579,7 @@ def find_fanduel_event(
     fanduel_events: list[Any],
 ) -> Any | None:
     for event in fanduel_events:
-        if players_match(home, event.home_player) and players_match(away, event.away_player):
-            return event
-        if players_match(home, event.away_player) and players_match(away, event.home_player):
+        if same_tennis_match(home, away, event.home_player, event.away_player):
             return event
     return None
 

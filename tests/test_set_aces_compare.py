@@ -72,10 +72,10 @@ class SetAcesCompareTests(unittest.TestCase):
         rows = compare_normalized_aces(fr_map, fd_map)
         self.assertEqual(rows, [])
 
-    def test_aces_same_line_different_player_token_still_matches(self) -> None:
+    def test_aces_different_player_same_line_does_not_match(self) -> None:
         fr_map = {
-            "aces_player|gonzalo|6.5": {
-                "compare_key": "aces_player|gonzalo|6.5",
+            "aces_player|bueno|6.5": {
+                "compare_key": "aces_player|bueno|6.5",
                 "market_family": "aces_player",
                 "market_label_raw": "Aces Bueno",
                 "outcomes": {
@@ -88,9 +88,9 @@ class SetAcesCompareTests(unittest.TestCase):
             }
         }
         fd_map = {
-            "aces_player|gonzalo_bueno|6.5": {
-                "compare_key": "aces_player|gonzalo_bueno|6.5",
-                "market_label": "Gonzalo Bueno Aces",
+            "aces_player|faria|6.5": {
+                "compare_key": "aces_player|faria|6.5",
+                "market_label": "Jaime Faria Aces",
                 "outcomes": {
                     "Over": {"decimal_fr": 1.85, "decimal_raw": 1.85, "american": -118},
                 },
@@ -98,8 +98,35 @@ class SetAcesCompareTests(unittest.TestCase):
             }
         }
         rows = compare_normalized_aces(fr_map, fd_map)
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["line_delta"], 0.0)
+        self.assertEqual(rows, [])
+
+    def test_aces_total_vs_player_does_not_match(self) -> None:
+        fr_map = {
+            "aces_total|8.5": {
+                "compare_key": "aces_total|8.5",
+                "market_family": "aces_total",
+                "market_label_raw": "Total aces",
+                "outcomes": {
+                    "Over": {
+                        "odds": 2.0,
+                        "bookmaker": "unibet",
+                        "bookmaker_label": "Unibet",
+                    }
+                },
+            }
+        }
+        fd_map = {
+            "aces_player|bueno|8.5": {
+                "compare_key": "aces_player|bueno|8.5",
+                "market_label": "Bueno Aces",
+                "outcomes": {
+                    "Over": {"decimal_fr": 1.9, "decimal_raw": 1.9, "american": -111},
+                },
+                "fd_line_source": "ou",
+            }
+        }
+        rows = compare_normalized_aces(fr_map, fd_map)
+        self.assertEqual(rows, [])
 
 
 if __name__ == "__main__":

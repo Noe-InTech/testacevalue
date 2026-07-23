@@ -82,6 +82,30 @@ def players_match(name_a: str, name_b: str) -> bool:
     return False
 
 
+def same_tennis_player(name_a: str, name_b: str) -> bool:
+    """Appariement strict (match/event): meme cle joueur (souvent le nom de famille).
+
+    Evite les faux positifs du type Jiri Lehecka ↔ Jiri Vesely (prenom partage).
+    """
+    key_a = _book_player_key(name_a)
+    key_b = _book_player_key(name_b)
+    return bool(key_a) and key_a == key_b
+
+
+def same_tennis_match(
+    home_a: str,
+    away_a: str,
+    home_b: str,
+    away_b: str,
+) -> bool:
+    """True si les deux paires de joueurs designent le meme match (ordre ou inverse)."""
+    if same_tennis_player(home_a, home_b) and same_tennis_player(away_a, away_b):
+        return True
+    if same_tennis_player(home_a, away_b) and same_tennis_player(away_a, home_b):
+        return True
+    return False
+
+
 def coteur_special_line(typename: str, special: str) -> float | str | None:
     special = (special or "").strip()
     if not special:

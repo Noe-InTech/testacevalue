@@ -103,6 +103,15 @@ export function computeValueFromComparable(
     return null;
   }
 
+  // Refuse toute ligne ou la cle FR ≠ cle FanDuel (mauvais appariement).
+  if (
+    row.compare_key &&
+    row.fanduel_compare_key &&
+    row.compare_key !== row.fanduel_compare_key
+  ) {
+    return null;
+  }
+
   const fdOdds = parseFrenchDecimal(row.cote_fr_fanduel);
   const fdOppositeOdds = parseFrenchDecimal(row.cote_fr_fanduel_contraire);
   const frOdds = parseFrenchDecimal(row.cote_fr);
