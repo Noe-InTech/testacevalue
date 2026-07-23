@@ -46,7 +46,6 @@ from tennis_market_mapping import (
     fanduel_aces_runner_outcome,
     format_numeric_line,
     map_fanduel_aces_market_to_compare_key,
-    players_match,
     same_tennis_match,
 )
 from value_engine import remove_vig_multiplicative
