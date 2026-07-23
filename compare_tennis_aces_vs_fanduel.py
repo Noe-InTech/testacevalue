@@ -811,22 +811,46 @@ def _parse_aces_line_key(compare_key: str) -> tuple[str, str, float | None]:
     return family, "", None
 
 
+ACES_NEAR_LINE_MAX_DELTA = 1.0
+# Joueur: exact only (7.5 vs 6.5 trop risque). Totaux match/set: ±1.0 OK.
+ACES_NEAR_LINE_FAMILIES = frozenset({"aces_total", "aces_set_total"})
+
+
 def _find_fd_market_near_line(
     fr_compare_key: str,
     fd_map: dict[str, dict[str, Any]],
     *,
-    max_delta: float = 0.0,
+    max_delta: float = ACES_NEAR_LINE_MAX_DELTA,
 ) -> tuple[str | None, dict[str, Any] | None, float | None]:
-    """Aligne FR↔FD uniquement sur la cle exacte (famille + joueur + ligne).
+    """Aligne FR↔FD: cle exacte d'abord, sinon totaux match/set a ±max_delta.
 
-    Aucun fuzzy de ligne ni de token joueur: un 7.5 ne matche jamais un 6.5,
-    et un joueur ne matche jamais un autre meme a ligne egale.
+    Ignore les marches FanDuel « tier » (N+) — prix non comparables a un O/U FR.
     """
-    del max_delta  # conserve pour compat signature / appels existants
     exact = fd_map.get(fr_compare_key)
-    if exact:
+    if exact and exact.get("fd_line_source") != "tier":
         return fr_compare_key, exact, 0.0
-    return None, None, None
+
+    fr_family, fr_player, fr_line = _parse_aces_line_key(fr_compare_key)
+    if fr_line is None or max_delta <= 0 or fr_family not in ACES_NEAR_LINE_FAMILIES:
+        return None, None, None
+
+    best_key: str | None = None
+    best_market: dict[str, Any] | None = None
+    best_delta: float | None = None
+    for key, market in fd_map.items():
+        if market.get("fd_line_source") == "tier":
+            continue
+        family, player, line = _parse_aces_line_key(key)
+        if family != fr_family or player != fr_player or line is None:
+            continue
+        delta = abs(float(line) - float(fr_line))
+        if delta > max_delta:
+            continue
+        if best_delta is None or delta < best_delta:
+            best_key, best_market, best_delta = key, market, delta
+    if best_key is None or best_market is None or best_delta is None:
+        return None, None, None
+    return best_key, best_market, best_delta
 
 
 def _fanduel_display_label(fd_market: dict[str, Any], outcome: str) -> str:
@@ -851,9 +875,14 @@ def compare_normalized_aces(
         fd_key, fd_market, line_delta = _find_fd_market_near_line(compare_key, fd_map)
         if not fd_market or fd_key is None:
             continue
+        # Jamais comparer un O/U FR a une echelle tier FD (N+).
+        if fd_market.get("fd_line_source") == "tier":
+            continue
         for outcome, fr_payload in fr_market["outcomes"].items():
             fd_bundle = fd_market["outcomes"].get(outcome)
             if not fd_bundle or fd_bundle.get("decimal_fr") is None:
+                continue
+            if fd_bundle.get("fd_tier_runner"):
                 continue
             fr_odds = float(fr_payload["odds"])
             rows.append(

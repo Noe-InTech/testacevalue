@@ -41,12 +41,12 @@ class CompareTennisVictoiresTests(unittest.TestCase):
                 "market_label_raw": "Vainqueur du match",
                 "outcomes": {
                     "A Player": {
-                        "odds": 2.1,
+                        "odds": 1.75,
                         "bookmaker": "unibet",
                         "bookmaker_label": "Unibet",
                     },
                     "B Player": {
-                        "odds": 1.8,
+                        "odds": 2.15,
                         "bookmaker": "betclic",
                         "bookmaker_label": "Betclic",
                     },
@@ -58,8 +58,8 @@ class CompareTennisVictoiresTests(unittest.TestCase):
                 "compare_key": "h2h",
                 "market_label": "Moneyline",
                 "outcomes": {
-                    "A Player": {"decimal_fr": 1.9, "decimal_raw": 1.9, "american": -111},
-                    "B Player": {"decimal_fr": 2.0, "decimal_raw": 2.0, "american": 100},
+                    "A Player": {"decimal_fr": 1.70, "decimal_raw": 1.70, "american": -143},
+                    "B Player": {"decimal_fr": 2.20, "decimal_raw": 2.20, "american": 120},
                 },
             }
         }

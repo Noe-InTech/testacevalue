@@ -35,8 +35,7 @@ class SetAcesCompareTests(unittest.TestCase):
             }
         }
         rows = compare_normalized_aces(fr_map, fd_map)
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["best_fr_bookmaker"], "Betclic")
+        self.assertEqual(rows, [])  # tiers FD exclus des comparables (prix N+ != O/U)
 
     def test_aces_7_5_does_not_match_fd_6_5(self) -> None:
         fr_map = {

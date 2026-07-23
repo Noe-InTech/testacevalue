@@ -171,7 +171,7 @@ def recover_stuck_run() -> bool:
         write_status(
             sport,
             "error",
-            "Comparaison precedente bloquee — lock libere automatiquement.",
+            "Comparaison precedente interrompue (process mort ou timeout). Tu peux relancer.",
             clear_run_started_at=True,
         )
     print(f"Stuck run recovered ({sport_key or 'unknown'})")

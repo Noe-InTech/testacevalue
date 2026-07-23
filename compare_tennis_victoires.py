@@ -212,6 +212,8 @@ def compare_normalized_victoires(
     fd_market = fd_map.get(VICTOIRE_COMPARE_KEY)
     if not fr_market or not fd_market:
         return rows
+    if _h2h_pricing_looks_swapped_or_poisoned(fr_market, fd_market):
+        return rows
     for outcome, fr_payload in fr_market["outcomes"].items():
         fd_bundle = fd_market["outcomes"].get(outcome)
         if not fd_bundle or fd_bundle.get("decimal_fr") is None:
@@ -244,6 +246,55 @@ def compare_normalized_victoires(
         row["ligne_victoires_fr"] = format_ligne_victoires_fr(row)
         row["issue_fr"] = str(row.get("outcome") or "")
     return rows
+
+
+def _h2h_pricing_looks_swapped_or_poisoned(
+    fr_market: dict[str, Any],
+    fd_market: dict[str, Any],
+) -> bool:
+    """Detecte cote FR absurde vs FD (ex. jeu Unibet 3.20 vs ML FD 1.15 sur le favori)."""
+    fr_outcomes = fr_market.get("outcomes") or {}
+    fd_outcomes = fd_market.get("outcomes") or {}
+    if len(fr_outcomes) < 2 or len(fd_outcomes) < 2:
+        return False
+
+    def _fr_odds(player: str) -> float | None:
+        payload = fr_outcomes.get(player)
+        if not payload:
+            return None
+        try:
+            return float(payload["odds"])
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    def _fd_odds(player: str) -> float | None:
+        payload = fd_outcomes.get(player)
+        if not payload:
+            return None
+        try:
+            return float(payload["decimal_fr"])
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    shared = [player for player in fr_outcomes if player in fd_outcomes]
+    if len(shared) < 2:
+        return False
+
+    fr_fav = min(shared, key=lambda player: _fr_odds(player) or 99.0)
+    fd_fav = min(shared, key=lambda player: _fd_odds(player) or 99.0)
+    if fr_fav != fd_fav:
+        # Favoris differents = labels probablement inverses.
+        return True
+
+    for player in shared:
+        fr_o = _fr_odds(player)
+        fd_o = _fd_odds(player)
+        if fr_o is None or fd_o is None:
+            continue
+        # Favori FD net (<1.40) avec FR beaucoup plus haut → marche FR non-ML.
+        if fd_o <= 1.40 and fr_o >= fd_o * 1.75:
+            return True
+    return False
 
 
 def collect_fr_only_victoires(
