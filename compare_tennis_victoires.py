@@ -11,16 +11,13 @@ from fanduel_client import (
     runner_fanduel_price_bundle,
 )
 from scan_tennis_aces import BOOK_LABELS
-from tennis_books_mapping import normalized_market_to_dict, strip_accents
+from tennis_books_mapping import strip_accents
 from tennis_market_mapping import (
-    align_fr_outcome_to_fanduel,
     map_fanduel_market_to_compare_key,
-    players_match,
     same_tennis_player,
 )
 
 from compare_tennis_aces_vs_fanduel import (
-    BOOK_NORMALIZERS,
     aces_outcome_label_fr,
     collect_fr_higher_rows,
     collect_value_rows,
@@ -81,6 +78,10 @@ def is_victoire_market_label(label: str) -> bool:
 
 
 def _align_h2h_outcome(outcome: str, home: str, away: str) -> str:
+    """Aligne une issue h2h sur le roster ancre — nom de famille, pas le prenom.
+
+    players_match est trop large (Daria Snigur ↔ Daria Egorova) et invente des values.
+    """
     raw = str(outcome or "").strip()
     if not raw:
         return ""
@@ -88,15 +89,12 @@ def _align_h2h_outcome(outcome: str, home: str, away: str) -> str:
         return home
     if raw in {"away", "2"}:
         return away
-    aligned = align_fr_outcome_to_fanduel(raw, VICTOIRE_COMPARE_KEY, home, away)
-    if aligned in {home, away}:
-        return aligned
-    # A.Bondar (FR) vs Anna Bondar (FD) — forcer sur le roster ancre.
-    if same_tennis_player(raw, home) or players_match(raw, home):
+    if same_tennis_player(raw, home):
         return home
-    if same_tennis_player(raw, away) or players_match(raw, away):
+    if same_tennis_player(raw, away):
         return away
-    return aligned
+    # Abbreviation type A.Bondar ↔ Anna Bondar deja couverte par same_tennis_player.
+    return ""
 
 
 def format_ligne_victoires_fr(row: dict[str, Any]) -> str:
@@ -112,6 +110,7 @@ def build_best_fr_victoires_map(
     home: str,
     away: str,
 ) -> dict[str, dict[str, Any]]:
+    """Best FR moneyline — exige les DEUX joueurs du match, sans fuzzy prenom."""
     if not book_events:
         return {}
     sample = next(iter(book_events.values()))
@@ -120,43 +119,50 @@ def build_best_fr_victoires_map(
     best: dict[str, dict[str, Any]] = {}
 
     for bookmaker, event in book_events.items():
-        normalizer = BOOK_NORMALIZERS.get(bookmaker)
-        if not normalizer:
-            continue
         for market in event.get("markets") or []:
             label = str(market.get("label") or "").strip()
             if not label or not is_victoire_market_label(label):
                 continue
-            outcomes = [(str(raw), odds) for raw, odds in (market.get("outcomes") or [])]
-            for item in normalizer(label, outcomes, home, away):
-                if item.market_family not in VICTOIRE_FAMILIES:
+            pair: dict[str, dict[str, Any]] = {}
+            for raw, odds in market.get("outcomes") or []:
+                if odds is None:
                     continue
-                if item.compare_key != VICTOIRE_COMPARE_KEY:
+                aligned = _align_h2h_outcome(str(raw), home, away)
+                if not aligned or aligned not in {home, away}:
                     continue
-                payload = normalized_market_to_dict(item, home, away)
-                for outcome, odds in payload["outcomes"].items():
-                    if odds is None:
-                        continue
-                    aligned = _align_h2h_outcome(str(outcome), home, away)
-                    if not aligned or aligned not in {home, away}:
-                        continue
-                    slot = best.setdefault(
-                        VICTOIRE_COMPARE_KEY,
-                        {
-                            "compare_key": VICTOIRE_COMPARE_KEY,
-                            "market_family": "h2h",
-                            "market_label_raw": item.market_label_raw,
-                            "outcomes": {},
-                        },
-                    )
-                    current = slot["outcomes"].get(aligned)
-                    if current is None or float(odds) > float(current["odds"]):
-                        slot["outcomes"][aligned] = {
-                            "odds": float(odds),
-                            "bookmaker": bookmaker,
-                            "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
-                            "raw_outcome": outcome,
-                        }
+                try:
+                    price = float(odds)
+                except (TypeError, ValueError):
+                    continue
+                current = pair.get(aligned)
+                if current is None or price > float(current["odds"]):
+                    pair[aligned] = {
+                        "odds": price,
+                        "bookmaker": bookmaker,
+                        "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
+                        "raw_outcome": str(raw),
+                    }
+            # Un cote orphelin (1 seul joueur aligne) = mauvais match scrape → ignorer.
+            if home not in pair or away not in pair:
+                continue
+            slot = best.setdefault(
+                VICTOIRE_COMPARE_KEY,
+                {
+                    "compare_key": VICTOIRE_COMPARE_KEY,
+                    "market_family": "h2h",
+                    "market_label_raw": label,
+                    "outcomes": {},
+                },
+            )
+            for aligned, payload in pair.items():
+                current = slot["outcomes"].get(aligned)
+                if current is None or float(payload["odds"]) > float(current["odds"]):
+                    slot["outcomes"][aligned] = payload
+                    slot["market_label_raw"] = label
+    if VICTOIRE_COMPARE_KEY in best:
+        outcomes = best[VICTOIRE_COMPARE_KEY].get("outcomes") or {}
+        if home not in outcomes or away not in outcomes:
+            best.pop(VICTOIRE_COMPARE_KEY, None)
     return best
 
 

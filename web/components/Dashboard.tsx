@@ -453,6 +453,9 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     if (marketTab === "victoires" && fdEvents === 0 && (payload?.fr_only_count ?? 0) > 0) {
       return "FanDuel n'a pas de moneyline alignee sur ces matchs FR — les vainqueurs restent en « FR seul ».";
     }
+    if (marketTab === "victoires" && (payload?.comparable_count ?? 0) > 0) {
+      return "Cotes = snapshot au moment du scrape de chaque match (un run long peut avoir des live deja bougees). Relance pour rafraichir.";
+    }
     if (fdEvents > 0 && frEvents === 0) {
       return `FanDuel propose des ${label}, mais les books FR n'ont pas de lignes comparables sur ces matchs.`;
     }

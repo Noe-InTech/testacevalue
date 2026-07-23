@@ -1198,14 +1198,28 @@ def _player_slug_tokens(name: str) -> list[str]:
 
 
 def find_betclic_link_for_players(links: list[Any], home: str, away: str) -> Any | None:
+    """Match Betclic strict: les deux noms de famille doivent etre dans le slug.
+
+    L'ancien match par token prenom matchait Daria Egorova → daria-snigur (faux).
+    """
+    from scan_tennis_aces import players_from_betclic_slug
+    from tennis_market_mapping import _book_player_key
+
+    home_key = _book_player_key(home)
+    away_key = _book_player_key(away)
+    if not home_key or not away_key:
+        return None
+
     for link in links:
-        slug = link.slug.rsplit("-m", 1)[0].lower()
-        home_tokens = _player_slug_tokens(home)[-2:]
-        away_tokens = _player_slug_tokens(away)[-2:]
-        if not home_tokens or not away_tokens:
-            continue
-        if any(token in slug for token in home_tokens) and any(token in slug for token in away_tokens):
+        parsed = players_from_betclic_slug(link.slug)
+        if parsed and same_tennis_match(home, away, parsed[0], parsed[1]):
             return link
+        body = link.slug.rsplit("-m", 1)[0].lower()
+        tokens = {token for token in body.split("-") if token}
+        # Exiger les deux family keys (min 4 chars pour eviter les collisions courtes).
+        if len(home_key) >= 4 and len(away_key) >= 4:
+            if home_key in tokens and away_key in tokens:
+                return link
     return None
 
 

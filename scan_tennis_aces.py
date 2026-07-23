@@ -14,7 +14,7 @@ from typing import Any
 
 from betclic_client import BetclicClient
 from tennis_books_mapping import is_set_level_tiebreak_question, strip_accents
-from tennis_market_mapping import players_match
+from tennis_market_mapping import players_match, same_tennis_match
 from unibet_client import UnibetClient
 from winamax_client import WinamaxClient, WinamaxMatchLink
 
@@ -217,9 +217,7 @@ def find_event_by_players(
     for event in events:
         event_home = str(event.get(home_key, event.get("home", "")))
         event_away = str(event.get(away_key, event.get("away", "")))
-        if players_match(home, event_home) and players_match(away, event_away):
-            return event
-        if players_match(home, event_away) and players_match(away, event_home):
+        if same_tennis_match(home, away, event_home, event_away):
             return event
     return None
 

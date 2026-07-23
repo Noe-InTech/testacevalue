@@ -132,6 +132,51 @@ class MultiMatchAcesVictoiresTests(unittest.TestCase):
             else:
                 self.assertEqual(rows, [], fr_key)
 
+    def test_victoires_rejects_daria_firstname_collision(self) -> None:
+        """Daria Snigur ne doit jamais alimenter Daria Egorova."""
+        home, away = "Daria Egorova", "Ana Candiotto"
+        book_events = {
+            "betclic": {
+                "home_player": "Lanlana Tararudee",
+                "away_player": "Daria Snigur",
+                "markets": [
+                    {
+                        "label": "Vainqueur du match",
+                        "outcomes": [
+                            ("Lanlana Tararudee", 2.18),
+                            ("Daria Snigur", 1.56),
+                        ],
+                    }
+                ],
+            }
+        }
+        fr_map = build_best_fr_victoires_map(book_events, home=home, away=away)
+        self.assertEqual(fr_map, {})
+
+    def test_betclic_link_requires_both_surnames(self) -> None:
+        from types import SimpleNamespace
+
+        from compare_tennis_aces_vs_fanduel import find_betclic_link_for_players
+
+        links = [
+            SimpleNamespace(
+                slug="lanlana-tararudee-daria-snigur-m1177350126440448",
+                url="https://www.betclic.fr/x",
+            ),
+            SimpleNamespace(
+                slug="daria-egorova-ana-candiotto-m1",
+                url="https://www.betclic.fr/y",
+            ),
+        ]
+        found = find_betclic_link_for_players(links, "Daria Egorova", "Ana Candiotto")
+        self.assertIsNotNone(found)
+        self.assertIn("egorova", found.slug)
+        self.assertIsNone(
+            find_betclic_link_for_players(
+                links[:1], "Daria Egorova", "Ana Candiotto"
+            )
+        )
+
     def test_victoires_rejects_game_face_a_face_pollution(self) -> None:
         home, away = "A.Bublik", "A.Molcan"
         book_events = {
