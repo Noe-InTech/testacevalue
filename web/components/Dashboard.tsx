@@ -92,20 +92,24 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       if (!suppressCacheRef.current) {
         saveCachedTennisResults(nextPayload, nextStatus);
       }
-    } else if (suppressCacheRef.current) {
-      setRawPayload(emptyTennisPayload());
-      if (nextStatus) {
-        setStatus(nextStatus);
-      }
     } else if (data.source === "runner-unreachable") {
-      const cached = loadCachedTennisResults();
-      if (cached) {
-        setRawPayload(cached.payload);
-        setStatus(cached.status);
+      // Ne pas vider l'ecran pendant un run — juste retomber sur le cache si dispo.
+      if (!suppressCacheRef.current) {
+        const cached = loadCachedTennisResults();
+        if (cached) {
+          setRawPayload(cached.payload);
+          setStatus(cached.status);
+        }
       }
     }
 
-    if (nextStatus && !suppressCacheRef.current) {
+    if (
+      nextStatus &&
+      !suppressCacheRef.current &&
+      data.source !== "runner-unreachable"
+    ) {
+      setStatus(nextStatus);
+    } else if (nextStatus && suppressCacheRef.current && data.source !== "runner-unreachable") {
       setStatus(nextStatus);
     }
 
@@ -169,9 +173,10 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         }
 
         if (data.source === "runner-unreachable") {
-          throw new Error(
-            "Runner EU injoignable. Mets a jour RUNNER_URL sur Vercel (URL Cloudflare).",
+          setError(
+            "Connexion runner instable — on garde les derniers resultats a l'ecran.",
           );
+          continue;
         }
 
         if (currentStatus === "cancelled") {

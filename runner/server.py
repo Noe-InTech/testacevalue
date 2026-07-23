@@ -66,6 +66,9 @@ SPORTS: dict[str, SportConfig] = {
 STUCK_RUN_SECONDS = 20 * 60
 
 
+from atomic_json import write_json_atomic
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -81,14 +84,6 @@ def read_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
         return data if isinstance(data, dict) else fallback
     except (json.JSONDecodeError, OSError):
         return fallback
-
-
-def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    """Ecriture atomique — evite les JSON vides si le process coupe en plein write."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp_path.replace(path)
 
 
 def parse_iso(value: str | None) -> datetime | None:

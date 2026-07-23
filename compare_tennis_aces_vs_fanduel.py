@@ -1103,9 +1103,12 @@ def write_progress_json(
         payload = build_results_payload(
             results, partial=partial, anchors_total=anchors_total
         )
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp_path.replace(path)
+    from atomic_json import write_json_atomic
+
+    try:
+        write_json_atomic(path, payload)
+    except OSError as exc:
+        log.warning("Progress JSON non ecrit (%s): %s", path.name, exc)
 
 
 def _player_slug_tokens(name: str) -> list[str]:

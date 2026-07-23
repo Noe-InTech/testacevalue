@@ -576,12 +576,12 @@ def write_progress_json(
         league=league,
         include_fd_only_rows=False,
     )
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
-    tmp_path.replace(path)
+    from atomic_json import write_json_atomic
+
+    try:
+        write_json_atomic(path, payload, compact=True)
+    except OSError as exc:
+        log.warning("Progress JSON non ecrit (%s): %s", path.name, exc)
 
 
 def write_run_status_file(

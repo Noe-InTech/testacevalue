@@ -186,13 +186,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           if (!options?.silent) {
             setWarning("");
           }
-        } else if (suppressCacheRef.current) {
-          setPayload(emptyBasketballPayload(cfg.source));
-          setCacheSavedAt(null);
-          if (nextStatus) {
-            setStatus(nextStatus);
-          }
         } else if (data.source === "runner-unreachable") {
+          // Ne pas vider l'ecran pendant un run.
           if (!suppressCacheRef.current) {
             const cached = cfg.loadCache();
             if (cached) {
@@ -207,8 +202,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                 "Runner EU injoignable. Mets a jour RUNNER_URL (URL Cloudflare https://....trycloudflare.com).",
               );
             }
+          } else if (!options?.silent) {
+            setWarning("Connexion runner instable — derniers resultats conserves a l'ecran.");
           }
         } else if (nextStatus && !suppressCacheRef.current) {
+          setStatus(nextStatus);
+        } else if (nextStatus && suppressCacheRef.current) {
           setStatus(nextStatus);
         }
 
