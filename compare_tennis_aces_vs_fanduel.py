@@ -98,8 +98,10 @@ COMPARABLE_CSV_FIELDS = [
 ]
 
 # Timeout par book / par match: un match bloque n'arrete pas le run.
-BOOK_STEP_TIMEOUT = 25.0
-ANCHOR_TIMEOUT = 90.0
+BOOK_STEP_TIMEOUT = 18.0
+ANCHOR_TIMEOUT = 75.0
+ANCHOR_MAX_WORKERS = 2
+PROGRESS_WRITE_MIN_INTERVAL = 2.0
 
 
 def _run_with_timeout(
@@ -108,8 +110,13 @@ def _run_with_timeout(
     timeout: float,
     label: str,
 ) -> Any | None:
-    """Execute un scrape book avec timeout — None si depasse (on passe a la suite)."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
+    """Execute un scrape book avec timeout — None si depasse (on passe a la suite).
+
+    Important: shutdown(wait=False) pour ne PAS bloquer sur l'appel HTTP encore
+    en cours apres le timeout (sinon le worker reste fige et le run meurt).
+    """
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
         future = pool.submit(callback)
         try:
             return future.result(timeout=timeout)
@@ -119,6 +126,8 @@ def _run_with_timeout(
         except Exception as exc:
             log.warning("%s: %s — on passe", label, exc)
             return None
+    finally:
+        pool.shutdown(wait=False)
 
 
 def _skipped_anchor_result(match_key: str, *, reason: str) -> dict[str, Any]:
@@ -1453,7 +1462,7 @@ def _compare_anchors_parallel(
 
         return _on_partial
 
-    with ThreadPoolExecutor(max_workers=min(6, len(anchors))) as pool:
+    with ThreadPoolExecutor(max_workers=min(ANCHOR_MAX_WORKERS, len(anchors))) as pool:
         futures = {
             pool.submit(
                 _compare_anchor_live,
@@ -1553,8 +1562,9 @@ def write_run_status_file(
         payload["value_count"] = len(collect_value_rows(rows))
         payload["matches_done"] = len(results)
         payload["fr_only_count"] = sum(int(item.get("fr_only_ace_count", 0)) for item in results)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    from atomic_json import write_json_atomic
+
+    write_json_atomic(path, payload)
 
 
 def comparable_row_to_csv(row: dict[str, Any]) -> dict[str, str]:
@@ -1823,8 +1833,17 @@ def run_live_compare(
     combined: bool = False,
 ) -> Path:
     anchors_total = 0
+    last_progress_write = 0.0
+    progress_lock = threading.Lock()
 
-    def on_progress(results: list[dict[str, Any]], message: str) -> None:
+    def on_progress(results: list[dict[str, Any]], message: str, *, force: bool = False) -> None:
+        nonlocal last_progress_write
+        now = time.monotonic()
+        with progress_lock:
+            if not force and now - last_progress_write < PROGRESS_WRITE_MIN_INTERVAL:
+                # Toujours rafraichir le message status legerement... non, on throttle tout.
+                return
+            last_progress_write = now
         write_progress_json(
             progress_json,
             results,

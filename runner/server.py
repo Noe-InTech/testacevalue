@@ -46,7 +46,7 @@ SPORTS: dict[str, SportConfig] = {
         result_json=DATA_DIR / "latest_aces.json",
         status_json=DATA_DIR / "run_status.json",
         combined=True,
-        timeout=900,
+        timeout=2700,
     ),
     "wnba": SportConfig(
         key="wnba",

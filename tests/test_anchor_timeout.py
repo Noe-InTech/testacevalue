@@ -15,8 +15,12 @@ class AnchorTimeoutTests(unittest.TestCase):
             time.sleep(0.4)
             return "done"
 
+        started = time.monotonic()
         result = _run_with_timeout(slow, timeout=0.05, label="slow-test")
+        elapsed = time.monotonic() - started
         self.assertIsNone(result)
+        # Ne doit PAS attendre la fin du sleep(0.4) — shutdown(wait=False).
+        self.assertLess(elapsed, 0.25)
 
     def test_run_with_timeout_returns_value(self) -> None:
         result = _run_with_timeout(lambda: 42, timeout=1.0, label="fast-test")
