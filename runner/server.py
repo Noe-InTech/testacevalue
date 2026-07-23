@@ -16,6 +16,8 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 DATA_DIR = ROOT / "runner" / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 LOCK = threading.Lock()
@@ -23,6 +25,8 @@ RUNNING = False
 CURRENT_SPORT = ""
 CURRENT_PROC: subprocess.Popen[str] | None = None
 CANCEL_REQUESTED = False
+
+from atomic_json import write_json_atomic  # noqa: E402
 
 
 @dataclass(frozen=True)
