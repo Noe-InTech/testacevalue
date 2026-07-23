@@ -552,20 +552,36 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         emptyMessage="Aucun resultat pour le moment. Lance une comparaison."
       />
 
-      <ResultsTable
+      <CollapsibleSection
         title="Lignes ou le book FR paie mieux que FanDuel"
-        rows={frHigherRows}
-        marketKind={marketTab}
-        showCaptureDetails
-        runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
-        emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
-      />
+        badge={frHigherRows.length}
+        defaultOpen
+      >
+        <ResultsTable
+          title=""
+          rows={frHigherRows}
+          marketKind={marketTab}
+          embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
+          emptyMessage="Aucune ligne ou la cote FR bat FanDuel sur ce run."
+        />
+      </CollapsibleSection>
 
-      <ValuesTable
+      <CollapsibleSection
         title="Values MPTO — book FR vs FanDuel"
-        rows={valueRows}
-        emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
-      />
+        badge={valueRows.length}
+        defaultOpen
+      >
+        <ValuesTable
+          title=""
+          rows={valueRows}
+          embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
+          emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
+        />
+      </CollapsibleSection>
 
       <CollapsibleSection
         title={`Lignes ${marketTab} FR sans equivalent FanDuel (meme seuil)`}

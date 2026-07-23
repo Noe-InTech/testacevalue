@@ -1,5 +1,8 @@
 "use client";
 
+import { Fragment, useState } from "react";
+
+import { RowCaptureDetail } from "@/components/RowCaptureDetail";
 import type { ValueBetRow } from "@/lib/mptoValue";
 
 interface ValuesTableProps {
@@ -8,7 +11,11 @@ interface ValuesTableProps {
   emptyMessage: string;
   embedded?: boolean;
   searchQuery?: string;
+  runGeneratedAt?: string;
+  showCaptureDetails?: boolean;
 }
+
+const COLUMNS = 8;
 
 function filterRows(rows: ValueBetRow[], query: string): ValueBetRow[] {
   const needle = query.trim().toLowerCase();
@@ -33,7 +40,10 @@ export function ValuesTable({
   emptyMessage,
   embedded = false,
   searchQuery = "",
+  runGeneratedAt,
+  showCaptureDetails = false,
 }: ValuesTableProps) {
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const filtered = filterRows(rows, searchQuery);
 
   const content =
@@ -43,6 +53,9 @@ export function ValuesTable({
       <div className="table-wrap">
         <p className="table-hint">
           Edge MPTO (ref. FanDuel) · Kelly fractionne a 0,25 · uniquement si la cote FR bat FanDuel.
+          {showCaptureDetails
+            ? " Clique sur une ligne pour voir l'heure de capture des cotes."
+            : ""}
         </p>
         <table className="values-table">
           <thead>
@@ -58,22 +71,44 @@ export function ValuesTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row, index) => (
-              <tr key={rowKey(row, index)}>
-                <td data-label="Match">{row.match}</td>
-                <td data-label="Pari">{row.bet}</td>
-                <td data-label="Contraire">{row.opposite}</td>
-                <td data-label="Cote FD">{row.coteFd}</td>
-                <td data-label="Cote FR">{row.coteFr}</td>
-                <td data-label="Book">{row.bookmaker}</td>
-                <td data-label="Edge" className="value-edge">
-                  {row.edgeLabel}
-                </td>
-                <td data-label="Mise Kelly 0,25" className="value-kelly">
-                  {row.kellyLabel}
-                </td>
-              </tr>
-            ))}
+            {filtered.map((row, index) => {
+              const key = rowKey(row, index);
+              const selected = selectedKey === key;
+              return (
+                <Fragment key={key}>
+                  <tr
+                    className={
+                      showCaptureDetails ? `clickable-row${selected ? " selected" : ""}` : undefined
+                    }
+                    onClick={
+                      showCaptureDetails
+                        ? () => setSelectedKey(selected ? null : key)
+                        : undefined
+                    }
+                  >
+                    <td data-label="Match">{row.match}</td>
+                    <td data-label="Pari">{row.bet}</td>
+                    <td data-label="Contraire">{row.opposite}</td>
+                    <td data-label="Cote FD">{row.coteFd}</td>
+                    <td data-label="Cote FR">{row.coteFr}</td>
+                    <td data-label="Book">{row.bookmaker}</td>
+                    <td data-label="Edge" className="value-edge">
+                      {row.edgeLabel}
+                    </td>
+                    <td data-label="Mise Kelly 0,25" className="value-kelly">
+                      {row.kellyLabel}
+                    </td>
+                  </tr>
+                  {showCaptureDetails && selected ? (
+                    <tr className="row-detail">
+                      <td colSpan={COLUMNS}>
+                        <RowCaptureDetail row={row.source} runGeneratedAt={runGeneratedAt} />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

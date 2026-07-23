@@ -793,6 +793,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           rows={valueRows}
           embedded
           searchQuery={globalSearch}
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at}
           emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
         />
       </CollapsibleSection>

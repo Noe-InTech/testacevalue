@@ -23,6 +23,8 @@ export interface ValueBetRow {
   kellyPercent: number;
   kellyLabel: string;
   compareKey?: string;
+  /** Ligne comparable source (horodatage scrape, cotes FD contraire, etc.). */
+  source: ComparableRow;
 }
 
 export function parseFrenchDecimal(value: string | undefined | null): number | null {
@@ -126,6 +128,7 @@ export function computeValueFromComparable(
     kellyPercent: mpto.kellyPercent,
     kellyLabel: mpto.kellyLabel,
     compareKey: row.compare_key,
+    source: row,
   };
 }
 
