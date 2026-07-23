@@ -81,6 +81,15 @@ class TennisBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(markets[0].compare_key, "h2h")
 
+    def test_normalize_unibet_rejects_game_face_a_face(self) -> None:
+        markets = normalize_unibet_market(
+            "Face à Face - Live 2eme Jeu / 2ème Set",
+            [("A.Bublik", 3.2), ("A.Molcan", 1.2)],
+            "A.Bublik",
+            "A.Molcan",
+        )
+        self.assertEqual(markets, [])
+
     def test_normalize_unibet_games_total(self) -> None:
         markets = normalize_unibet_market(
             "Plus / Moins Jeux - Match",

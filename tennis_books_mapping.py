@@ -262,7 +262,7 @@ def normalize_unibet_market(
     period = extract_set_period(raw_label)
     markets: list[NormalizedMarket] = []
 
-    if lower in {"vainqueur du match", "vainqueur"} or "face a face" in lower:
+    if lower in {"vainqueur du match", "vainqueur"}:
         outcome_map = {}
         for raw, odds in outcomes:
             if odds is None:
@@ -271,6 +271,38 @@ def normalize_unibet_market(
         market = build_market("h2h", "h2h", raw_label, outcome_map, market_scope="match", period="match")
         if market:
             markets.append(market)
+        return markets
+
+    # Face a face match uniquement (pas set / jeu — sinon cote jeu ~3.20 pollue le ML).
+    if "face a face" in lower or "face-a-face" in lower:
+        if any(
+            token in lower
+            for token in (
+                "1er set",
+                "2e set",
+                "2eme set",
+                "3e set",
+                "3eme set",
+                "set 1",
+                "set 2",
+                "jeu",
+                "jeux",
+                "game",
+                "point",
+            )
+        ):
+            return markets
+        if lower in {"face a face", "face-a-face"} or "match" in lower:
+            outcome_map = {}
+            for raw, odds in outcomes:
+                if odds is None:
+                    continue
+                outcome_map[match_player_name(raw, home_player, away_player)] = float(odds)
+            market = build_market(
+                "h2h", "h2h", raw_label, outcome_map, market_scope="match", period="match"
+            )
+            if market:
+                markets.append(market)
         return markets
 
     if "les deux joueurs gagnent un set" in lower:

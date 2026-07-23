@@ -20,7 +20,12 @@ class CompareTennisVictoiresTests(unittest.TestCase):
     def test_is_victoire_label(self) -> None:
         self.assertTrue(is_victoire_market_label("Vainqueur du match"))
         self.assertTrue(is_victoire_market_label("Moneyline"))
+        self.assertTrue(is_victoire_market_label("Face à Face - Match"))
+        self.assertTrue(is_victoire_market_label("Face à Face - Live Match"))
         self.assertFalse(is_victoire_market_label("Nombre d'aces"))
+        self.assertFalse(is_victoire_market_label("Face à Face - Live 2eme Jeu / 2ème Set"))
+        self.assertFalse(is_victoire_market_label("Face à Face - Live 2ème Set"))
+        self.assertFalse(is_victoire_market_label("Vainqueur des Jeux 3 et 4 - Live 2ème Set"))
 
     def test_format_ligne(self) -> None:
         self.assertEqual(

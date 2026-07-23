@@ -33,17 +33,49 @@ VICTOIRE_FAMILIES = frozenset({"h2h"})
 
 
 def is_victoire_market_label(label: str) -> bool:
-    lower = strip_accents(label.lower())
-    if any(token in lower for token in ("aces", "break", "jeux", "games", "set handicap", "total")):
-        if "vainqueur" not in lower and "moneyline" not in lower and "match betting" not in lower:
-            return False
-    if lower in {"vainqueur du match", "vainqueur", "moneyline", "match betting"}:
+    """Vainqueur du match uniquement — jamais set / jeu / game face-a-face."""
+    lower = strip_accents(label.lower()).strip()
+    if not lower:
+        return False
+    # Exclure set / jeu / points (sinon on mixe des cotes ~3.20 dans le h2h match).
+    if any(
+        token in lower
+        for token in (
+            "1er set",
+            "2e set",
+            "2eme set",
+            "3e set",
+            "3eme set",
+            "set 1",
+            "set 2",
+            "set 3",
+            "jeu",
+            "jeux",
+            "game",
+            "point",
+            "tie-break",
+            "tie break",
+            "aces",
+            "break",
+        )
+    ):
+        return False
+    if lower in {
+        "vainqueur du match",
+        "vainqueur",
+        "moneyline",
+        "match betting",
+        "face a face",
+        "face-a-face",
+        "face a face - match",
+        "face a face - live match",
+    }:
         return True
-    if lower.startswith("vainqueur"):
+    if lower.startswith("vainqueur du match"):
         return True
-    if "face a face" in lower or "face-a-face" in lower:
+    if lower.startswith("vainqueur (") or lower == "vainqueur":
         return True
-    if "vainqueur du match" in lower:
+    if ("face a face" in lower or "face-a-face" in lower) and "match" in lower:
         return True
     return False
 
