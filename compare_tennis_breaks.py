@@ -100,6 +100,10 @@ def _find_break_market_near_line(
     if line is None and family not in {"tie_break_set"}:
         return None, None, None
 
+    # Tie-break match: 0.5 (au moins un TB) ≠ 1.5 (total TB) — jamais de fuzzy match.
+    if family == "tie_break_match":
+        return None, None, None
+
     best_key: str | None = None
     best_market: dict[str, Any] | None = None
     best_delta: float | None = None
