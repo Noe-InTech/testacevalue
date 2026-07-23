@@ -11,7 +11,6 @@ import type { ApiPayload, MarketPayload, RunStatus } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
 import {
-  clearCachedTennisResults,
   hasTennisData,
   loadCachedTennisResults,
   saveCachedTennisResults,
@@ -104,18 +103,26 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
 
     if (payloadFromCurrentRun) {
       setRawPayload(nextPayload);
-      if (!suppressCacheRef.current) {
-        saveCachedTennisResults(nextPayload, nextStatus);
-      }
+      // Toujours persister, meme pendant un run (sinon fermer l'app = resultats perdus).
+      saveCachedTennisResults(nextPayload, nextStatus);
     } else if (data.source === "runner-unreachable") {
       // Ne pas vider l'ecran pendant un run — juste retomber sur le cache si dispo.
-      if (!suppressCacheRef.current) {
-        const cached = loadCachedTennisResults();
-        if (cached) {
-          setRawPayload(cached.payload);
+      const cached = loadCachedTennisResults();
+      if (cached) {
+        setRawPayload(cached.payload);
+        if (!status || status.status !== "running") {
           setStatus(cached.status);
         }
       }
+    } else if (
+      nextPayload &&
+      hasTennisData(nextPayload) &&
+      !runStartedAtRef.current &&
+      !suppressCacheRef.current
+    ) {
+      // Reouverture: reprendre les derniers resultats runner s'ils existent.
+      setRawPayload(nextPayload);
+      saveCachedTennisResults(nextPayload, nextStatus);
     }
 
     if (
@@ -151,8 +158,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
 
   const waitForCompletion = useCallback(
     async (signal?: AbortSignal) => {
-      // Tant que le runner dit "running", on continue (hard cap 20 min).
-      const hardDeadline = Date.now() + 20 * 60 * 1000;
+      // Tant que le runner dit "running", on continue (aligne sur timeout runner ~45 min).
+      const hardDeadline = Date.now() + 50 * 60 * 1000;
       let lastRows = 0;
       let lastMatches = 0;
       let unreachableStreak = 0;
@@ -177,10 +184,11 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
 
         if (data.source === "runner-unreachable") {
           unreachableStreak += 1;
-          if (unreachableStreak === 1 || unreachableStreak % 10 === 0) {
-            setError(
-              "Connexion runner instable — le scrape EU continue; on garde les resultats partiels.",
+          if (unreachableStreak === 1 || unreachableStreak % 20 === 0) {
+            setInfo(
+              "Connexion runner instable — le scrape EU continue; resultats partiels conserves.",
             );
+            setError("");
           }
           continue;
         }
@@ -330,13 +338,12 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         throw new Error(data.error || "Echec du declenchement.");
       }
 
-      clearCachedTennisResults();
+      // Ne pas effacer le cache: on ecrase au fil de l'eau. Fermer l'app ne perd plus les resultats.
       suppressCacheRef.current = true;
       runStartedAtRef.current =
         typeof data.started_at === "string" && data.started_at.trim()
           ? data.started_at.trim()
           : new Date().toISOString();
-      setRawPayload(emptyTennisPayload());
       setStatus({ status: "running", message: "Comparaison tennis en cours..." });
       setInfo("Scrape live en cours...");
       await waitForCompletion(runSignal);

@@ -1463,8 +1463,15 @@ def _compare_anchors_parallel(
         return _on_partial
 
     with ThreadPoolExecutor(max_workers=min(ANCHOR_MAX_WORKERS, len(anchors))) as pool:
-        futures = {
-            pool.submit(
+        # Soumission progressive: le chronometre timeout ne demarre QUE quand
+        # le match est vraiment pris en charge (sinon file d'attente = faux timeouts).
+        queue = list(anchors)
+        futures: dict[Any, dict[str, Any]] = {}
+        started_at: dict[Any, float] = {}
+
+        def submit_one(anchor: dict[str, Any]) -> None:
+            match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
+            future = pool.submit(
                 _compare_anchor_live,
                 anchor,
                 unibet=unibet,
@@ -1475,23 +1482,31 @@ def _compare_anchors_parallel(
                 betclic_links=betclic_links,
                 winamax_links=winamax_links,
                 fanduel_event_list=fanduel_event_list,
-                on_partial=make_on_partial(f"{anchor['home_player']} vs {anchor['away_player']}"),
-            ): anchor
-            for anchor in anchors
-        }
-        pending = set(futures)
-        started_at = {future: time.monotonic() for future in pending}
-        while pending:
-            done, pending = wait(pending, timeout=1.0, return_when=FIRST_COMPLETED)
+                on_partial=make_on_partial(match_key),
+            )
+            futures[future] = anchor
+            started_at[future] = time.monotonic()
+
+        while queue and len(futures) < ANCHOR_MAX_WORKERS:
+            submit_one(queue.pop(0))
+
+        while futures or queue:
+            if not futures:
+                while queue and len(futures) < ANCHOR_MAX_WORKERS:
+                    submit_one(queue.pop(0))
+                continue
+
+            done, _still = wait(set(futures), timeout=1.0, return_when=FIRST_COMPLETED)
             now = time.monotonic()
+
             timed_out = [
                 future
-                for future in list(pending)
-                if now - started_at[future] >= ANCHOR_TIMEOUT
+                for future in list(futures)
+                if future not in done and now - started_at[future] >= ANCHOR_TIMEOUT
             ]
             for future in timed_out:
-                pending.discard(future)
-                anchor = futures[future]
+                anchor = futures.pop(future)
+                started_at.pop(future, None)
                 match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
                 log.warning(
                     "Match timeout %s apres %.0fs — on passe au suivant",
@@ -1500,15 +1515,21 @@ def _compare_anchors_parallel(
                 )
                 with progress_lock:
                     partial_by_match.pop(match_key, None)
-                skipped = _skipped_anchor_result(
-                    match_key,
-                    reason=f"timeout apres {ANCHOR_TIMEOUT:.0f}s",
+                results.append(
+                    _skipped_anchor_result(
+                        match_key,
+                        reason=f"timeout apres {ANCHOR_TIMEOUT:.0f}s",
+                    )
                 )
-                results.append(skipped)
                 notify(f"{match_key} — timeout, passe au suivant")
+                if queue:
+                    submit_one(queue.pop(0))
 
             for future in done:
-                anchor = futures[future]
+                anchor = futures.pop(future, None)
+                started_at.pop(future, None)
+                if anchor is None:
+                    continue
                 match_key = f"{anchor['home_player']} vs {anchor['away_player']}"
                 try:
                     compared = future.result(timeout=0)
@@ -1520,6 +1541,8 @@ def _compare_anchors_parallel(
                         _skipped_anchor_result(match_key, reason=f"erreur: {exc}")
                     )
                     notify(f"{match_key} — erreur, passe au suivant")
+                    if queue:
+                        submit_one(queue.pop(0))
                     continue
                 with progress_lock:
                     partial_by_match.pop(match_key, None)
@@ -1533,6 +1556,8 @@ def _compare_anchors_parallel(
                     f"{compared['match']} — {compared['comparable_ace_count']} comparee(s)"
                     f", {compared.get('fr_only_ace_count', 0)} FR seul"
                 )
+                if queue:
+                    submit_one(queue.pop(0))
     return results
 
 
