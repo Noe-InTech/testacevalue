@@ -63,6 +63,9 @@ SPORTS: dict[str, SportConfig] = {
 }
 
 
+STUCK_RUN_SECONDS = 20 * 60
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -78,6 +81,23 @@ def read_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
         return data if isinstance(data, dict) else fallback
     except (json.JSONDecodeError, OSError):
         return fallback
+
+
+def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Ecriture atomique — evite les JSON vides si le process coupe en plein write."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def parse_iso(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def write_status(
@@ -101,22 +121,82 @@ def write_status(
     if started:
         payload["run_started_at"] = started
     if status == "success" and sport.result_json.is_file():
-        data = json.loads(sport.result_json.read_text(encoding="utf-8"))
+        data = read_json(sport.result_json, {})
         payload["generated_at"] = data.get("generated_at", "")
         payload["comparable_count"] = data.get("comparable_count", 0)
         payload["fr_higher_count"] = data.get("fr_higher_count", 0)
         payload["matches_done"] = data.get("matches_done", 0)
         payload["anchors_total"] = data.get("anchors_total", 0)
         payload["fr_only_count"] = data.get("fr_only_count", 0)
-    sport.status_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_json_atomic(sport.status_json, payload)
 
 
 def wipe_result_file(sport: SportConfig) -> None:
-    sport.result_json.parent.mkdir(parents=True, exist_ok=True)
-    sport.result_json.write_text(
-        json.dumps(empty_payload(sport), ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    write_json_atomic(sport.result_json, empty_payload(sport))
+
+
+def clear_running_lock(*, reason: str = "") -> None:
+    global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
+    with LOCK:
+        RUNNING = False
+        CURRENT_SPORT = ""
+        CURRENT_PROC = None
+        CANCEL_REQUESTED = False
+    if reason:
+        print(f"Runner lock liberé: {reason}")
+
+
+def recover_stuck_run() -> bool:
+    """Libere un run bloque (process mort ou timeout) pour pouvoir relancer."""
+    global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
+    with LOCK:
+        if not RUNNING:
+            return False
+        proc = CURRENT_PROC
+        sport_key = CURRENT_SPORT
+        if proc is not None and proc.poll() is None:
+            sport = SPORTS.get(sport_key) if sport_key else None
+            status = read_json(sport.status_json, {}) if sport else {}
+            started = parse_iso(str(status.get("run_started_at") or status.get("updated_at") or ""))
+            if started is not None:
+                age = (datetime.now(timezone.utc) - started).total_seconds()
+                if age < STUCK_RUN_SECONDS:
+                    return False
+            else:
+                return False
+        # process mort ou run trop vieux
+        RUNNING = False
+        CURRENT_SPORT = ""
+        CURRENT_PROC = None
+        CANCEL_REQUESTED = False
+
+    sport = SPORTS.get(sport_key) if sport_key else None
+    if sport is not None:
+        write_status(
+            sport,
+            "error",
+            "Comparaison precedente bloquee — lock libere automatiquement.",
+            clear_run_started_at=True,
+        )
+    print(f"Stuck run recovered ({sport_key or 'unknown'})")
+    return True
+
+
+def ensure_status_files() -> None:
+    """Au demarrage: JSON valides + aucun statut 'running' fantome."""
+    for sport in SPORTS.values():
+        status = read_json(sport.status_json, {})
+        if status.get("status") == "running":
+            write_status(
+                sport,
+                "idle",
+                "Runner redemarre — run precedent ignore.",
+                clear_run_started_at=True,
+            )
+        elif not sport.status_json.is_file() or sport.status_json.stat().st_size == 0:
+            write_status(sport, "idle", "Runner pret.")
+        if not sport.result_json.is_file() or sport.result_json.stat().st_size == 0:
+            wipe_result_file(sport)
 
 
 def empty_payload(sport: SportConfig) -> dict[str, Any]:
@@ -304,6 +384,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/health":
+            recover_stuck_run()
+            with LOCK:
+                busy = RUNNING
+                sport = CURRENT_SPORT
+            self._json_response(
+                200,
+                {
+                    "ok": True,
+                    "running": busy,
+                    "sport": sport or "",
+                    "fetched_at": utc_now(),
+                },
+            )
+            return
         if path != "/api/results":
             self._json_response(404, {"error": "Not found"})
             return
@@ -311,6 +406,7 @@ class Handler(BaseHTTPRequestHandler):
         if sport is None:
             self._json_response(400, {"error": "Sport inconnu (tennis, wnba ou nba)."})
             return
+        recover_stuck_run()
         payload = read_json(sport.result_json, empty_payload(sport))
         status = read_json(
             sport.status_json,
@@ -359,6 +455,7 @@ class Handler(BaseHTTPRequestHandler):
 
         match_filter = str(body.get("match", "")).strip()
         global RUNNING, CURRENT_SPORT
+        recover_stuck_run()
         with LOCK:
             if RUNNING:
                 self._json_response(
@@ -430,7 +527,12 @@ def main() -> None:
     for sport in SPORTS.values():
         if not (ROOT / sport.script).is_file():
             raise SystemExit(f"Script introuvable: {sport.script}")
-        write_status(sport, "idle", "Runner pret.")
+    clear_running_lock(reason="startup")
+    ensure_status_files()
+    for sport in SPORTS.values():
+        current = read_json(sport.status_json, {})
+        if current.get("status") != "idle":
+            write_status(sport, "idle", "Runner pret.")
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba)")
     server.serve_forever()
