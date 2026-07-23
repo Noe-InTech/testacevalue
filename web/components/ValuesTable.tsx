@@ -54,7 +54,7 @@ export function ValuesTable({
         <p className="table-hint">
           Edge MPTO (ref. FanDuel) · Kelly fractionne a 0,25 · uniquement si la cote FR bat FanDuel.
           {showCaptureDetails
-            ? " Clique sur une ligne pour voir l'heure de capture des cotes."
+            ? " Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire)."
             : ""}
         </p>
         <table className="values-table">

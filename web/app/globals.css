@@ -471,6 +471,12 @@ td.side {
   color: var(--accent);
 }
 
+.row-capture-subtitle {
+  margin: 14px 0 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 .row-capture-list {
   display: grid;
   grid-template-columns: minmax(140px, 220px) 1fr;

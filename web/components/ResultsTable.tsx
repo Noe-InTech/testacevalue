@@ -80,7 +80,10 @@ export function ResultsTable({
     ) : (
       <div className="table-wrap">
         {showCaptureDetails ? (
-          <p className="table-hint">Clique sur une ligne pour voir l&apos;heure de capture des cotes.</p>
+          <p className="table-hint">
+            Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire) et
+            l&apos;heure de capture.
+          </p>
         ) : null}
         <table>
           <thead>
