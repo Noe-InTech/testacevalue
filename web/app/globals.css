@@ -208,19 +208,21 @@ td.side {
 .market-tabs,
 .sport-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
 
 .market-select {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 10px 12px;
   margin: 0;
+  min-width: 0;
 }
 
 .market-select legend {
@@ -230,16 +232,33 @@ td.side {
 }
 
 .market-check {
-  display: inline-flex;
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center;
-  gap: 6px;
+  gap: 10px !important;
   margin: 0;
   font-weight: 500;
+  color: var(--text);
+  min-width: 0;
+}
+
+.market-check input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  max-width: 1.15rem;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+  border-radius: 4px;
+  -webkit-appearance: checkbox;
+  appearance: checkbox;
 }
 
 .market-select .hint {
   width: 100%;
-  margin: 2px 0 0;
+  margin: 0;
   font-size: 0.8rem;
   opacity: 0.75;
 }
