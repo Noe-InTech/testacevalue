@@ -1,23 +1,31 @@
-"""Client Winamax FR via Socket.IO (sport tennis)."""
+"""Client Winamax FR via Socket.IO polling (sport tennis).
+
+CloudFront bloque le TLS de python-socketio/websocket-client (403).
+On passe donc par curl_cffi (empreinte Chrome) en transport polling.
+"""
 
 from __future__ import annotations
 
-import logging
+import json
 import re
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
 
-import socketio
-
-logging.getLogger("engineio").setLevel(logging.WARNING)
-logging.getLogger("socketio").setLevel(logging.WARNING)
+from curl_cffi import requests as curl_requests
 
 SOCKET_URL = "https://sports-eu-west-3.winamax.fr"
 SOCKET_PATH = "/uof-sports-server/socket.io/"
 TENNIS_SPORT_ID = 5
 DEFAULT_ORIGIN = "https://www.winamax.fr"
 BASE_URL = "https://www.winamax.fr"
+_CURL_IMPERSONATE = "chrome124"
+_BROWSER_HEADERS = {
+    "Origin": DEFAULT_ORIGIN,
+    "Referer": f"{DEFAULT_ORIGIN}/paris-sportifs",
+    "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
+}
 
 
 @dataclass(frozen=True)
@@ -80,32 +88,130 @@ class WinamaxClient:
             return mapping[key]
         return mapping.get(str(key))
 
+    def _socket_endpoint(self) -> str:
+        path = self.socket_path if self.socket_path.endswith("/") else f"{self.socket_path}/"
+        return f"{self.socket_url.rstrip('/')}{path}"
+
+    @staticmethod
+    def _split_engineio_payload(raw: str) -> list[str]:
+        if not raw:
+            return []
+        if "\x1e" in raw:
+            return [part for part in raw.split("\x1e") if part]
+        return [raw]
+
+    def _ingest_engineio_packets(
+        self,
+        raw: str,
+        *,
+        request_ids: dict[str, str],
+        results: dict[str, dict[str, Any] | None],
+        session: Any,
+        endpoint: str,
+        sid: str,
+    ) -> None:
+        for packet in self._split_engineio_payload(raw):
+            if packet == "2":
+                session.post(
+                    endpoint,
+                    params={"EIO": "4", "transport": "polling", "sid": sid},
+                    data="3",
+                    headers={**_BROWSER_HEADERS, "Content-Type": "text/plain;charset=UTF-8"},
+                    timeout=20,
+                )
+                continue
+            if not packet.startswith("42"):
+                continue
+            try:
+                message = json.loads(packet[2:])
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(message, list) or len(message) < 2:
+                continue
+            if message[0] != "m" or not isinstance(message[1], dict):
+                continue
+            data = message[1]
+            request_id = data.get("requestId")
+            for route, route_request_id in request_ids.items():
+                if route_request_id == request_id:
+                    results[route] = data
+
     def fetch_routes(self, routes: list[str], timeout: float | None = None) -> dict[str, dict[str, Any] | None]:
         if not routes:
             return {}
         wait_time = self.fetch_timeout if timeout is None else timeout
         request_ids = {route: str(uuid.uuid4()) for route in routes}
         results: dict[str, dict[str, Any] | None] = {route: None for route in routes}
+        endpoint = self._socket_endpoint()
+        session = curl_requests.Session(impersonate=_CURL_IMPERSONATE)
 
-        sio = socketio.Client(logger=False, engineio_logger=False)
-
-        @sio.on("m")
-        def on_message(data: dict[str, Any]) -> None:
-            request_id = data.get("requestId")
-            for route, route_request_id in request_ids.items():
-                if route_request_id == request_id:
-                    results[route] = data
-
-        sio.connect(
-            self.socket_url,
-            transports=["websocket"],
-            socketio_path=self.socket_path,
-            headers={"Origin": DEFAULT_ORIGIN},
+        handshake = session.get(
+            endpoint,
+            params={"EIO": "4", "transport": "polling"},
+            headers=_BROWSER_HEADERS,
+            timeout=20,
         )
+        handshake.raise_for_status()
+        if not handshake.text.startswith("0"):
+            raise RuntimeError(f"Winamax handshake invalide: {handshake.text[:120]}")
+        open_packet = json.loads(handshake.text[1:])
+        sid = str(open_packet["sid"])
+
+        connect = session.post(
+            endpoint,
+            params={"EIO": "4", "transport": "polling", "sid": sid},
+            data="40",
+            headers={**_BROWSER_HEADERS, "Content-Type": "text/plain;charset=UTF-8"},
+            timeout=20,
+        )
+        connect.raise_for_status()
+        ack = session.get(
+            endpoint,
+            params={"EIO": "4", "transport": "polling", "sid": sid},
+            headers=_BROWSER_HEADERS,
+            timeout=20,
+        )
+        ack.raise_for_status()
+        self._ingest_engineio_packets(
+            ack.text,
+            request_ids=request_ids,
+            results=results,
+            session=session,
+            endpoint=endpoint,
+            sid=sid,
+        )
+
         for route, request_id in request_ids.items():
-            sio.emit("m", {"route": route, "requestId": request_id})
-        sio.sleep(wait_time)
-        sio.disconnect()
+            body = "42" + json.dumps(
+                ["m", {"route": route, "requestId": request_id}],
+                separators=(",", ":"),
+            )
+            emitted = session.post(
+                endpoint,
+                params={"EIO": "4", "transport": "polling", "sid": sid},
+                data=body,
+                headers={**_BROWSER_HEADERS, "Content-Type": "text/plain;charset=UTF-8"},
+                timeout=20,
+            )
+            emitted.raise_for_status()
+
+        deadline = time.monotonic() + wait_time
+        while time.monotonic() < deadline and any(value is None for value in results.values()):
+            polled = session.get(
+                endpoint,
+                params={"EIO": "4", "transport": "polling", "sid": sid},
+                headers=_BROWSER_HEADERS,
+                timeout=20,
+            )
+            polled.raise_for_status()
+            self._ingest_engineio_packets(
+                polled.text,
+                request_ids=request_ids,
+                results=results,
+                session=session,
+                endpoint=endpoint,
+                sid=sid,
+            )
         return results
 
     def fetch_route(self, route: str, timeout: float | None = None) -> dict[str, Any] | None:
