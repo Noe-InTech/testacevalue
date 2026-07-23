@@ -65,6 +65,60 @@ class CompareTennisVictoiresTests(unittest.TestCase):
         self.assertTrue(by_outcome["A Player"]["paire_fd_complete"])
         self.assertIsNotNone(by_outcome["A Player"]["ev_percent_raw"])
 
+    def test_align_abbreviated_fr_vs_full_fd_names(self) -> None:
+        from compare_tennis_victoires import (
+            build_fanduel_victoires_normalized_map,
+            compare_normalized_victoires,
+        )
+
+        home, away = "A.Bondar", "A.Charaeva"
+        fr_map = {
+            "h2h": {
+                "compare_key": "h2h",
+                "market_family": "h2h",
+                "market_label_raw": "Vainqueur du match",
+                "outcomes": {
+                    home: {"odds": 1.64, "bookmaker": "unibet", "bookmaker_label": "Unibet"},
+                    away: {"odds": 2.25, "bookmaker": "unibet", "bookmaker_label": "Unibet"},
+                },
+            }
+        }
+        fd_event = {
+            "home_player": "Anna Bondar",
+            "away_player": "Alina Charaeva",
+            "markets": [
+                {
+                    "marketName": "Moneyline",
+                    "runners": [
+                        {
+                            "runnerName": "Anna Bondar",
+                            "runnerStatus": "ACTIVE",
+                            "winRunnerOdds": {
+                                "americanDisplayOdds": {"americanOddsInt": -167},
+                                "trueOdds": {"decimalOdds": {"decimalOdds": 1.6}},
+                            },
+                        },
+                        {
+                            "runnerName": "Alina Charaeva",
+                            "runnerStatus": "ACTIVE",
+                            "winRunnerOdds": {
+                                "americanDisplayOdds": {"americanOddsInt": 136},
+                                "trueOdds": {"decimalOdds": {"decimalOdds": 2.36}},
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        # Sans roster ancre: clés FD pleine longueur → 0 jointures.
+        fd_raw = build_fanduel_victoires_normalized_map(fd_event)
+        self.assertEqual(len(compare_normalized_victoires(fr_map, fd_raw)), 0)
+        # Avec roster ancre: Anna Bondar → A.Bondar.
+        fd_aligned = build_fanduel_victoires_normalized_map(fd_event, home=home, away=away)
+        rows = compare_normalized_victoires(fr_map, fd_aligned)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row["outcome"] for row in rows}, {home, away})
+
     def test_combined_payload_includes_victoires(self) -> None:
         payload = build_combined_payload([], partial=False, anchors_total=0)
         self.assertIn("victoires", payload)

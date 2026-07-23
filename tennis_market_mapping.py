@@ -286,7 +286,9 @@ def _strip_accents(value: str) -> str:
 def map_fanduel_market_to_compare_key(market: dict[str, Any]) -> str | None:
     name = str(market.get("marketName", "")).strip()
     lower = name.lower()
-    if lower in {"moneyline", "match betting"}:
+    if lower in {"moneyline", "match betting", "money line"}:
+        return "h2h"
+    if lower.replace(" ", "").replace("-", "") == "moneyline":
         return "h2h"
     if lower == "set 1 winner":
         return "set1_winner"

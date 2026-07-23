@@ -15,6 +15,8 @@ from tennis_books_mapping import normalized_market_to_dict, strip_accents
 from tennis_market_mapping import (
     align_fr_outcome_to_fanduel,
     map_fanduel_market_to_compare_key,
+    players_match,
+    same_tennis_player,
 )
 
 from compare_tennis_aces_vs_fanduel import (
@@ -47,11 +49,21 @@ def is_victoire_market_label(label: str) -> bool:
 
 
 def _align_h2h_outcome(outcome: str, home: str, away: str) -> str:
-    if outcome in {"home", "1"}:
+    raw = str(outcome or "").strip()
+    if not raw:
+        return ""
+    if raw in {"home", "1"}:
         return home
-    if outcome in {"away", "2"}:
+    if raw in {"away", "2"}:
         return away
-    aligned = align_fr_outcome_to_fanduel(outcome, VICTOIRE_COMPARE_KEY, home, away)
+    aligned = align_fr_outcome_to_fanduel(raw, VICTOIRE_COMPARE_KEY, home, away)
+    if aligned in {home, away}:
+        return aligned
+    # A.Bondar (FR) vs Anna Bondar (FD) — forcer sur le roster ancre.
+    if same_tennis_player(raw, home) or players_match(raw, home):
+        return home
+    if same_tennis_player(raw, away) or players_match(raw, away):
+        return away
     return aligned
 
 
@@ -94,7 +106,7 @@ def build_best_fr_victoires_map(
                     if odds is None:
                         continue
                     aligned = _align_h2h_outcome(str(outcome), home, away)
-                    if not aligned:
+                    if not aligned or aligned not in {home, away}:
                         continue
                     slot = best.setdefault(
                         VICTOIRE_COMPARE_KEY,
@@ -116,9 +128,15 @@ def build_best_fr_victoires_map(
     return best
 
 
-def build_fanduel_victoires_normalized_map(event: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    home = str(event.get("home_player") or "")
-    away = str(event.get("away_player") or "")
+def build_fanduel_victoires_normalized_map(
+    event: dict[str, Any],
+    *,
+    home: str = "",
+    away: str = "",
+) -> dict[str, dict[str, Any]]:
+    # Toujours aligner sur le roster ancre (souvent abrege FR), pas les noms FD bruts.
+    home = home or str(event.get("home_player") or "")
+    away = away or str(event.get("away_player") or "")
     variant_map: dict[str, dict[str, Any]] = {}
 
     for market in event.get("markets") or []:
@@ -127,7 +145,10 @@ def build_fanduel_victoires_normalized_map(event: dict[str, Any]) -> dict[str, d
             continue
         compare_key = map_fanduel_market_to_compare_key(market)
         if compare_key != VICTOIRE_COMPARE_KEY:
-            continue
+            # Filet de securite si le libelle FD varie legerement.
+            lower = label.lower().replace("-", " ").strip()
+            if lower.replace(" ", "") not in {"moneyline", "matchbetting"}:
+                continue
         outcomes: dict[str, dict[str, Any]] = {}
         for runner in market.get("runners") or []:
             if runner.get("runnerStatus") not in (None, "ACTIVE"):
@@ -137,7 +158,7 @@ def build_fanduel_victoires_normalized_map(event: dict[str, Any]) -> dict[str, d
                 continue
             runner_name = str(runner.get("runnerName") or "").strip()
             aligned = _align_h2h_outcome(runner_name, home, away)
-            if not aligned:
+            if not aligned or aligned not in {home, away}:
                 continue
             outcomes[aligned] = price_bundle
         if len(outcomes) >= 2:
@@ -275,7 +296,11 @@ def attach_victoires_to_anchor_result(
     away: str,
 ) -> dict[str, Any]:
     fr_map = build_best_fr_victoires_map(book_events, home=home, away=away) if book_events else {}
-    fd_map = build_fanduel_victoires_normalized_map(fanduel_event) if fanduel_event else {}
+    fd_map = (
+        build_fanduel_victoires_normalized_map(fanduel_event, home=home, away=away)
+        if fanduel_event
+        else {}
+    )
     comparable = compare_normalized_victoires(fr_map, fd_map)
     fr_only = collect_fr_only_victoires(fr_map, fd_map)
     fd_only = collect_fd_only_victoires(fr_map, fd_map)

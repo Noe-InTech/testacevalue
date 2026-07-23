@@ -584,7 +584,9 @@ def normalize_betclic_market(
     lower = strip_accents(raw_label)
     markets: list[NormalizedMarket] = []
 
-    if lower == "vainqueur du match":
+    if lower == "vainqueur du match" or lower == "vainqueur" or (
+        lower.startswith("vainqueur") and "set" not in lower and "jeux" not in lower
+    ):
         outcome_map = {}
         for raw, odds in outcomes:
             if odds is None:

@@ -1325,6 +1325,12 @@ def _compare_anchor_live(
     if not selected:
         selected = ALL_TENNIS_MARKETS
 
+    need_aces = "aces" in selected
+    need_breaks = "breaks" in selected
+    need_victoires = "victoires" in selected
+    # Victoires seules: pas de gRPC aces Betclic ni multi-tabs FanDuel.
+    victoires_fast = need_victoires and not need_aces and not need_breaks
+
     home = anchor["home_player"]
     away = anchor["away_player"]
     match_key = f"{home} vs {away}"
@@ -1341,16 +1347,50 @@ def _compare_anchor_live(
     fr_map: dict[str, dict[str, Any]] = {}
     fanduel_event: dict[str, Any] | None = None
 
-    def flush_aces(step: str) -> None:
+    def _empty_aces_shell() -> dict[str, Any]:
+        return {
+            **match_meta,
+            "match": match_key,
+            "comparables": [],
+            "comparable_ace_count": 0,
+            "fr_only_aces": [],
+            "fr_only_ace_count": 0,
+            "fd_only_aces": [],
+            "fd_only_ace_count": 0,
+            "fr_ace_market_count": 0,
+            "fd_ace_market_count": 0,
+            "fanduel_event_id": (fanduel_event or {}).get("event_id") if fanduel_event else None,
+        }
+
+    def flush_partial(step: str) -> None:
         if on_partial is None:
             return
-        partial = compare_match_to_fanduel(
-            match_meta,
-            fanduel_event,
-            book_events,
-            fr_map=fr_map,
-        )
-        partial["match"] = match_key
+        if need_aces:
+            partial = compare_match_to_fanduel(
+                match_meta,
+                fanduel_event,
+                book_events,
+                fr_map=fr_map,
+            )
+            partial["match"] = match_key
+        else:
+            partial = _empty_aces_shell()
+        if need_breaks:
+            partial = attach_breaks_to_anchor_result(
+                partial,
+                fanduel_event=fanduel_event,
+                book_events=book_events,
+                home=home,
+                away=away,
+            )
+        if need_victoires:
+            partial = attach_victoires_to_anchor_result(
+                partial,
+                fanduel_event=fanduel_event,
+                book_events=book_events,
+                home=home,
+                away=away,
+            )
         on_partial(partial, step)
 
     unibet_event = find_event_by_players(home, away, unibet_meta, home_key="home", away_key="away")
@@ -1362,24 +1402,27 @@ def _compare_anchor_live(
         )
         if payload:
             book_events["unibet"] = payload
-            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-            flush_aces("unibet")
+            if need_aces:
+                fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            flush_partial("unibet")
 
     betclic_link = find_betclic_link_for_players(betclic_links, home, away)
     betclic_payload: dict[str, Any] | None = None
     if betclic_link:
+        betclic_grpc: tuple[str, ...] = () if victoires_fast else BETCLIC_ACES_GRPC
         betclic_payload = _run_with_timeout(
             lambda: betclic.build_event_payload(
                 betclic_link.url,
-                grpc_categories=BETCLIC_ACES_GRPC,
+                grpc_categories=betclic_grpc,
             ),
             timeout=BOOK_STEP_TIMEOUT,
             label=f"Betclic {match_key}",
         )
         if betclic_payload:
             book_events["betclic"] = betclic_payload
-            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-            flush_aces("betclic")
+            if need_aces:
+                fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            flush_partial("betclic")
 
     winamax_link = find_winamax_link_for_players(winamax_links, home, away)
     if winamax_link:
@@ -1390,48 +1433,72 @@ def _compare_anchor_live(
         )
         if payloads:
             book_events["winamax"] = payloads[0]
-            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-            flush_aces("winamax")
+            if need_aces:
+                fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+            flush_partial("winamax")
 
-    fanduel_event = _run_with_timeout(
-        lambda: fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list),
-        timeout=BOOK_STEP_TIMEOUT,
-        label=f"FanDuel {match_key}",
-    )
-    fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
-    if not fr_map and book_events:
-        fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-    if fanduel_event:
-        flush_aces("fanduel")
-
-    fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away) if book_events else {}
-    fd_break_map = build_fanduel_breaks_normalized_map(fanduel_event) if fanduel_event else {}
-
-    if betclic_link and _needs_full_betclic_payload(
-        betclic_payload=betclic_payload,
-        fr_map=fr_map,
-        fd_map=fd_map,
-        fr_break_map=fr_break_map,
-        fd_break_map=fd_break_map,
-    ):
-        full_payload = _run_with_timeout(
-            lambda: betclic.build_event_payload(
-                betclic_link.url,
-                grpc_categories=None,
+    if victoires_fast:
+        fanduel_event = _run_with_timeout(
+            lambda: fetch_fanduel_event_payload(
+                fanduel,
+                home,
+                away,
+                fanduel_event_list,
+                tabs=("popular",),
+                expand_if_no_aces=False,
             ),
             timeout=BOOK_STEP_TIMEOUT,
-            label=f"Betclic-full {match_key}",
+            label=f"FanDuel {match_key}",
         )
-        if full_payload:
-            book_events["betclic"] = full_payload
-            fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
-            fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away)
-            flush_aces("betclic-full")
+    else:
+        fanduel_event = _run_with_timeout(
+            lambda: fetch_fanduel_event_payload(fanduel, home, away, fanduel_event_list),
+            timeout=BOOK_STEP_TIMEOUT,
+            label=f"FanDuel {match_key}",
+        )
+    fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event and need_aces else {}
+    if need_aces and not fr_map and book_events:
+        fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+    if fanduel_event:
+        flush_partial("fanduel")
 
-    compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
-    compared["match"] = match_key
+    if need_aces or need_breaks:
+        fr_break_map = (
+            build_best_fr_breaks_map(book_events, home=home, away=away) if book_events else {}
+        )
+        fd_break_map = (
+            build_fanduel_breaks_normalized_map(fanduel_event) if fanduel_event else {}
+        )
 
-    if "breaks" in selected:
+        if betclic_link and _needs_full_betclic_payload(
+            betclic_payload=betclic_payload,
+            fr_map=fr_map,
+            fd_map=fd_map,
+            fr_break_map=fr_break_map,
+            fd_break_map=fd_break_map,
+        ):
+            full_payload = _run_with_timeout(
+                lambda: betclic.build_event_payload(
+                    betclic_link.url,
+                    grpc_categories=None,
+                ),
+                timeout=BOOK_STEP_TIMEOUT,
+                label=f"Betclic-full {match_key}",
+            )
+            if full_payload:
+                book_events["betclic"] = full_payload
+                if need_aces:
+                    fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
+                fr_break_map = build_best_fr_breaks_map(book_events, home=home, away=away)
+                flush_partial("betclic-full")
+
+    if need_aces:
+        compared = compare_match_to_fanduel(match_meta, fanduel_event, book_events, fr_map=fr_map)
+        compared["match"] = match_key
+    else:
+        compared = _empty_aces_shell()
+
+    if need_breaks:
         compared = attach_breaks_to_anchor_result(
             compared,
             fanduel_event=fanduel_event,
@@ -1439,7 +1506,7 @@ def _compare_anchor_live(
             home=home,
             away=away,
         )
-    if "victoires" in selected:
+    if need_victoires:
         compared = attach_victoires_to_anchor_result(
             compared,
             fanduel_event=fanduel_event,
@@ -1758,15 +1825,22 @@ def fetch_fanduel_event_payload(
     home: str,
     away: str,
     fanduel_event_list: list[Any],
+    *,
+    tabs: tuple[str, ...] | None = None,
+    expand_if_no_aces: bool = True,
 ) -> dict[str, Any] | None:
     fanduel_meta = find_fanduel_event(home, away, fanduel_event_list)
     if not fanduel_meta:
         return None
+    use_tabs = tabs if tabs is not None else FANDUEL_PROPS_TABS
     try:
-        payload = fanduel.build_event_payload(fanduel_meta, tabs=FANDUEL_PROPS_TABS)
+        payload = fanduel.build_event_payload(fanduel_meta, tabs=use_tabs)
     except Exception as exc:
         log.warning("FanDuel ignore %s vs %s: %s", home, away, exc)
         return None
+
+    if not expand_if_no_aces:
+        return payload
 
     ace_count = sum(
         1
