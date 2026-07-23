@@ -230,6 +230,12 @@ td.side {
   color: var(--accent);
 }
 
+.market-tabs .sections-toggle,
+.sport-tabs .sections-toggle {
+  margin-left: auto;
+  align-self: center;
+}
+
 .collapsible {
   padding: 0;
   overflow: hidden;
