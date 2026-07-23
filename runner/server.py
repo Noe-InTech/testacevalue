@@ -70,9 +70,6 @@ SPORTS: dict[str, SportConfig] = {
 STUCK_RUN_SECONDS = 20 * 60
 
 
-from atomic_json import write_json_atomic
-
-
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
