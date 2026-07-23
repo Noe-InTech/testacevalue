@@ -70,7 +70,14 @@ def utc_now() -> str:
 def read_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
     if not path.is_file():
         return fallback
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw = path.read_text(encoding="utf-8").strip()
+        if not raw:
+            return fallback
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else fallback
+    except (json.JSONDecodeError, OSError):
+        return fallback
 
 
 def write_status(
