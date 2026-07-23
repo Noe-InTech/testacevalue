@@ -19,6 +19,20 @@ import {
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
 
+const SECTION_IDS = ["progress", "comparables", "frHigher", "values", "frOnly", "fdOnly"] as const;
+type SectionId = (typeof SECTION_IDS)[number];
+
+function defaultOpenSections(): Record<SectionId, boolean> {
+  return {
+    progress: false,
+    comparables: true,
+    frHigher: true,
+    values: true,
+    frOnly: false,
+    fdOnly: false,
+  };
+}
+
 function formatTimestamp(value?: string): string {
   if (!value) {
     return "—";
@@ -49,6 +63,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [progressSearch, setProgressSearch] = useState("");
   const [frOnlySearch, setFrOnlySearch] = useState("");
   const [fdOnlySearch, setFdOnlySearch] = useState("");
+  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(defaultOpenSections);
   const [rawPayload, setRawPayload] = useState<ApiPayload | null>(null);
   const [status, setStatus] = useState<RunStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -362,6 +377,34 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     return "";
   }, [payload, marketTab]);
 
+  const setSectionOpen = (id: SectionId, open: boolean) => {
+    setOpenSections((current) => ({ ...current, [id]: open }));
+  };
+
+  const collapseAllSections = () => {
+    setOpenSections({
+      progress: false,
+      comparables: false,
+      frHigher: false,
+      values: false,
+      frOnly: false,
+      fdOnly: false,
+    });
+  };
+
+  const expandAllSections = () => {
+    setOpenSections({
+      progress: true,
+      comparables: true,
+      frHigher: true,
+      values: true,
+      frOnly: true,
+      fdOnly: true,
+    });
+  };
+
+  const allCollapsed = SECTION_IDS.every((id) => !openSections[id]);
+
   const content = (
     <>
       <header className="hero">
@@ -426,6 +469,13 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         >
           Breaks
           {combined ? ` (${breaksPayload?.comparable_count ?? 0})` : ""}
+        </button>
+        <button
+          type="button"
+          className="ghost-btn sections-toggle"
+          onClick={allCollapsed ? expandAllSections : collapseAllSections}
+        >
+          {allCollapsed ? "Tout deplier" : "Tout replier"}
         </button>
       </div>
 
@@ -501,7 +551,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         <CollapsibleSection
           title="Avancement par match"
           badge={filteredProgress.length}
-          defaultOpen={false}
+          open={openSections.progress}
+          onOpenChange={(open) => setSectionOpen("progress", open)}
           search={{
             value: progressSearch,
             onChange: setProgressSearch,
@@ -543,19 +594,28 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         </CollapsibleSection>
       ) : null}
 
-      <ResultsTable
+      <CollapsibleSection
         title={`Toutes les lignes ${marketTab} comparees`}
-        rows={payload?.comparables ?? []}
-        marketKind={marketTab}
-        showCaptureDetails
-        runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
-        emptyMessage="Aucun resultat pour le moment. Lance une comparaison."
-      />
+        badge={payload?.comparables?.length ?? 0}
+        open={openSections.comparables}
+        onOpenChange={(open) => setSectionOpen("comparables", open)}
+      >
+        <ResultsTable
+          title=""
+          rows={payload?.comparables ?? []}
+          marketKind={marketTab}
+          embedded
+          showCaptureDetails
+          runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
+          emptyMessage="Aucun resultat pour le moment. Lance une comparaison."
+        />
+      </CollapsibleSection>
 
       <CollapsibleSection
         title="Lignes ou le book FR paie mieux que FanDuel"
         badge={frHigherRows.length}
-        defaultOpen
+        open={openSections.frHigher}
+        onOpenChange={(open) => setSectionOpen("frHigher", open)}
       >
         <ResultsTable
           title=""
@@ -571,7 +631,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       <CollapsibleSection
         title="Values MPTO — book FR vs FanDuel"
         badge={valueRows.length}
-        defaultOpen
+        open={openSections.values}
+        onOpenChange={(open) => setSectionOpen("values", open)}
       >
         <ValuesTable
           title=""
@@ -586,7 +647,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       <CollapsibleSection
         title={`Lignes ${marketTab} FR sans equivalent FanDuel (meme seuil)`}
         badge={frOnlyRows.length}
-        defaultOpen={false}
+        open={openSections.frOnly}
+        onOpenChange={(open) => setSectionOpen("frOnly", open)}
         search={{
           value: frOnlySearch,
           onChange: setFrOnlySearch,
@@ -608,7 +670,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       <CollapsibleSection
         title={`Lignes ${marketTab} FanDuel sans equivalent FR (meme seuil)`}
         badge={fdOnlyRows.length}
-        defaultOpen={false}
+        open={openSections.fdOnly}
+        onOpenChange={(open) => setSectionOpen("fdOnly", open)}
         search={{
           value: fdOnlySearch,
           onChange: setFdOnlySearch,
