@@ -74,6 +74,9 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   });
   const [marketTab, setMarketTab] = useState<TennisMarketKind>("aces");
   const [progressSearch, setProgressSearch] = useState("");
+  const [comparablesSearch, setComparablesSearch] = useState("");
+  const [frHigherSearch, setFrHigherSearch] = useState("");
+  const [valuesSearch, setValuesSearch] = useState("");
   const [frOnlySearch, setFrOnlySearch] = useState("");
   const [fdOnlySearch, setFdOnlySearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(defaultOpenSections);
@@ -740,11 +743,17 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         badge={payload?.comparables?.length ?? 0}
         open={openSections.comparables}
         onOpenChange={(open) => setSectionOpen("comparables", open)}
+        search={{
+          value: comparablesSearch,
+          onChange: setComparablesSearch,
+          placeholder: "Match, book, ligne...",
+        }}
       >
         <ResultsTable
           title=""
           rows={payload?.comparables ?? []}
           marketKind={marketTab}
+          searchQuery={comparablesSearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
@@ -757,11 +766,17 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         badge={frHigherRows.length}
         open={openSections.frHigher}
         onOpenChange={(open) => setSectionOpen("frHigher", open)}
+        search={{
+          value: frHigherSearch,
+          onChange: setFrHigherSearch,
+          placeholder: "Match, book, ligne...",
+        }}
       >
         <ResultsTable
           title=""
           rows={frHigherRows}
           marketKind={marketTab}
+          searchQuery={frHigherSearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
@@ -774,10 +789,16 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         badge={valueRows.length}
         open={openSections.values}
         onOpenChange={(open) => setSectionOpen("values", open)}
+        search={{
+          value: valuesSearch,
+          onChange: setValuesSearch,
+          placeholder: "Match, pari, book...",
+        }}
       >
         <ValuesTable
           title=""
           rows={valueRows}
+          searchQuery={valuesSearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
