@@ -594,6 +594,35 @@ td.side {
   }
 }
 
+.runner-vault {
+  margin-top: 28px;
+  display: flex;
+  justify-content: center;
+}
+
+.runner-vault-trigger {
+  border: 0;
+  background: transparent;
+  color: rgba(159, 176, 208, 0.35);
+  letter-spacing: 0.2em;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.runner-vault-trigger:hover {
+  color: var(--muted);
+}
+
+.runner-vault .runner-link {
+  width: min(1100px, 100%);
+}
+
+.runner-vault-unlock {
+  display: grid;
+  gap: 10px;
+}
+
 .runner-link {
   display: grid;
   gap: 10px;

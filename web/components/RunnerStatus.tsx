@@ -4,40 +4,68 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { RunnerHealth } from "@/lib/runner";
 
-const POLL_MS = 15_000;
+const SECRET_STORAGE_KEY = "aces_trigger_secret";
 
 export function RunnerStatus() {
+  const [open, setOpen] = useState(false);
+  const [secret, setSecret] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
   const [health, setHealth] = useState<RunnerHealth | null>(null);
+  const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  const refresh = useCallback(async () => {
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SECRET_STORAGE_KEY);
+    if (saved) {
+      setSecret(saved);
+    }
+  }, []);
+
+  const refresh = useCallback(async (pin: string) => {
+    const trimmed = pin.trim();
+    if (!trimmed) {
+      setError("Saisis ton code secret.");
+      setUnlocked(false);
+      setHealth(null);
+      return;
+    }
     setChecking(true);
+    setError("");
     try {
-      const response = await fetch("/api/runner-health", { cache: "no-store" });
-      const data = (await response.json()) as RunnerHealth;
-      setHealth(data);
-    } catch (error) {
-      setHealth({
-        ok: false,
-        running: false,
-        sport: "",
-        reachable: false,
-        configured: true,
-        error: error instanceof Error ? error.message : "échec health check",
+      const response = await fetch("/api/runner-health", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: trimmed }),
+        cache: "no-store",
       });
+      const data = await response.json();
+      if (response.status === 401) {
+        setUnlocked(false);
+        setHealth(null);
+        setError(data.error || "Code secret incorrect.");
+        return;
+      }
+      if (!response.ok && !data?.configured) {
+        setUnlocked(false);
+        setHealth(null);
+        setError(data.error || `HTTP ${response.status}`);
+        return;
+      }
+      window.localStorage.setItem(SECRET_STORAGE_KEY, trimmed);
+      setUnlocked(true);
+      setHealth(data as RunnerHealth);
+      if (data.error && !data.public_url && !data.configured_url) {
+        setError(String(data.error));
+      }
+    } catch (exc) {
+      setUnlocked(false);
+      setHealth(null);
+      setError(exc instanceof Error ? exc.message : "échec health check");
     } finally {
       setChecking(false);
     }
   }, []);
-
-  useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
 
   const url = useMemo(() => {
     const live = health?.public_url?.trim().replace(/\/$/, "") || "";
@@ -56,60 +84,109 @@ export function RunnerStatus() {
     }
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      // Fallback for older browsers / insecure context
       const input = document.createElement("input");
       input.value = url;
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
     }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  const onUnlock = () => {
+    void refresh(secret);
+  };
+
+  const onClose = () => {
+    setOpen(false);
+    setUnlocked(false);
+    setHealth(null);
+    setError("");
+    setCopied(false);
   };
 
   return (
-    <section className="runner-link panel">
-      <div className="runner-link-header">
-        <strong>Lien runner (Cloudflare)</strong>
-        <button type="button" className="runner-link-refresh" onClick={() => void refresh()} disabled={checking}>
-          {checking ? "…" : "Rafraîchir"}
+    <div className="runner-vault">
+      {!open ? (
+        <button type="button" className="runner-vault-trigger" onClick={() => setOpen(true)} title="Outils">
+          ···
         </button>
-      </div>
+      ) : (
+        <section className="runner-link panel">
+          <div className="runner-link-header">
+            <strong>Lien runner</strong>
+            <button type="button" className="runner-link-refresh" onClick={onClose}>
+              Fermer
+            </button>
+          </div>
 
-      {!health?.configured ? (
-        <p className="runner-status-note">
-          Configure <code>RUNNER_URL</code> sur Vercel pour afficher le lien ici.
-        </p>
-      ) : null}
+          {!unlocked ? (
+            <div className="runner-vault-unlock">
+              <label>
+                Code secret
+                <input
+                  type="password"
+                  value={secret}
+                  onChange={(event) => setSecret(event.target.value)}
+                  placeholder="Même PIN que pour lancer"
+                  autoComplete="current-password"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      onUnlock();
+                    }
+                  }}
+                />
+              </label>
+              <button type="button" className="runner-link-copy" onClick={onUnlock} disabled={checking}>
+                {checking ? "Vérification…" : "Afficher le lien"}
+              </button>
+            </div>
+          ) : null}
 
-      {health?.configured && !url ? (
-        <p className="runner-status-note danger-text">
-          Lien introuvable pour l’instant
-          {health.error ? ` (${health.error})` : ""}. Redémarre le tunnel sur la VM ou réessaie.
-        </p>
-      ) : null}
+          {error ? <p className="runner-status-note danger-text">{error}</p> : null}
 
-      {url ? (
-        <div className="runner-link-row">
-          <code className="runner-link-url" title={url}>
-            {url}
-          </code>
-          <button type="button" className="runner-link-copy" onClick={() => void onCopy()}>
-            {copied ? "Copié" : "Copier"}
-          </button>
-        </div>
-      ) : null}
+          {unlocked ? (
+            <>
+              <div className="runner-link-header">
+                <span className="runner-status-note">Visible uniquement avec le code secret.</span>
+                <button
+                  type="button"
+                  className="runner-link-refresh"
+                  onClick={() => void refresh(secret)}
+                  disabled={checking}
+                >
+                  {checking ? "…" : "Rafraîchir"}
+                </button>
+              </div>
 
-      {mismatch ? (
-        <p className="runner-status-note">
-          Le tunnel live diffère de <code>RUNNER_URL</code> sur Vercel — mets à jour la variable puis
-          redeploy.
-        </p>
-      ) : null}
-    </section>
+              {!url ? (
+                <p className="runner-status-note danger-text">
+                  Lien introuvable pour l’instant. Redémarre le tunnel sur la VM ou réessaie.
+                </p>
+              ) : (
+                <div className="runner-link-row">
+                  <code className="runner-link-url" title={url}>
+                    {url}
+                  </code>
+                  <button type="button" className="runner-link-copy" onClick={() => void onCopy()}>
+                    {copied ? "Copié" : "Copier"}
+                  </button>
+                </div>
+              )}
+
+              {mismatch ? (
+                <p className="runner-status-note">
+                  Le tunnel live diffère de <code>RUNNER_URL</code> sur Vercel — mets à jour la
+                  variable puis redeploy.
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </section>
+      )}
+    </div>
   );
 }
