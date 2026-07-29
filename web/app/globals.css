@@ -600,6 +600,15 @@ td.side {
   justify-content: center;
 }
 
+.runner-vault-standalone {
+  margin-top: 0;
+  justify-content: stretch;
+}
+
+.runnerlink-page .hero {
+  margin-bottom: 16px;
+}
+
 .runner-vault-trigger {
   border: 0;
   background: transparent;
