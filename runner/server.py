@@ -71,7 +71,7 @@ SPORTS: dict[str, SportConfig] = {
         result_json=DATA_DIR / "latest_baseball.json",
         status_json=DATA_DIR / "run_status_baseball.json",
         combined=False,
-        timeout=900,
+        timeout=1800,
     ),
 }
 

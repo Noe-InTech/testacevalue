@@ -349,11 +349,14 @@ class FanDuelClient:
     ) -> list[dict[str, Any]]:
         merged: dict[str, dict[str, Any]] = {}
         for tab in tabs or EVENT_TABS:
-            payload = self._get(
-                "/api/event-page",
-                {"eventId": event_id, "tab": tab},
-                timeout=timeout,
-            )
+            try:
+                payload = self._get(
+                    "/api/event-page",
+                    {"eventId": event_id, "tab": tab},
+                    timeout=timeout,
+                )
+            except Exception:
+                continue
             markets = (payload.get("attachments") or {}).get("markets") or {}
             for market_id, market in markets.items():
                 if market_id not in merged:

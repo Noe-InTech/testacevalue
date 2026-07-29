@@ -19,12 +19,12 @@ FANDUEL_BASEBALL_COMPETITION_IDS = (
 
 FANDUEL_BASEBALL_EVENT_TABS = (
     "popular",
-    "all-markets",
     "player-props",
-    "game-lines",
-    "pitcher-props",
     "batter-props",
-    "same-game-parlay-",
+    "pitcher-props",
+    "game-lines",
+    "all-markets",
+    # same-game-parlay intentionally omitted: not comparable + slows scrape
 )
 
 # Winamax Socket.IO

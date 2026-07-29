@@ -9,7 +9,14 @@ import argparse
 import json
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+from concurrent.futures import (
+    FIRST_COMPLETED,
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeout,
+    as_completed,
+    wait,
+)
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -42,10 +49,55 @@ log = logging.getLogger("compare_baseball")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 WINAMAX_FETCH_TIMEOUT = 10
+# Un match / book bloqué ne doit pas geler tout le run.
+BOOK_STEP_TIMEOUT = 22.0
+FD_STEP_TIMEOUT = 55.0
+ANCHOR_TIMEOUT = 95.0
+ANCHOR_MAX_WORKERS = 2
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _run_with_timeout(
+    callback: Callable[[], Any],
+    *,
+    timeout: float,
+    label: str,
+) -> Any | None:
+    """Execute un scrape avec timeout — None si dépassé (on passe à la suite)."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        future = pool.submit(callback)
+        try:
+            return future.result(timeout=timeout)
+        except FuturesTimeout:
+            log.warning("%s: timeout apres %.0fs — on passe", label, timeout)
+            return None
+        except Exception as exc:
+            log.warning("%s: %s — on passe", label, exc)
+            return None
+    finally:
+        pool.shutdown(wait=False)
+
+
+def _skipped_anchor_result(match: str, *, reason: str) -> dict[str, Any]:
+    return {
+        "match": match,
+        "sources": [],
+        "fanduel_event_id": None,
+        "comparable_count": 0,
+        "fr_only_count": 0,
+        "fd_only_count": 0,
+        "fr_prop_market_count": 0,
+        "fd_prop_market_count": 0,
+        "comparables": [],
+        "fr_only": [],
+        "fd_only": [],
+        "skipped": True,
+        "skip_reason": reason,
+    }
 
 
 def _safe_call(label: str, callback: Callable[[], Any], fallback: Any) -> Any:
@@ -829,10 +881,10 @@ def compare_anchor(
         priority_jobs.append(
             (
                 "fanduel",
-                lambda event=fanduel_event: _safe_call(
-                    "FanDuel",
+                lambda event=fanduel_event: _run_with_timeout(
                     lambda: fanduel.build_event_payload(event),
-                    None,
+                    timeout=FD_STEP_TIMEOUT,
+                    label=f"FanDuel {anchor['match']}",
                 ),
             )
         )
@@ -840,10 +892,10 @@ def compare_anchor(
         priority_jobs.append(
             (
                 "unibet",
-                lambda event=unibet_event: _safe_call(
-                    "Unibet",
+                lambda event=unibet_event: _run_with_timeout(
                     lambda: unibet.build_event_payload(event),
-                    None,
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Unibet {anchor['match']}",
                 ),
             )
         )
@@ -851,10 +903,10 @@ def compare_anchor(
         priority_jobs.append(
             (
                 "betclic",
-                lambda link=betclic_link: _safe_call(
-                    "Betclic",
+                lambda link=betclic_link: _run_with_timeout(
                     lambda: betclic.build_event_payload(link),
-                    None,
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Betclic {anchor['match']}",
                 ),
             )
         )
@@ -862,10 +914,10 @@ def compare_anchor(
         priority_jobs.append(
             (
                 "winamax",
-                lambda link=winamax_link: _safe_call(
-                    "Winamax",
+                lambda link=winamax_link: _run_with_timeout(
                     lambda: winamax.build_event_payload(link),
-                    None,
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Winamax {anchor['match']}",
                 ),
             )
         )
@@ -876,7 +928,7 @@ def compare_anchor(
             for future in as_completed(futures):
                 book = futures[future]
                 try:
-                    payload = future.result()
+                    payload = future.result(timeout=FD_STEP_TIMEOUT + 5)
                 except Exception as exc:
                     log.warning("%s ignore %s: %s", book, anchor["match"], exc)
                     continue
@@ -954,7 +1006,6 @@ def run_live_compare(
     betclic = BetclicBaseballClient()
     winamax = WinamaxBaseballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBaseballClient()
-    results: list[dict[str, Any]] = []
 
     write_run_status_file(status_json, "running", "Chargement des matchs baseball...", match_filter=match_filter)
     write_progress_json(progress_json, [], partial=True)
@@ -989,48 +1040,126 @@ def run_live_compare(
     )
     write_progress_json(progress_json, [], partial=True, anchors_total=anchors_total)
 
-    for index, anchor in enumerate(anchors, start=1):
-        def on_anchor_partial(partial: dict[str, Any], step: str, index=index, anchor=anchor) -> None:
-            snapshot = results + [partial]
+    results: list[dict[str, Any]] = []
+    progress_lock = threading.Lock()
+    partial_by_match: dict[str, dict[str, Any]] = {}
+    done_count = 0
+
+    def notify(message: str) -> None:
+        with progress_lock:
+            snapshot = list(results)
+            for partial in partial_by_match.values():
+                if all(item.get("match") != partial.get("match") for item in snapshot):
+                    snapshot.append(partial)
             write_progress_json(progress_json, snapshot, partial=True, anchors_total=anchors_total)
             write_run_status_file(
                 status_json,
                 "running",
-                (
-                    f"{index}/{anchors_total} — {anchor['match']} ({step}) — "
-                    f"{partial['comparable_count']} comparee(s), "
-                    f"{partial['fr_only_count']} FR seul"
-                ),
+                message,
                 match_filter=match_filter,
                 results=snapshot,
                 anchors_total=anchors_total,
             )
 
-        compared = compare_anchor(
-            anchor,
-            unibet_events=unibet_events,
-            betclic_links=betclic_links,
-            winamax_links=winamax_links,
-            fanduel_events=fanduel_events,
-            unibet=unibet,
-            betclic=betclic,
-            winamax=winamax,
-            fanduel=fanduel,
-            on_partial=on_anchor_partial,
-        )
-        results.append(compared)
-        write_progress_json(progress_json, results, partial=True, anchors_total=anchors_total)
-        write_run_status_file(
-            status_json,
-            "running",
-            (
-                f"{index}/{anchors_total} — {anchor['match']} — "
-                f"{compared['comparable_count']} comparee(s)"
-            ),
-            match_filter=match_filter,
-            results=results,
-            anchors_total=anchors_total,
-        )
+    def make_on_partial(match_key: str, index: int) -> Callable[[dict[str, Any], str], None]:
+        def _on_partial(partial: dict[str, Any], step: str) -> None:
+            with progress_lock:
+                partial_by_match[match_key] = partial
+            notify(
+                f"{index}/{anchors_total} — {match_key} ({step}) — "
+                f"{partial.get('comparable_count', 0)} comparee(s), "
+                f"{partial.get('fr_only_count', 0)} FR seul"
+            )
+
+        return _on_partial
+
+    with ThreadPoolExecutor(max_workers=min(ANCHOR_MAX_WORKERS, max(1, len(anchors)))) as pool:
+        queue = list(enumerate(anchors, start=1))
+        futures: dict[Any, tuple[int, dict[str, Any]]] = {}
+        started_at: dict[Any, float] = {}
+
+        def submit_one(index: int, anchor: dict[str, Any]) -> None:
+            match_key = anchor["match"]
+            future = pool.submit(
+                compare_anchor,
+                anchor,
+                unibet_events=unibet_events,
+                betclic_links=betclic_links,
+                winamax_links=winamax_links,
+                fanduel_events=fanduel_events,
+                unibet=unibet,
+                betclic=betclic,
+                winamax=winamax,
+                fanduel=fanduel,
+                on_partial=make_on_partial(match_key, index),
+            )
+            futures[future] = (index, anchor)
+            started_at[future] = time.monotonic()
+
+        while queue and len(futures) < ANCHOR_MAX_WORKERS:
+            index, anchor = queue.pop(0)
+            submit_one(index, anchor)
+
+        while futures or queue:
+            if not futures:
+                while queue and len(futures) < ANCHOR_MAX_WORKERS:
+                    index, anchor = queue.pop(0)
+                    submit_one(index, anchor)
+                continue
+
+            done, _still = wait(set(futures), timeout=1.0, return_when=FIRST_COMPLETED)
+            now = time.monotonic()
+
+            timed_out = [
+                future
+                for future in list(futures)
+                if future not in done and now - started_at[future] >= ANCHOR_TIMEOUT
+            ]
+            for future in timed_out:
+                index, anchor = futures.pop(future)
+                started_at.pop(future, None)
+                match_key = anchor["match"]
+                log.warning(
+                    "Match timeout %s apres %.0fs — on passe au suivant",
+                    match_key,
+                    ANCHOR_TIMEOUT,
+                )
+                with progress_lock:
+                    partial_by_match.pop(match_key, None)
+                    results.append(
+                        _skipped_anchor_result(
+                            match_key,
+                            reason=f"timeout apres {ANCHOR_TIMEOUT:.0f}s",
+                        )
+                    )
+                    done_count = len(results)
+                notify(f"{done_count}/{anchors_total} — {match_key} — timeout, passe au suivant")
+                if queue:
+                    next_index, next_anchor = queue.pop(0)
+                    submit_one(next_index, next_anchor)
+
+            for future in done:
+                index, anchor = futures.pop(future, (0, {}))
+                started_at.pop(future, None)
+                if not anchor:
+                    continue
+                match_key = anchor["match"]
+                try:
+                    compared = future.result()
+                except Exception as exc:
+                    log.warning("Match %s erreur: %s", match_key, exc)
+                    compared = _skipped_anchor_result(match_key, reason=str(exc))
+                with progress_lock:
+                    partial_by_match.pop(match_key, None)
+                    results.append(compared)
+                    done_count = len(results)
+                notify(
+                    f"{done_count}/{anchors_total} — {match_key} — "
+                    f"{compared.get('comparable_count', 0)} comparee(s)"
+                )
+                if queue:
+                    next_index, next_anchor = queue.pop(0)
+                    submit_one(next_index, next_anchor)
 
     payload = build_results_payload(
         results,

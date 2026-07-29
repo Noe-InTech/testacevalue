@@ -143,7 +143,11 @@ class FanDuelBaseballClient(FanDuelClient):
         return sorted(merged.values(), key=lambda item: (item.open_date, item.name))
 
     def build_event_payload(self, event: FanDuelBaseballEvent) -> dict[str, Any]:
-        markets = self.get_event_markets(event.event_id, tabs=FANDUEL_BASEBALL_EVENT_TABS)
+        markets = self.get_event_markets(
+            event.event_id,
+            tabs=FANDUEL_BASEBALL_EVENT_TABS,
+            timeout=10.0,
+        )
         return {
             "event_id": event.event_id,
             "event": event.name,
