@@ -38,6 +38,20 @@ function emptyMarketPayload(source: string): MarketPayload {
 
 const idleWnbaPayload: MarketPayload = emptyMarketPayload("wnba_player_props_comparable");
 const idleNbaPayload: MarketPayload = emptyMarketPayload("nba_player_props_comparable");
+const idleBaseballPayload: MarketPayload = emptyMarketPayload("baseball_markets_comparable");
+
+function idlePayloadForSport(sport: SportKey): ApiPayload {
+  if (sport === "wnba") {
+    return idleWnbaPayload;
+  }
+  if (sport === "nba") {
+    return idleNbaPayload;
+  }
+  if (sport === "baseball") {
+    return idleBaseballPayload;
+  }
+  return idlePayload;
+}
 
 const idlePayload: ApiPayload = {
   source: "tennis_props_comparable",
@@ -78,7 +92,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      payload: sport === "wnba" ? idleWnbaPayload : sport === "nba" ? idleNbaPayload : idlePayload,
+      payload: idlePayloadForSport(sport),
       status: runnerUnreachableStatus,
       source: "runner-unreachable",
       sport,

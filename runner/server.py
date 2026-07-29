@@ -64,6 +64,14 @@ SPORTS: dict[str, SportConfig] = {
         combined=False,
         timeout=600,
     ),
+    "baseball": SportConfig(
+        key="baseball",
+        script="compare_baseball_vs_fanduel.py",
+        result_json=DATA_DIR / "latest_baseball.json",
+        status_json=DATA_DIR / "run_status_baseball.json",
+        combined=False,
+        timeout=900,
+    ),
 }
 
 
@@ -196,9 +204,14 @@ def ensure_status_files() -> None:
 
 
 def empty_payload(sport: SportConfig) -> dict[str, Any]:
-    if sport.key in {"wnba", "nba"}:
+    if sport.key in {"wnba", "nba", "baseball"}:
+        source = (
+            "baseball_markets_comparable"
+            if sport.key == "baseball"
+            else f"{sport.key}_player_props_comparable"
+        )
         return {
-            "source": f"{sport.key}_player_props_comparable",
+            "source": source,
             "generated_at": "",
             "partial": True,
             "anchors_total": 0,

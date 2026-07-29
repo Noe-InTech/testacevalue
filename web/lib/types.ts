@@ -82,8 +82,8 @@ export interface CombinedPropsPayload {
   victoires?: MarketPayload;
 }
 
-export type SportKey = "tennis" | "wnba" | "nba";
-export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba";
+export type SportKey = "tennis" | "wnba" | "nba" | "baseball";
+export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba" | "baseball";
 export type TennisMarketKind = "aces" | "breaks" | "victoires";
 
 export type AcesPayload = MarketPayload;
@@ -169,7 +169,7 @@ function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
       ? "ligne_breaks_fr"
       : marketKind === "victoires"
         ? "ligne_victoires_fr"
-        : marketKind === "wnba" || marketKind === "nba"
+        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball"
           ? "ligne_props_fr"
           : "ligne_aces_fr";
   const explicit = row[key]?.trim();
@@ -202,15 +202,17 @@ export function getTableColumns(marketKind: MarketKind) {
       ? "Pari breaks"
       : marketKind === "victoires"
         ? "Pari victoire"
-        : marketKind === "wnba" || marketKind === "nba"
-          ? "Prop joueur"
-          : "Pari aces";
+        : marketKind === "baseball"
+          ? "Pari baseball"
+          : marketKind === "wnba" || marketKind === "nba"
+            ? "Prop joueur"
+            : "Pari aces";
   const lineKey =
     marketKind === "breaks"
       ? "ligne_breaks"
       : marketKind === "victoires"
         ? "ligne_victoires"
-        : marketKind === "wnba" || marketKind === "nba"
+        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball"
           ? "ligne_props"
           : "ligne_aces";
 
@@ -231,9 +233,11 @@ export function getTableColumns(marketKind: MarketKind) {
       hint:
         marketKind === "wnba" || marketKind === "nba"
           ? "Meme prop joueur chez FanDuel (libelle anglais)"
-          : marketKind === "victoires"
-            ? "Moneyline FanDuel"
-            : "Meme marche chez FanDuel (libelle anglais)",
+          : marketKind === "baseball"
+            ? "Meme marche baseball chez FanDuel"
+            : marketKind === "victoires"
+              ? "Moneyline FanDuel"
+              : "Meme marche chez FanDuel (libelle anglais)",
     },
     {
       key: "cote_fr" as const,
@@ -272,7 +276,7 @@ export function getTableColumns(marketKind: MarketKind) {
     },
   ];
 
-  if (marketKind === "wnba" || marketKind === "nba") {
+  if (marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball") {
     return coreColumns;
   }
 
