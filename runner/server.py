@@ -417,12 +417,34 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 busy = RUNNING
                 sport = CURRENT_SPORT
+            sports_status: dict[str, dict[str, Any]] = {}
+            for key, cfg in SPORTS.items():
+                status = read_json(
+                    cfg.status_json,
+                    {
+                        "status": "idle",
+                        "message": "Runner pret.",
+                        "sport": key,
+                        "updated_at": "",
+                    },
+                )
+                sports_status[key] = {
+                    "status": status.get("status", "idle"),
+                    "message": status.get("message", ""),
+                    "updated_at": status.get("updated_at", ""),
+                    "match_filter": status.get("match_filter", ""),
+                    "matches_done": status.get("matches_done"),
+                    "anchors_total": status.get("anchors_total"),
+                    "comparable_count": status.get("comparable_count"),
+                }
             self._json_response(
                 200,
                 {
                     "ok": True,
                     "running": busy,
                     "sport": sport or "",
+                    "sports": list(SPORTS.keys()),
+                    "sports_status": sports_status,
                     "fetched_at": utc_now(),
                 },
             )
@@ -432,7 +454,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         sport = self._resolve_sport(self.path)
         if sport is None:
-            self._json_response(400, {"error": "Sport inconnu (tennis, wnba ou nba)."})
+            self._json_response(
+                400,
+                {"error": "Sport inconnu (tennis, wnba, nba ou baseball)."},
+            )
             return
         recover_stuck_run()
         payload = read_json(sport.result_json, empty_payload(sport))
@@ -478,7 +503,10 @@ class Handler(BaseHTTPRequestHandler):
         sport_key = str(body.get("sport", "tennis")).strip().lower()
         sport = SPORTS.get(sport_key)
         if sport is None:
-            self._json_response(400, {"error": "Sport inconnu (tennis, wnba ou nba)."})
+            self._json_response(
+                400,
+                {"error": "Sport inconnu (tennis, wnba, nba ou baseball)."},
+            )
             return
 
         match_filter = str(body.get("match", "")).strip()

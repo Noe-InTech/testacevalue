@@ -110,3 +110,86 @@ export async function fetchRunnerResults(sport = "tennis"): Promise<{
     return null;
   }
 }
+
+export interface RunnerSportStatus {
+  status?: string;
+  message?: string;
+  updated_at?: string;
+  match_filter?: string;
+  matches_done?: number;
+  anchors_total?: number;
+  comparable_count?: number;
+}
+
+export interface RunnerHealth {
+  ok: boolean;
+  running: boolean;
+  sport: string;
+  sports?: string[];
+  sports_status?: Record<string, RunnerSportStatus>;
+  fetched_at?: string;
+  reachable: boolean;
+  configured: boolean;
+  error?: string;
+  runner_host?: string;
+}
+
+export async function fetchRunnerHealth(): Promise<RunnerHealth> {
+  const { baseUrl, secret } = runnerConfig();
+  if (!baseUrl || !secret) {
+    return {
+      ok: false,
+      running: false,
+      sport: "",
+      reachable: false,
+      configured: false,
+      error: "RUNNER_URL / RUNNER_SECRET manquants sur Vercel.",
+    };
+  }
+
+  let runnerHost = "";
+  try {
+    runnerHost = new URL(baseUrl).host;
+  } catch {
+    runnerHost = baseUrl;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/health`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) {
+      return {
+        ok: false,
+        running: false,
+        sport: "",
+        reachable: false,
+        configured: true,
+        runner_host: runnerHost,
+        error: `HTTP ${response.status}`,
+      };
+    }
+    const data = (await response.json()) as Omit<RunnerHealth, "reachable" | "configured">;
+    return {
+      ...data,
+      ok: Boolean(data.ok),
+      running: Boolean(data.running),
+      sport: data.sport || "",
+      reachable: true,
+      configured: true,
+      runner_host: runnerHost,
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "connexion impossible";
+    return {
+      ok: false,
+      running: false,
+      sport: "",
+      reachable: false,
+      configured: true,
+      runner_host: runnerHost,
+      error: detail,
+    };
+  }
+}
