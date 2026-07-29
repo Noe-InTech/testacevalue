@@ -57,6 +57,7 @@ def is_baseball_comparable_label(label: str) -> bool:
         "marqueur de home run",
         "home run",
         "nombre de home runs",
+        "le joueur inscrit",
         "strikeout",
         "retraits sur des",
         "hits",
@@ -711,7 +712,10 @@ def normalize_betclic_market(
                 markets.append(item)
         return markets
 
-    runs_tier = re.match(r"marque\s+(\d+)\s+runs? ou plus$", lower_base)
+    runs_tier = re.match(
+        r"(?:marque|le joueur inscrit)\s+(\d+)\s+runs?\s+ou\s*(?:plus|\+)$",
+        lower_base,
+    )
     if runs_tier:
         threshold = int(runs_tier.group(1))
         for raw, odds in outcomes:

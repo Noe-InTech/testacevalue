@@ -184,8 +184,9 @@ class BetclicBaseballClient(BetclicClient):
         return " ".join(part.capitalize() for part in cleaned.split())
 
     def build_event_payload(self, link: BetclicBaseballMatchLink) -> dict[str, Any]:
-        # None → scrape toutes les catégories gRPC présentes sur le match.
-        payload = self.get_full_match_payload(link.url, grpc_categories=None)
+        # SSR déjà contient Top + Joueurs (HR / runs). Le gRPC baseball
+        # (ca_bsb_*) timeout souvent sur la VM — on reste sur SSR fiable.
+        payload = self.get_full_match_payload(link.url, grpc_categories=())
         match = payload.get("match") or {}
         contestants = match.get("contestants") or []
         home = link.home_team or (contestants[0].get("name", "") if contestants else "")
@@ -218,19 +219,37 @@ class BetclicBaseballClient(BetclicClient):
 
     @staticmethod
     def _extract_roster_from_markets(markets: Any, *, fallback: list[str]) -> list[str]:
-        garbage = {"joueur", "equipe", "player", "yes", "no", "oui", "non"}
+        garbage = {"joueur", "equipe", "player", "yes", "no", "oui", "non", "nul"}
         roster: list[str] = []
         outcome_player = re.compile(
             r"^(.+?)\s*[+-]\s*de\s*[\d.,]+",
             flags=re.I,
         )
         for market in markets:
+            label_l = str(market.label).lower()
+            player_board = any(
+                token in label_l
+                for token in (
+                    "home run",
+                    "marque",
+                    "inscrit",
+                    "joueur",
+                    "strikeout",
+                    "retraits",
+                )
+            )
             for outcome in market.outcomes:
-                match = outcome_player.match(outcome.label.strip())
+                text = outcome.label.strip()
+                match = outcome_player.match(text)
                 if match:
                     name = match.group(1).strip()
                     if name.lower() not in garbage:
                         roster.append(name)
+                    continue
+                if player_board and text and text.lower() not in garbage:
+                    # Boards like "Marqueur de Home Run" / "Le joueur inscrit N runs"
+                    if not re.search(r"\d", text) and " ou " not in text.lower():
+                        roster.append(text)
             parsed = re.search(r"-\s*(.+?)\s*\(([\d.,]+)\)\s*$", market.label)
             if parsed:
                 name = parsed.group(1).strip()

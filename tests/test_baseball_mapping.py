@@ -12,6 +12,7 @@ from baseball_market_mapping import (
     build_inning1_runs_total_key,
     build_rbi_player_key,
     build_run_line_key,
+    build_runs_player_key,
     build_runs_total_key,
     build_runs_team_key,
     map_fanduel_market_to_entries,
@@ -167,6 +168,28 @@ class BaseballMappingTests(unittest.TestCase):
             away_team="Philadelphia Phillies",
         )
         self.assertEqual(markets[0].compare_key, build_runs_team_key("Miami Marlins", 3.5))
+
+    def test_normalize_betclic_player_runs_inscrit(self) -> None:
+        markets = normalize_betclic_market(
+            "Le joueur inscrit 2 runs ou +",
+            [("Munetaka Murakami", 8.0), ("Sam Antonacci", 9.25)],
+            home_team="Chicago White Sox",
+            away_team="New York Yankees",
+            roster=["Munetaka Murakami", "Sam Antonacci"],
+        )
+        keys = {item.compare_key for item in markets}
+        self.assertIn(build_runs_player_key("Munetaka Murakami", 2), keys)
+        self.assertEqual(markets[0].outcomes[0].label, "Yes")
+
+    def test_normalize_betclic_hr_player(self) -> None:
+        markets = normalize_betclic_market(
+            "Marqueur de Home Run",
+            [("Munetaka Murakami", 3.9)],
+            home_team="Chicago White Sox",
+            away_team="New York Yankees",
+            roster=["Munetaka Murakami"],
+        )
+        self.assertEqual(markets[0].compare_key, build_hr_player_key("Munetaka Murakami"))
 
     def test_betclic_slug_teams(self) -> None:
         home, away = BetclicBaseballClient._teams_from_slug(
