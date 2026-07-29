@@ -6,8 +6,8 @@ import type { RunnerHealth } from "@/lib/runner";
 
 const SECRET_STORAGE_KEY = "aces_trigger_secret";
 
-export function RunnerStatus() {
-  const [open, setOpen] = useState(false);
+export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
+  const [open, setOpen] = useState(standalone);
   const [secret, setSecret] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [health, setHealth] = useState<RunnerHealth | null>(null);
@@ -101,6 +101,13 @@ export function RunnerStatus() {
   };
 
   const onClose = () => {
+    if (standalone) {
+      setUnlocked(false);
+      setHealth(null);
+      setError("");
+      setCopied(false);
+      return;
+    }
     setOpen(false);
     setUnlocked(false);
     setHealth(null);
@@ -108,85 +115,95 @@ export function RunnerStatus() {
     setCopied(false);
   };
 
-  return (
-    <div className="runner-vault">
-      {!open ? (
+  if (!open && !standalone) {
+    return (
+      <div className="runner-vault">
         <button type="button" className="runner-vault-trigger" onClick={() => setOpen(true)} title="Outils">
           ···
         </button>
-      ) : (
-        <section className="runner-link panel">
-          <div className="runner-link-header">
-            <strong>Lien runner</strong>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`runner-vault${standalone ? " runner-vault-standalone" : ""}`}>
+      <section className="runner-link panel">
+        <div className="runner-link-header">
+          <strong>Lien runner</strong>
+          {!standalone ? (
             <button type="button" className="runner-link-refresh" onClick={onClose}>
               Fermer
             </button>
-          </div>
+          ) : unlocked ? (
+            <button type="button" className="runner-link-refresh" onClick={onClose}>
+              Masquer
+            </button>
+          ) : null}
+        </div>
 
-          {!unlocked ? (
-            <div className="runner-vault-unlock">
-              <label>
-                Code secret
-                <input
-                  type="password"
-                  value={secret}
-                  onChange={(event) => setSecret(event.target.value)}
-                  placeholder="Même PIN que pour lancer"
-                  autoComplete="current-password"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      onUnlock();
-                    }
-                  }}
-                />
-              </label>
-              <button type="button" className="runner-link-copy" onClick={onUnlock} disabled={checking}>
-                {checking ? "Vérification…" : "Afficher le lien"}
+        {!unlocked ? (
+          <div className="runner-vault-unlock">
+            <label>
+              Code secret
+              <input
+                type="password"
+                value={secret}
+                onChange={(event) => setSecret(event.target.value)}
+                placeholder="Même PIN que pour lancer"
+                autoComplete="current-password"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    onUnlock();
+                  }
+                }}
+              />
+            </label>
+            <button type="button" className="runner-link-copy" onClick={onUnlock} disabled={checking}>
+              {checking ? "Vérification…" : "Afficher le lien"}
+            </button>
+          </div>
+        ) : null}
+
+        {error ? <p className="runner-status-note danger-text">{error}</p> : null}
+
+        {unlocked ? (
+          <>
+            <div className="runner-link-header">
+              <span className="runner-status-note">Page privée — pas liée depuis l’accueil.</span>
+              <button
+                type="button"
+                className="runner-link-refresh"
+                onClick={() => void refresh(secret)}
+                disabled={checking}
+              >
+                {checking ? "…" : "Rafraîchir"}
               </button>
             </div>
-          ) : null}
 
-          {error ? <p className="runner-status-note danger-text">{error}</p> : null}
-
-          {unlocked ? (
-            <>
-              <div className="runner-link-header">
-                <span className="runner-status-note">Visible uniquement avec le code secret.</span>
-                <button
-                  type="button"
-                  className="runner-link-refresh"
-                  onClick={() => void refresh(secret)}
-                  disabled={checking}
-                >
-                  {checking ? "…" : "Rafraîchir"}
+            {!url ? (
+              <p className="runner-status-note danger-text">
+                Lien introuvable pour l’instant. Redémarre le tunnel sur la VM ou réessaie.
+              </p>
+            ) : (
+              <div className="runner-link-row">
+                <code className="runner-link-url" title={url}>
+                  {url}
+                </code>
+                <button type="button" className="runner-link-copy" onClick={() => void onCopy()}>
+                  {copied ? "Copié" : "Copier"}
                 </button>
               </div>
+            )}
 
-              {!url ? (
-                <p className="runner-status-note danger-text">
-                  Lien introuvable pour l’instant. Redémarre le tunnel sur la VM ou réessaie.
-                </p>
-              ) : (
-                <div className="runner-link-row">
-                  <code className="runner-link-url" title={url}>
-                    {url}
-                  </code>
-                  <button type="button" className="runner-link-copy" onClick={() => void onCopy()}>
-                    {copied ? "Copié" : "Copier"}
-                  </button>
-                </div>
-              )}
-
-              {mismatch ? (
-                <p className="runner-status-note">
-                  Le tunnel live diffère de <code>RUNNER_URL</code> sur Vercel — mets à jour la
-                  variable puis redeploy.
-                </p>
-              ) : null}
-            </>
-          ) : null}
-        </section>
-      )}
+            {mismatch ? (
+              <p className="runner-status-note">
+                Le tunnel live diffère de <code>RUNNER_URL</code> sur Vercel — mets à jour la variable
+                puis redeploy.
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </section>
     </div>
   );
 }

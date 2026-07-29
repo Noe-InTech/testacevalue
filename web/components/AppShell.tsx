@@ -5,7 +5,6 @@ import { useState } from "react";
 import { BaseballDashboard } from "@/components/BaseballDashboard";
 import { Dashboard } from "@/components/Dashboard";
 import { NbaDashboard } from "@/components/NbaDashboard";
-import { RunnerStatus } from "@/components/RunnerStatus";
 import { WnbaDashboard } from "@/components/WnbaDashboard";
 import type { SportKey } from "@/lib/types";
 
@@ -54,8 +53,6 @@ export function AppShell() {
       ) : (
         <BaseballDashboard />
       )}
-
-      <RunnerStatus />
     </main>
   );
 }
