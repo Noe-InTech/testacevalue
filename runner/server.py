@@ -78,12 +78,87 @@ SPORTS: dict[str, SportConfig] = {
 
 STUCK_RUN_SECONDS = 20 * 60
 PUBLIC_URL_FILE = DATA_DIR / "public_url.txt"
+LAST_UPDATE_FILE = DATA_DIR / "last_update.json"
+SELF_UPDATE_SCRIPT = ROOT / "runner" / "self_update.sh"
 CLOUDFLARED_LOG = Path("/var/log/cloudflared-aces.log")
 TUNNEL_URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
+UPDATE_LOCK = threading.Lock()
+UPDATE_SCHEDULED = False
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def read_last_update() -> dict[str, Any]:
+    return read_json(LAST_UPDATE_FILE, {})
+
+
+def schedule_self_update(*, restart_tunnel: bool = False) -> tuple[bool, str, dict[str, Any]]:
+    """Lance self_update.sh detache, puis restart systemd."""
+    global UPDATE_SCHEDULED
+    if not SELF_UPDATE_SCRIPT.is_file():
+        return False, "Script self_update.sh introuvable.", {}
+    with UPDATE_LOCK:
+        if UPDATE_SCHEDULED:
+            return False, "Une mise a jour est deja planifiee.", read_last_update()
+        UPDATE_SCHEDULED = True
+
+    env = os.environ.copy()
+    env["REPO_DIR"] = str(ROOT)
+    env["UPDATE_BRANCH"] = env.get("UPDATE_BRANCH", "main")
+    # Detach: sleep briefly so HTTP response can flush, then update+restart.
+    cmd = (
+        f"sleep 1; /bin/bash {SELF_UPDATE_SCRIPT}"
+        if not restart_tunnel
+        else f"sleep 1; RESTART_TUNNEL=1 /bin/bash {SELF_UPDATE_SCRIPT}"
+    )
+    try:
+        subprocess.Popen(  # noqa: S603
+            ["/bin/bash", "-c", cmd],
+            cwd=str(ROOT),
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        with UPDATE_LOCK:
+            UPDATE_SCHEDULED = False
+        return False, f"Impossible de lancer la mise a jour: {exc}", read_last_update()
+
+    def _clear_update_flag_later() -> None:
+        # Si systemctl restart echoue, le process HTTP reste vivant :
+        # libere le verrou apres 2 min pour pouvoir reessayer.
+        time.sleep(120)
+        global UPDATE_SCHEDULED
+        with UPDATE_LOCK:
+            UPDATE_SCHEDULED = False
+
+    threading.Thread(target=_clear_update_flag_later, daemon=True).start()
+
+    before = ""
+    try:
+        before = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(ROOT),
+            text=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        before = ""
+
+    payload = {
+        "ok": True,
+        "scheduled": True,
+        "before": before,
+        "scheduled_at": utc_now(),
+        "message": "Mise a jour planifiee — le runner va redemarrer dans ~1s.",
+    }
+    try:
+        write_json_atomic(LAST_UPDATE_FILE, payload)
+    except OSError:
+        pass
+    return True, payload["message"], payload
 
 
 def resolve_public_url() -> str:
@@ -172,13 +247,26 @@ def wipe_result_file(sport: SportConfig) -> None:
     write_json_atomic(sport.result_json, empty_payload(sport))
 
 
+def _git_head_short() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(ROOT),
+            text=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+
 def clear_running_lock(*, reason: str = "") -> None:
-    global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
+    global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED, UPDATE_SCHEDULED
     with LOCK:
         RUNNING = False
         CURRENT_SPORT = ""
         CURRENT_PROC = None
         CANCEL_REQUESTED = False
+    with UPDATE_LOCK:
+        UPDATE_SCHEDULED = False
     if reason:
         print(f"Runner lock liberé: {reason}")
 
@@ -438,6 +526,47 @@ class Handler(BaseHTTPRequestHandler):
         header = self.headers.get("X-Runner-Secret", "").strip()
         return header == secret
 
+    def _handle_self_update(self) -> None:
+        if not self._authorized():
+            self._json_response(401, {"error": "Secret incorrect."})
+            return
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) if length else b"{}"
+        restart_tunnel = False
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}")
+            restart_tunnel = bool(body.get("restart_tunnel"))
+        except json.JSONDecodeError:
+            body = {}
+
+        with LOCK:
+            busy = RUNNING
+            sport = CURRENT_SPORT
+        if busy:
+            self._json_response(
+                409,
+                {
+                    "error": (
+                        f"Comparaison {sport or '?'} en cours — "
+                        "arrete-la avant de mettre a jour le runner."
+                    ),
+                    "running": True,
+                    "sport": sport or "",
+                },
+            )
+            return
+
+        ok, message, payload = schedule_self_update(restart_tunnel=restart_tunnel)
+        self._json_response(
+            202 if ok else 500,
+            {
+                "ok": ok,
+                "message": message,
+                "git_head": _git_head_short(),
+                "last_update": payload or read_last_update(),
+            },
+        )
+
     def _resolve_sport(self, path: str) -> SportConfig | None:
         query = parse_qs(urlparse(self.path).query)
         sport_key = str(query.get("sport", ["tennis"])[0]).strip().lower()
@@ -479,6 +608,8 @@ class Handler(BaseHTTPRequestHandler):
                     "public_url": resolve_public_url(),
                     "sports": list(SPORTS.keys()),
                     "sports_status": sports_status,
+                    "git_head": _git_head_short(),
+                    "last_update": read_last_update(),
                     "fetched_at": utc_now(),
                 },
             )
@@ -518,6 +649,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/cancel":
             self._handle_cancel()
+            return
+        if path == "/api/self-update":
+            self._handle_self_update()
             return
         if path != "/api/trigger":
             self._json_response(404, {"error": "Not found"})

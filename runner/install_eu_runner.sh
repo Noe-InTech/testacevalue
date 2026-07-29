@@ -48,6 +48,11 @@ sed -i "s/CHANGE_ME/${SECRET}/" /etc/systemd/system/aces-runner.service
 echo "==> systemd cloudflared-aces"
 install -m 644 "${REPO_DIR}/runner/cloudflared-aces.service" /etc/systemd/system/cloudflared-aces.service
 
+echo "==> self-update script + sudoers"
+install -m 755 "${REPO_DIR}/runner/self_update.sh" "${REPO_DIR}/runner/self_update.sh"
+install -m 440 "${REPO_DIR}/runner/sudoers-aces-update" /etc/sudoers.d/aces-update
+visudo -cf /etc/sudoers.d/aces-update >/dev/null
+
 systemctl daemon-reload
 systemctl enable aces-runner cloudflared-aces
 systemctl restart aces-runner

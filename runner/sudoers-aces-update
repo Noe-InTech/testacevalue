@@ -1,0 +1,6 @@
+# Allow the runner service user to restart the compare runner without a password.
+# Installed by runner/install_eu_runner.sh
+Cmnd_Alias ACES_RUNNER_CTL = /bin/systemctl restart aces-runner, /bin/systemctl restart cloudflared-aces, /bin/systemctl is-active aces-runner, /bin/systemctl is-active cloudflared-aces
+%sudo ALL=(root) NOPASSWD: ACES_RUNNER_CTL
+ubuntu ALL=(root) NOPASSWD: ACES_RUNNER_CTL
+opc ALL=(root) NOPASSWD: ACES_RUNNER_CTL

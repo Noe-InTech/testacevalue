@@ -684,6 +684,26 @@ td.side {
   white-space: nowrap;
 }
 
+.runner-update-row {
+  display: grid;
+  gap: 8px;
+}
+
+.runner-update-btn {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.runner-update-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .runner-status-note {
   margin: 0;
   color: var(--muted);

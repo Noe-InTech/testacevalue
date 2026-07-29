@@ -16,7 +16,10 @@ export default function RunnerLinkPage() {
       <header className="hero">
         <p className="eyebrow">Privé</p>
         <h1>Lien runner</h1>
-        <p className="lead">Page non liée depuis l’accueil. Code secret requis.</p>
+        <p className="lead">
+          Page non liée depuis l’accueil. Code secret requis. Tu peux aussi mettre à jour le runner
+          depuis ici.
+        </p>
       </header>
       <RunnerStatus standalone />
     </main>

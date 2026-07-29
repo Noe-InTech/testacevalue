@@ -12,8 +12,10 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
   const [unlocked, setUnlocked] = useState(false);
   const [health, setHealth] = useState<RunnerHealth | null>(null);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [copied, setCopied] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(SECRET_STORAGE_KEY);
@@ -67,6 +69,45 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
     }
   }, []);
 
+  const onUpdate = useCallback(async () => {
+    const trimmed = secret.trim();
+    if (!trimmed) {
+      setError("Saisis ton code secret.");
+      return;
+    }
+    setUpdating(true);
+    setError("");
+    setInfo("");
+    try {
+      const response = await fetch("/api/runner-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: trimmed }),
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (response.status === 401) {
+        setError(data.error || "Code secret incorrect.");
+        return;
+      }
+      if (!response.ok) {
+        setError(data.error || data.message || `HTTP ${response.status}`);
+        return;
+      }
+      setInfo(
+        data.message ||
+          "Mise à jour lancée — le runner redémarre. Attends ~10s puis rafraîchis.",
+      );
+      window.setTimeout(() => {
+        void refresh(trimmed);
+      }, 8000);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "échec mise à jour");
+    } finally {
+      setUpdating(false);
+    }
+  }, [secret, refresh]);
+
   const url = useMemo(() => {
     const live = health?.public_url?.trim().replace(/\/$/, "") || "";
     const configured = health?.configured_url?.trim().replace(/\/$/, "") || "";
@@ -105,6 +146,7 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
       setUnlocked(false);
       setHealth(null);
       setError("");
+      setInfo("");
       setCopied(false);
       return;
     }
@@ -112,6 +154,7 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
     setUnlocked(false);
     setHealth(null);
     setError("");
+    setInfo("");
     setCopied(false);
   };
 
@@ -124,6 +167,8 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
       </div>
     );
   }
+
+  const lastUpdate = health?.last_update;
 
   return (
     <div className={`runner-vault${standalone ? " runner-vault-standalone" : ""}`}>
@@ -165,16 +210,22 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
         ) : null}
 
         {error ? <p className="runner-status-note danger-text">{error}</p> : null}
+        {info ? <p className="runner-status-note">{info}</p> : null}
 
         {unlocked ? (
           <>
             <div className="runner-link-header">
-              <span className="runner-status-note">Page privée — pas liée depuis l’accueil.</span>
+              <span className="runner-status-note">
+                {health?.git_head ? `Commit VM : ${health.git_head}` : "Page privée"}
+                {lastUpdate?.after
+                  ? ` · dernier update ${lastUpdate.after}${lastUpdate.changed === false ? " (déjà à jour)" : ""}`
+                  : ""}
+              </span>
               <button
                 type="button"
                 className="runner-link-refresh"
                 onClick={() => void refresh(secret)}
-                disabled={checking}
+                disabled={checking || updating}
               >
                 {checking ? "…" : "Rafraîchir"}
               </button>
@@ -194,6 +245,24 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
                 </button>
               </div>
             )}
+
+            <div className="runner-update-row">
+              <button
+                type="button"
+                className="runner-update-btn"
+                onClick={() => void onUpdate()}
+                disabled={updating || checking || Boolean(health?.running)}
+              >
+                {updating
+                  ? "Mise à jour…"
+                  : health?.running
+                    ? "Compare en cours…"
+                    : "Mettre à jour le runner"}
+              </button>
+              <p className="runner-status-note">
+                git pull + restart sur la VM. Impossible pendant une comparaison.
+              </p>
+            </div>
 
             {mismatch ? (
               <p className="runner-status-note">
