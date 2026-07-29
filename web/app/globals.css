@@ -593,3 +593,80 @@ td.side {
     text-transform: uppercase;
   }
 }
+
+.runner-link {
+  display: grid;
+  gap: 10px;
+}
+
+.runner-link-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.runner-link-refresh {
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.runner-link-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.runner-link-url {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.runner-link-copy {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #04111f;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.runner-status-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.runner-status-note.danger-text {
+  color: var(--danger);
+}
+
+.runner-status-note code {
+  color: var(--accent);
+}
+
+@media (max-width: 720px) {
+  .runner-link-row {
+    grid-template-columns: 1fr;
+  }
+
+  .runner-link-copy {
+    width: 100%;
+  }
+}
