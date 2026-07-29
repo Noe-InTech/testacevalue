@@ -8,6 +8,7 @@ from baseball_books_mapping import (
 from baseball_market_mapping import (
     build_h2h_key,
     build_hr_player_key,
+    build_inning1_runs_total_key,
     build_run_line_key,
     build_runs_total_key,
     build_runs_team_key,
@@ -246,6 +247,69 @@ class BaseballMappingTests(unittest.TestCase):
         )
         self.assertEqual(entries[0][0], build_hr_player_key("Kyle Schwarber"))
         self.assertEqual(entries[0][1], "Yes")
+
+    def test_parse_signed_line_skips_inning_ordinals(self) -> None:
+        from baseball_market_mapping import parse_signed_line
+
+        self.assertEqual(parse_signed_line("1st Inning 0.5 Runs"), 0.5)
+        self.assertEqual(parse_signed_line("1er manche - Nombre de runs (0.5)"), 0.5)
+        self.assertEqual(parse_signed_line("1ère manche - Nombre de runs (1.5)"), 1.5)
+        self.assertEqual(parse_signed_line("MIA Marlins [+1,5]"), 1.5)
+        self.assertEqual(parse_signed_line("Over 8.5"), 8.5)
+
+    def test_map_fanduel_skips_parlay_f5_run_line(self) -> None:
+        market = {
+            "marketName": "First 5 Innings Run Line / Total Runs Parlay",
+            "marketType": "1ST_HALF_RUN_LINE",
+            "runners": [
+                {
+                    "runnerName": "Athletics",
+                    "handicap": -1.5,
+                    "runnerStatus": "ACTIVE",
+                },
+                {
+                    "runnerName": "Boston Red Sox",
+                    "handicap": 1.5,
+                    "runnerStatus": "ACTIVE",
+                },
+            ],
+        }
+        entries = map_fanduel_market_to_entries(
+            market,
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+            roster=[],
+        )
+        self.assertEqual(entries, [])
+
+    def test_map_fanduel_inning1_runs_uses_half_line(self) -> None:
+        market = {
+            "marketName": "1st Inning 0.5 Runs",
+            "marketType": "1ST_INNING_TOTAL_RUNS",
+            "runners": [
+                {"runnerName": "Over", "runnerStatus": "ACTIVE"},
+                {"runnerName": "Under", "runnerStatus": "ACTIVE"},
+            ],
+        }
+        entries = map_fanduel_market_to_entries(
+            market,
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+            roster=[],
+        )
+        keys = {key for key, *_ in entries}
+        self.assertEqual(keys, {build_inning1_runs_total_key(0.5)})
+        self.assertEqual({outcome for _k, outcome, *_ in entries}, {"Over", "Under"})
+
+    def test_normalize_winamax_inning1_runs_half_line(self) -> None:
+        markets = normalize_winamax_market(
+            "1er manche - Nombre de runs (0.5)",
+            [("Plus de 0,5", 1.9), ("Moins de 0,5", 1.8)],
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+        )
+        self.assertEqual(len(markets), 1)
+        self.assertEqual(markets[0].compare_key, build_inning1_runs_total_key(0.5))
 
     def test_kbo_team_match(self) -> None:
         self.assertTrue(players_match("LG Twins", "LG Twins"))

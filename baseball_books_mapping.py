@@ -99,7 +99,8 @@ def _team_side_map(
 
 
 def _extract_line_from_label(label: str) -> float | None:
-    return parse_french_number(label)
+    # Prefer baseball-aware parsing (skips "1er" / "1st" ordinals).
+    return parse_signed_line(label) or parse_french_number(label)
 
 
 def normalize_unibet_market(

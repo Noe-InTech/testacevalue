@@ -86,7 +86,36 @@ def resolve_roster_player(name: str, roster: list[str]) -> str:
 
 
 def parse_signed_line(text: str) -> float | None:
-    match = re.search(r"([+\-]?\d+(?:[.,]\d+)?)", str(text or ""))
+    """Extract a betting line from a label, ignoring ordinals like 1st / 1er.
+
+    Prefer parenthetical lines ``(0.5)`` and decimals ``8.5`` over the bare
+    ``1`` in ``1st Inning`` / ``1er manche``.
+    """
+    raw = str(text or "")
+    if not raw.strip():
+        return None
+
+    paren = re.search(r"\(([+\-]?\d+(?:[.,]\d+)?)\)", raw)
+    if paren:
+        try:
+            return float(paren.group(1).replace(",", "."))
+        except ValueError:
+            pass
+
+    decimals = list(re.finditer(r"[+\-]?\d+[.,]\d+", raw))
+    if decimals:
+        try:
+            return float(decimals[-1].group(0).replace(",", "."))
+        except ValueError:
+            pass
+
+    cleaned = re.sub(
+        r"\b\d+(?:st|nd|rd|th|er|re|ere|ème|eme|e)\b",
+        " ",
+        raw,
+        flags=re.I,
+    )
+    match = re.search(r"([+\-]?\d+(?:[.,]\d+)?)", cleaned)
     if not match:
         return None
     try:
@@ -175,6 +204,11 @@ def map_fanduel_market_to_entries(
     if not runners:
         return entries
 
+    # SGP / parlay wrappers (e.g. "First 5 Innings Run Line / Total Runs Parlay")
+    # are not 1:1 comparable to FR straight markets.
+    if "parlay" in lower or "sgp" in lower or "same game" in lower:
+        return entries
+
     def add(compare_key: str, outcome: str, runner: dict[str, Any]) -> None:
         if compare_key and outcome:
             entries.append((compare_key, outcome, market_label, runner))
@@ -251,7 +285,11 @@ def map_fanduel_market_to_entries(
                 add(build_f5_h2h_key(), side, runner)
         return entries
 
-    if "first 5 innings run line" in lower or market_type == "1ST_HALF_RUN_LINE":
+    if (
+        market_type == "1ST_HALF_RUN_LINE"
+        or lower == "first 5 innings run line"
+        or (lower.startswith("first 5 innings run line") and "total" not in lower)
+    ):
         for runner in runners:
             runner_name = str(runner.get("runnerName", ""))
             handicap = runner.get("handicap")
@@ -262,7 +300,11 @@ def map_fanduel_market_to_entries(
                 add(build_f5_run_line_key(float(handicap)), side, runner)
         return entries
 
-    if "first 5 innings total runs" in lower or market_type == "1ST_HALF_TOTAL_RUNS":
+    if (
+        market_type == "1ST_HALF_TOTAL_RUNS"
+        or lower == "first 5 innings total runs"
+        or (lower.startswith("first 5 innings total runs") and "run line" not in lower)
+    ):
         for runner in runners:
             runner_name = str(runner.get("runnerName", ""))
             handicap = runner.get("handicap")
@@ -282,7 +324,9 @@ def map_fanduel_market_to_entries(
                 add(build_inning1_result_key(), side, runner)
         return entries
 
-    if "1st inning" in lower and ("over/under" in lower or "total runs" in lower or "0.5 runs" in lower):
+    if "1st inning" in lower and (
+        "over/under" in lower or "total runs" in lower or "runs" in lower
+    ):
         for runner in runners:
             runner_name = str(runner.get("runnerName", ""))
             handicap = runner.get("handicap")
