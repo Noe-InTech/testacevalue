@@ -1,6 +1,10 @@
 import unittest
 
-from baseball_books_mapping import normalize_unibet_market, normalize_winamax_market
+from baseball_books_mapping import (
+    normalize_betclic_market,
+    normalize_unibet_market,
+    normalize_winamax_market,
+)
 from baseball_market_mapping import (
     build_h2h_key,
     build_hr_player_key,
@@ -11,6 +15,7 @@ from baseball_market_mapping import (
     resolve_team_side,
     teams_match,
 )
+from betclic_baseball_client import BetclicBaseballClient
 from tennis_market_mapping import players_match
 
 
@@ -118,6 +123,59 @@ class BaseballMappingTests(unittest.TestCase):
             roster=["Kyle Schwarber"],
         )
         self.assertEqual(markets[0].compare_key, "runs_player|schwarber|2")
+
+    def test_normalize_betclic_h2h(self) -> None:
+        markets = normalize_betclic_market(
+            "Vainqueur du match",
+            [("Miami Marlins", 2.4), ("Philadelphia Phillies", 1.55)],
+            home_team="Miami Marlins",
+            away_team="Philadelphia Phillies",
+        )
+        self.assertEqual(len(markets), 1)
+        self.assertEqual(markets[0].compare_key, build_h2h_key())
+        self.assertEqual({o.label for o in markets[0].outcomes}, {"home", "away"})
+
+    def test_normalize_betclic_run_line(self) -> None:
+        markets = normalize_betclic_market(
+            "Handicap",
+            [
+                ("Miami Marlins (+1.5)", 1.8),
+                ("Philadelphia Phillies (-1.5)", 1.9),
+            ],
+            home_team="Miami Marlins",
+            away_team="Philadelphia Phillies",
+        )
+        self.assertEqual(markets[0].compare_key, build_run_line_key(1.5))
+
+    def test_normalize_betclic_runs_total(self) -> None:
+        markets = normalize_betclic_market(
+            "Nombre total de runs",
+            [("Plus de 7,5", 1.9), ("Moins de 7,5", 1.8)],
+            home_team="Miami Marlins",
+            away_team="Philadelphia Phillies",
+        )
+        self.assertEqual(markets[0].compare_key, build_runs_total_key(7.5))
+
+    def test_normalize_betclic_team_total(self) -> None:
+        markets = normalize_betclic_market(
+            "Nombre de runs de Miami Marlins (3.5)",
+            [("Plus de 3,5", 1.85), ("Moins de 3,5", 1.85)],
+            home_team="Miami Marlins",
+            away_team="Philadelphia Phillies",
+        )
+        self.assertEqual(markets[0].compare_key, build_runs_team_key("Miami Marlins", 3.5))
+
+    def test_betclic_slug_teams(self) -> None:
+        home, away = BetclicBaseballClient._teams_from_slug(
+            "miami-marlins-philadelphia-phillies-m12345"
+        )
+        self.assertEqual(home, "Miami Marlins")
+        self.assertEqual(away, "Philadelphia Phillies")
+        home2, away2 = BetclicBaseballClient._teams_from_slug(
+            "lg-twins-vs-kiwoom-heroes-m99"
+        )
+        self.assertEqual(home2, "LG Twins")
+        self.assertEqual(away2, "Kiwoom Heroes")
 
     def test_map_fanduel_moneyline(self) -> None:
         market = {
