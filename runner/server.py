@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -76,10 +77,42 @@ SPORTS: dict[str, SportConfig] = {
 
 
 STUCK_RUN_SECONDS = 20 * 60
+PUBLIC_URL_FILE = DATA_DIR / "public_url.txt"
+CLOUDFLARED_LOG = Path("/var/log/cloudflared-aces.log")
+TUNNEL_URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def resolve_public_url() -> str:
+    """URL tunnel Cloudflare a coller dans Vercel RUNNER_URL."""
+    url = ""
+    for path in (CLOUDFLARED_LOG, PUBLIC_URL_FILE):
+        try:
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            found = TUNNEL_URL_RE.findall(text)
+            if found:
+                url = found[-1].rstrip("/")
+                if path == CLOUDFLARED_LOG:
+                    break
+        except OSError:
+            continue
+    if not url:
+        return ""
+    try:
+        PUBLIC_URL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        existing = ""
+        if PUBLIC_URL_FILE.is_file():
+            existing = PUBLIC_URL_FILE.read_text(encoding="utf-8").strip()
+        if existing != url:
+            PUBLIC_URL_FILE.write_text(url + "\n", encoding="utf-8")
+    except OSError:
+        pass
+    return url
 
 
 def read_json(path: Path, fallback: dict[str, Any]) -> dict[str, Any]:
@@ -443,6 +476,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "running": busy,
                     "sport": sport or "",
+                    "public_url": resolve_public_url(),
                     "sports": list(SPORTS.keys()),
                     "sports_status": sports_status,
                     "fetched_at": utc_now(),
@@ -608,7 +642,7 @@ def main() -> None:
         if current.get("status") != "idle":
             write_status(sport, "idle", "Runner pret.")
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba)")
+    print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba + baseball)")
     server.serve_forever()
 
 

@@ -125,6 +125,8 @@ export interface RunnerHealth {
   ok: boolean;
   running: boolean;
   sport: string;
+  public_url?: string;
+  configured_url?: string;
   sports?: string[];
   sports_status?: Record<string, RunnerSportStatus>;
   fetched_at?: string;
@@ -147,6 +149,7 @@ export async function fetchRunnerHealth(): Promise<RunnerHealth> {
     };
   }
 
+  const configuredUrl = baseUrl.replace(/\/$/, "");
   let runnerHost = "";
   try {
     runnerHost = new URL(baseUrl).host;
@@ -166,6 +169,7 @@ export async function fetchRunnerHealth(): Promise<RunnerHealth> {
         sport: "",
         reachable: false,
         configured: true,
+        configured_url: configuredUrl,
         runner_host: runnerHost,
         error: `HTTP ${response.status}`,
       };
@@ -176,6 +180,8 @@ export async function fetchRunnerHealth(): Promise<RunnerHealth> {
       ok: Boolean(data.ok),
       running: Boolean(data.running),
       sport: data.sport || "",
+      public_url: typeof data.public_url === "string" ? data.public_url : "",
+      configured_url: configuredUrl,
       reachable: true,
       configured: true,
       runner_host: runnerHost,
@@ -188,6 +194,7 @@ export async function fetchRunnerHealth(): Promise<RunnerHealth> {
       sport: "",
       reachable: false,
       configured: true,
+      configured_url: configuredUrl,
       runner_host: runnerHost,
       error: detail,
     };
