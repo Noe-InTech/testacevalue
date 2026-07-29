@@ -27,7 +27,7 @@ export const BASEBALL_STAT_FILTERS: BaseballStatFilter[] = [
   { id: "strikeouts", label: "Strikeouts", families: ["strikeouts_pitcher"] },
 ];
 
-export const BASEBALL_BOOK_FILTERS = ["Tous", "Winamax", "Unibet"] as const;
+export const BASEBALL_BOOK_FILTERS = ["Tous", "Winamax", "Unibet", "Betclic"] as const;
 export type BaseballBookFilter = (typeof BASEBALL_BOOK_FILTERS)[number];
 
 export function hasBaseballData(payload: MarketPayload | null | undefined): boolean {

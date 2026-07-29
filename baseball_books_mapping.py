@@ -45,11 +45,14 @@ def is_baseball_comparable_label(label: str) -> bool:
         "ecart de runs",
         "plus / moins",
         "nombre de runs",
+        "nombre total de runs",
         "inning 1",
         "1er inning",
         "1er manche",
+        "1ere manche",
         "inning 1 au inning 5",
         "first 5",
+        "5 premiers innings",
         "marque",
         "marqueur de home run",
         "home run",
@@ -464,6 +467,271 @@ def normalize_winamax_market(
     return markets
 
 
+def normalize_betclic_market(
+    label: str,
+    outcomes: list[tuple[str, float | None]],
+    *,
+    home_team: str,
+    away_team: str,
+    roster: list[str] | None = None,
+) -> list[NormalizedMarket]:
+    """Normalise les libellés Betclic baseball (proches tennis/Winamax)."""
+    roster = roster or []
+    raw_label = label.strip()
+    base_label = re.sub(r"\s*\([\d.,]+\)\s*$", "", raw_label).strip()
+    lower_base = strip_accents(base_label)
+    markets: list[NormalizedMarket] = []
+
+    if lower_base in {"vainqueur", "vainqueur du match"} or (
+        lower_base.startswith("vainqueur")
+        and "handicap" not in lower_base
+        and "inning" not in lower_base
+        and "manche" not in lower_base
+    ):
+        item = build_market(
+            build_h2h_key(),
+            "h2h",
+            label,
+            _team_side_map(outcomes, home_team=home_team, away_team=away_team),
+        )
+        if item:
+            markets.append(item)
+        return markets
+
+    if (
+        "handicap" in lower_base
+        or "ecart de runs" in lower_base
+        or "vainqueur avec handicap" in lower_base
+    ) and "inning" not in lower_base and "manche" not in lower_base:
+        by_line: dict[str, dict[str, float]] = {}
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            line = parse_signed_line(raw)
+            side = resolve_team_side(raw, home_team, away_team)
+            if line is None or side not in {"home", "away"}:
+                continue
+            key = format_line(abs(line))
+            by_line.setdefault(key, {})[side] = float(odds)
+        for line_key, outcome_map in by_line.items():
+            item = build_market(
+                build_run_line_key(line_key),
+                "run_line",
+                label,
+                outcome_map,
+                line=line_key,
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    team_total = re.match(r"nombre (?:total )?de runs de (.+)$", lower_base)
+    if team_total:
+        team_name = team_total.group(1).strip()
+        if players_match(team_name, home_team):
+            team_name = home_team
+        elif players_match(team_name, away_team):
+            team_name = away_team
+        line = _extract_line_from_label(label)
+        if line is None:
+            for raw, _odds in outcomes:
+                line = parse_french_number(raw)
+                if line is not None:
+                    break
+        outcome_map = _ou_map(outcomes)
+        if line is not None and outcome_map:
+            item = build_market(
+                build_runs_team_key(team_name, line),
+                "runs_team",
+                label,
+                outcome_map,
+                player_name=team_name,
+                line=format_line(line),
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    is_runs_total = (
+        lower_base in {"nombre de runs", "nombre total de runs"}
+        or lower_base.startswith("nombre de runs (")
+        or lower_base.startswith("nombre total de runs (")
+        or (
+            "plus / moins" in lower_base
+            and "run" in lower_base
+            and "joueur" not in lower_base
+            and "de runs de" not in lower_base
+        )
+    )
+    if is_runs_total and "inning" not in lower_base and "manche" not in lower_base:
+        by_line: dict[str, dict[str, float]] = {}
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            line = parse_french_number(raw) or _extract_line_from_label(label)
+            side = normalize_ou_label(raw)
+            if side not in {"Over", "Under"}:
+                mapped = _ou_map([(raw, odds)])
+                side = next(iter(mapped), side)
+            if line is None or side not in {"Over", "Under"}:
+                continue
+            key = format_line(line)
+            by_line.setdefault(key, {})[side] = float(odds)
+        if not by_line:
+            line = _extract_line_from_label(label)
+            outcome_map = _ou_map(outcomes)
+            if line is not None and outcome_map:
+                by_line[format_line(line)] = outcome_map
+        for line_key, outcome_map in by_line.items():
+            item = build_market(
+                build_runs_total_key(line_key),
+                "runs_total",
+                label,
+                outcome_map,
+                line=line_key,
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    if lower_base in {
+        "vainqueur - 1er inning",
+        "vainqueur - 1ere manche",
+        "1er manche - resultat",
+        "1ere manche - resultat",
+        "resultat 1er inning",
+    } or (
+        ("1er inning" in lower_base or "1ere manche" in lower_base or "1er manche" in lower_base)
+        and ("vainqueur" in lower_base or "resultat" in lower_base)
+        and "nombre" not in lower_base
+    ):
+        item = build_market(
+            build_inning1_result_key(),
+            "inning1_result",
+            label,
+            _team_side_map(outcomes, home_team=home_team, away_team=away_team),
+        )
+        if item:
+            markets.append(item)
+        return markets
+
+    if (
+        "1er inning" in lower_base
+        or "1ere manche" in lower_base
+        or "1er manche" in lower_base
+    ) and ("nombre de runs" in lower_base or "plus / moins" in lower_base):
+        line = _extract_line_from_label(label)
+        if line is None:
+            for raw, _odds in outcomes:
+                line = parse_french_number(raw)
+                if line is not None:
+                    break
+        outcome_map = _ou_map(outcomes)
+        if line is not None and outcome_map:
+            item = build_market(
+                build_inning1_runs_total_key(line),
+                "inning1_runs_total",
+                label,
+                outcome_map,
+                line=format_line(line),
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    if (
+        "inning 1 au inning 5" in lower_base
+        or "5 premiers innings" in lower_base
+        or "first 5" in lower_base
+    ) and ("vainqueur" in lower_base or "resultat" in lower_base):
+        item = build_market(
+            build_f5_h2h_key(),
+            "f5_h2h",
+            label,
+            _team_side_map(outcomes, home_team=home_team, away_team=away_team),
+        )
+        if item:
+            markets.append(item)
+        return markets
+
+    if lower_base in {"marqueur de home run", "home run"} or "marquera un home run" in lower_base:
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            player = resolve_roster_player(raw, roster)
+            item = build_market(
+                build_hr_player_key(player),
+                "hr_player",
+                label,
+                {"Yes": float(odds)},
+                player_name=player,
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    runs_tier = re.match(r"marque\s+(\d+)\s+runs? ou plus$", lower_base)
+    if runs_tier:
+        threshold = int(runs_tier.group(1))
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            player = resolve_roster_player(raw, roster)
+            item = build_market(
+                build_runs_player_key(player, threshold),
+                "runs_player",
+                label,
+                {"Yes": float(odds)},
+                player_name=player,
+                line=str(threshold),
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    if "strikeout" in lower_base or "retraits sur des" in lower_base:
+        player = ""
+        player_match = re.search(
+            r"(?:strikeouts?|retraits sur des(?: prises)?)\s*(?:du joueur)?\s*-?\s*(.+)$",
+            lower_base,
+        ) or re.search(
+            r"^(.+?)\s*-\s*(?:nombre (?:total )?de )?(?:strikeouts?|retraits sur des(?: prises)?)$",
+            lower_base,
+        )
+        if player_match:
+            player = resolve_roster_player(player_match.group(1).strip(" -"), roster)
+        by_line: dict[str, dict[str, float]] = {}
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            m = re.match(r"^(.+?)\s*([+-])\s*de\s*([\d.,]+)", raw, flags=re.I)
+            if m:
+                player = resolve_roster_player(m.group(1), roster)
+                line = format_line(m.group(3))
+                side = "Over" if m.group(2) == "+" else "Under"
+                by_line.setdefault(line, {})[side] = float(odds)
+                continue
+            line = parse_french_number(raw) or _extract_line_from_label(label)
+            side = normalize_ou_label(raw)
+            if line is None or side not in {"Over", "Under"} or not player:
+                continue
+            by_line.setdefault(format_line(line), {})[side] = float(odds)
+        for line_key, outcome_map in by_line.items():
+            item = build_market(
+                build_strikeouts_pitcher_key(player, line_key),
+                "strikeouts_pitcher",
+                label,
+                outcome_map,
+                player_name=player,
+                line=line_key,
+            )
+            if item:
+                markets.append(item)
+        return markets
+
+    return markets
+
+
 def normalized_market_to_dict(item: NormalizedMarket) -> dict:
     return {
         "compare_key": item.compare_key,
@@ -477,5 +745,6 @@ def normalized_market_to_dict(item: NormalizedMarket) -> dict:
 
 BOOK_NORMALIZERS = {
     "unibet": normalize_unibet_market,
+    "betclic": normalize_betclic_market,
     "winamax": normalize_winamax_market,
 }

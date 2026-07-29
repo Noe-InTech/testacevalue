@@ -22,6 +22,7 @@ from baseball_market_mapping import (
     teams_match,
 )
 from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
+from betclic_baseball_client import BetclicBaseballClient
 from fanduel_baseball_client import FanDuelBaseballClient
 from fanduel_client import (
     decimal_fr_to_american,
@@ -381,6 +382,7 @@ def compare_normalized_markets(
 def discover_anchors(
     *,
     unibet_events: list[Any],
+    betclic_links: list[Any],
     winamax_links: list[Any],
     fanduel_events: list[Any],
 ) -> list[dict[str, Any]]:
@@ -400,6 +402,7 @@ def discover_anchors(
                 "sources": set(),
                 "urls": {},
                 "unibet_event_id": None,
+                "betclic_match_id": None,
                 "winamax_match_id": None,
                 "fanduel_event_id": None,
             }
@@ -412,6 +415,22 @@ def discover_anchors(
         anchor["sources"].add("unibet")
         anchor["urls"]["unibet"] = event.url
         anchor["unibet_event_id"] = event.event_id
+
+    for link in betclic_links:
+        matched = None
+        for key, anchor in anchors.items():
+            if teams_match(anchor["home_team"], anchor["away_team"], link.home_team, link.away_team):
+                matched = key
+                break
+        if matched is None:
+            anchor = ensure_anchor(link.home_team, link.away_team, getattr(link, "competition", ""))
+        else:
+            anchor = anchors[matched]
+        anchor["sources"].add("betclic")
+        anchor["urls"]["betclic"] = link.url
+        anchor["betclic_match_id"] = link.match_id
+        if getattr(link, "competition", ""):
+            anchor["competition"] = link.competition
 
     for link in winamax_links:
         matched = None
@@ -443,9 +462,7 @@ def discover_anchors(
         anchor["fanduel_event_id"] = event.event_id
         if getattr(event, "competition", ""):
             anchor["competition"] = event.competition
-        # Prefer FanDuel official team names for display/matching
         if matched_key is not None:
-            # Keep FR order but upgrade names when clearly same side
             if teams_match(anchor["home_team"], anchor["away_team"], event.home_team, event.away_team):
                 if teams_match(anchor["home_team"], event.home_team, event.home_team, event.home_team):
                     pass
@@ -533,8 +550,8 @@ def build_results_payload(
         "notes": [
             "Pipeline baseball (MLB + KBO) séparé du tennis / basket.",
             "Référence US: FanDuel (game lines + props joueur).",
-            "Books FR: Unibet, Winamax — meilleure cote par compare_key.",
-            "Betclic non branché (souvent 403 depuis le runner).",
+            "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
+            "Betclic soft-fail si 403 (IP hors FR) — Unibet/Winamax continuent.",
             *(book_warnings or []),
         ],
     }
@@ -598,35 +615,41 @@ def write_run_status_file(
 def fetch_live_listings(
     *,
     unibet: UnibetBaseballClient,
+    betclic: BetclicBaseballClient,
     winamax: WinamaxBaseballClient,
     fanduel: FanDuelBaseballClient,
     on_status: Callable[[str], None] | None = None,
-) -> tuple[list[Any], list[Any], list[Any], list[str]]:
+) -> tuple[list[Any], list[Any], list[Any], list[Any], list[str]]:
     def status(message: str) -> None:
         if on_status is not None:
             on_status(message)
 
     warnings: list[str] = []
     status("Chargement parallele des calendriers baseball (MLB/KBO)...")
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         fut_unibet = pool.submit(unibet.list_baseball_events)
+        fut_betclic = pool.submit(betclic.list_baseball_matches)
         fut_winamax = pool.submit(winamax.list_baseball_matches)
         fut_fanduel = pool.submit(fanduel.list_baseball_events)
         unibet_events = _safe_call("Unibet", fut_unibet.result, [])
+        betclic_links = _safe_call("Betclic", fut_betclic.result, [])
         winamax_links = _safe_call("Winamax", fut_winamax.result, [])
         fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
 
     if not unibet_events:
         warnings.append("Unibet: aucun match baseball ou scrape indisponible.")
+    if not betclic_links:
+        warnings.append("Betclic: aucun match baseball ou scrape indisponible (souvent 403 hors FR).")
     if not winamax_links:
         warnings.append("Winamax: aucun match baseball ou scrape indisponible.")
     if not fanduel_events:
         warnings.append("FanDuel: aucun evenement baseball ou scrape indisponible.")
     status(
         "Calendriers baseball — "
-        f"Unibet {len(unibet_events)}, Winamax {len(winamax_links)}, FanDuel {len(fanduel_events)}"
+        f"Unibet {len(unibet_events)}, Betclic {len(betclic_links)}, "
+        f"Winamax {len(winamax_links)}, FanDuel {len(fanduel_events)}"
     )
-    return unibet_events, winamax_links, fanduel_events, warnings
+    return unibet_events, betclic_links, winamax_links, fanduel_events, warnings
 
 
 def attach_capture_times(
@@ -648,9 +671,11 @@ def compare_anchor(
     anchor: dict[str, Any],
     *,
     unibet_events: list[Any],
+    betclic_links: list[Any],
     winamax_links: list[Any],
     fanduel_events: list[Any],
     unibet: UnibetBaseballClient,
+    betclic: BetclicBaseballClient,
     winamax: WinamaxBaseballClient,
     fanduel: FanDuelBaseballClient,
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
@@ -711,6 +736,7 @@ def compare_anchor(
             book_events[book] = payload
             roster = merge_roster(
                 book_events.get("winamax", {}).get("roster"),
+                book_events.get("betclic", {}).get("roster"),
                 book_events.get("unibet", {}).get("roster"),
                 [home_team, away_team],
             )
@@ -752,6 +778,10 @@ def compare_anchor(
         (item for item in unibet_events if item.event_id == anchor.get("unibet_event_id")),
         None,
     )
+    betclic_link = next(
+        (item for item in betclic_links if item.match_id == anchor.get("betclic_match_id")),
+        None,
+    )
     winamax_link = next(
         (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
         None,
@@ -786,6 +816,17 @@ def compare_anchor(
                 ),
             )
         )
+    if betclic_link:
+        priority_jobs.append(
+            (
+                "betclic",
+                lambda link=betclic_link: _safe_call(
+                    "Betclic",
+                    lambda: betclic.build_event_payload(link),
+                    None,
+                ),
+            )
+        )
     if winamax_link:
         priority_jobs.append(
             (
@@ -799,7 +840,7 @@ def compare_anchor(
         )
 
     if priority_jobs:
-        with ThreadPoolExecutor(max_workers=min(3, len(priority_jobs))) as pool:
+        with ThreadPoolExecutor(max_workers=min(4, len(priority_jobs))) as pool:
             futures = {pool.submit(job[1]): job[0] for job in priority_jobs}
             for future in as_completed(futures):
                 book = futures[future]
@@ -830,15 +871,18 @@ def compare_anchor(
 
 def run_compare(*, match_filter: str = "") -> dict[str, Any]:
     unibet = UnibetBaseballClient()
+    betclic = BetclicBaseballClient()
     winamax = WinamaxBaseballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBaseballClient()
-    unibet_events, winamax_links, fanduel_events, book_warnings = fetch_live_listings(
+    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_live_listings(
         unibet=unibet,
+        betclic=betclic,
         winamax=winamax,
         fanduel=fanduel,
     )
     anchors = discover_anchors(
         unibet_events=unibet_events,
+        betclic_links=betclic_links,
         winamax_links=winamax_links,
         fanduel_events=fanduel_events,
     )
@@ -849,9 +893,11 @@ def run_compare(*, match_filter: str = "") -> dict[str, Any]:
         compare_anchor(
             anchor,
             unibet_events=unibet_events,
+            betclic_links=betclic_links,
             winamax_links=winamax_links,
             fanduel_events=fanduel_events,
             unibet=unibet,
+            betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
         )
@@ -874,6 +920,7 @@ def run_live_compare(
     status_json: Path | None = None,
 ) -> Path:
     unibet = UnibetBaseballClient()
+    betclic = BetclicBaseballClient()
     winamax = WinamaxBaseballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBaseballClient()
     results: list[dict[str, Any]] = []
@@ -884,14 +931,16 @@ def run_live_compare(
     def on_listing_status(message: str) -> None:
         write_run_status_file(status_json, "running", message, match_filter=match_filter)
 
-    unibet_events, winamax_links, fanduel_events, book_warnings = fetch_live_listings(
+    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_live_listings(
         unibet=unibet,
+        betclic=betclic,
         winamax=winamax,
         fanduel=fanduel,
         on_status=on_listing_status,
     )
     anchors = discover_anchors(
         unibet_events=unibet_events,
+        betclic_links=betclic_links,
         winamax_links=winamax_links,
         fanduel_events=fanduel_events,
     )
@@ -929,9 +978,11 @@ def run_live_compare(
         compared = compare_anchor(
             anchor,
             unibet_events=unibet_events,
+            betclic_links=betclic_links,
             winamax_links=winamax_links,
             fanduel_events=fanduel_events,
             unibet=unibet,
+            betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
             on_partial=on_anchor_partial,

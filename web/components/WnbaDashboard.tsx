@@ -600,7 +600,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           {cfg.label === "Baseball" ? (
             <>
               Compare <strong>vainqueur, handicap, totaux, F5, 1ère manche, HR</strong> (MLB / KBO —
-              Unibet, Winamax) avec FanDuel.
+              Unibet, Betclic, Winamax) avec FanDuel.
             </>
           ) : (
             <>

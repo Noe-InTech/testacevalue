@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 # FanDuel sbapi
 FANDUEL_BASEBALL_EVENT_TYPE_ID = "7511"
 FANDUEL_MLB_COMPETITION_ID = "11196870"
@@ -35,8 +37,21 @@ UNIBET_BASEBALL_LISTING_PATH = "/paris-baseball"
 UNIBET_MLB_LISTING_PATH = "/paris-baseball/mlb/mlb"
 UNIBET_KBO_LISTING_PATH = "/paris-baseball/coree-du-sud/kbo"
 
+# Betclic listing (hub + MLB ; KBO ressort du hub si dispo)
+BETCLIC_BASEBALL_LISTING_PATH = "/baseball-sbaseball"
+BETCLIC_MLB_LISTING_PATH = "/baseball-sbaseball/major-league-c473"
+BETCLIC_BASEBALL_LISTING_PATHS = (
+    BETCLIC_BASEBALL_LISTING_PATH,
+    BETCLIC_MLB_LISTING_PATH,
+)
+BETCLIC_BASEBALL_MATCH_HREF_RE = re.compile(
+    r'href="(/baseball-sbaseball/[^"]+-m\d+)"',
+    flags=re.I,
+)
+
 BOOK_LABELS = {
     "unibet": "Unibet",
+    "betclic": "Betclic",
     "winamax": "Winamax",
 }
 
