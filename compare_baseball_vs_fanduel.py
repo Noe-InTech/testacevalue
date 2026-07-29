@@ -223,8 +223,26 @@ def format_ligne_baseball_fr(row: dict[str, Any], *, home_team: str = "", away_t
     parts = compare_key.split("|")
     family = parts[0] if parts else ""
     issue = outcome_label_fr(str(row.get("outcome", "")))
-    line = parts[-1].replace(".", ",") if len(parts) >= 2 and family not in {"h2h", "f5_h2h", "inning1_result", "hr_player"} else ""
     player = str(row.get("player_name") or "")
+    yes_families = {
+        "hr_player",
+        "runs_player",
+        "hits_player",
+        "rbi_player",
+        "total_bases_player",
+        "sb_player",
+    }
+    line = ""
+    if family in yes_families:
+        # keys: family|token or family|token|threshold
+        if len(parts) >= 3:
+            line = parts[-1].replace(".", ",")
+        elif family == "runs_player" and len(parts) >= 2:
+            line = parts[-1].replace(".", ",")
+        elif family == "total_bases_player" and len(parts) >= 3:
+            line = parts[-1].replace(".", ",")
+    elif len(parts) >= 2 and family not in {"h2h", "f5_h2h", "inning1_result"}:
+        line = parts[-1].replace(".", ",")
     labels = {
         "h2h": "vainqueur",
         "run_line": "handicap runs",
@@ -237,6 +255,10 @@ def format_ligne_baseball_fr(row: dict[str, Any], *, home_team: str = "", away_t
         "inning1_runs_total": "runs 1ère manche",
         "hr_player": "home run",
         "runs_player": "runs joueur",
+        "hits_player": "hits",
+        "rbi_player": "RBI",
+        "total_bases_player": "total bases",
+        "sb_player": "stolen bases",
         "strikeouts_pitcher": "strikeouts",
     }
     stat = labels.get(family, family)
@@ -250,9 +272,18 @@ def format_ligne_baseball_fr(row: dict[str, Any], *, home_team: str = "", away_t
             return f"{side_name} ({stat} {line})"
         return f"{side_name} — {stat}"
     if family == "hr_player" and player:
-        return f"Oui HR — {player}"
+        thr = line or "1"
+        return f"Oui {thr}+ HR — {player}" if thr not in {"1", "1,0"} else f"Oui HR — {player}"
     if family == "runs_player" and player:
-        return f"Oui {line}+ runs — {player}"
+        return f"Oui {line or '1'}+ runs — {player}"
+    if family == "hits_player" and player:
+        return f"Oui {line or '1'}+ hits — {player}"
+    if family == "rbi_player" and player:
+        return f"Oui {line or '1'}+ RBI — {player}"
+    if family == "total_bases_player" and player and line:
+        return f"Oui {line}+ total bases — {player}"
+    if family == "sb_player" and player:
+        return f"Oui {line or '1'}+ SB — {player}"
     if family == "strikeouts_pitcher" and player and line:
         return f"{issue} de {line} K — {player}"
     if player and line:

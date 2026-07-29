@@ -29,13 +29,35 @@ def team_token(name: str) -> str:
 
 
 def player_token(name: str) -> str:
-    parts = re.split(r"[\s.]+", strip_accents(name))
+    text = normalize_person_name(name)
+    parts = re.split(r"[\s.]+", strip_accents(text))
     parts = [part for part in parts if part]
     if not parts:
         return "player"
     if len(parts) >= 2 and all(len(part) == 1 for part in parts[:-1]):
         return parts[-1]
     return parts[-1]
+
+
+def normalize_person_name(name: str) -> str:
+    """Normalize ``Last, First`` (Unibet) to ``First Last``."""
+    text = str(name or "").strip()
+    if "," not in text:
+        return text
+    last, first = [part.strip() for part in text.split(",", 1)]
+    if last and first:
+        return f"{first} {last}".strip()
+    return text
+
+
+def resolve_roster_player(name: str, roster: list[str]) -> str:
+    text = normalize_person_name(str(name or "").strip())
+    if not text:
+        return text
+    for candidate in roster:
+        if players_match(text, candidate):
+            return normalize_person_name(candidate)
+    return text
 
 
 def is_comparable_key(compare_key: str) -> bool:
@@ -73,16 +95,6 @@ def resolve_team_side(label: str, home_team: str, away_team: str) -> str | None:
     if cleaned and players_match(cleaned, away_team):
         return "away"
     return None
-
-
-def resolve_roster_player(name: str, roster: list[str]) -> str:
-    text = str(name or "").strip()
-    if not text:
-        return text
-    for candidate in roster:
-        if players_match(text, candidate):
-            return candidate
-    return text
 
 
 def parse_signed_line(text: str) -> float | None:
@@ -160,8 +172,40 @@ def build_inning1_runs_total_key(line: float | str) -> str:
     return f"inning1_runs_total|{format_numeric_line(line)}"
 
 
-def build_hr_player_key(player_name: str) -> str:
-    return f"hr_player|{player_token(player_name)}"
+def build_hr_player_key(player_name: str, threshold: int | float | str = 1) -> str:
+    token = player_token(player_name)
+    thr = format_numeric_line(threshold)
+    if thr in {"1", "1.0"}:
+        return f"hr_player|{token}"
+    return f"hr_player|{token}|{thr}"
+
+
+def build_hits_player_key(player_name: str, threshold: int | float | str = 1) -> str:
+    token = player_token(player_name)
+    thr = format_numeric_line(threshold)
+    if thr in {"1", "1.0"}:
+        return f"hits_player|{token}"
+    return f"hits_player|{token}|{thr}"
+
+
+def build_rbi_player_key(player_name: str, threshold: int | float | str = 1) -> str:
+    token = player_token(player_name)
+    thr = format_numeric_line(threshold)
+    if thr in {"1", "1.0"}:
+        return f"rbi_player|{token}"
+    return f"rbi_player|{token}|{thr}"
+
+
+def build_total_bases_player_key(player_name: str, threshold: int | float | str) -> str:
+    return f"total_bases_player|{player_token(player_name)}|{format_numeric_line(threshold)}"
+
+
+def build_sb_player_key(player_name: str, threshold: int | float | str = 1) -> str:
+    token = player_token(player_name)
+    thr = format_numeric_line(threshold)
+    if thr in {"1", "1.0"}:
+        return f"sb_player|{token}"
+    return f"sb_player|{token}|{thr}"
 
 
 def build_runs_player_key(player_name: str, threshold: int | float | str) -> str:
@@ -338,12 +382,19 @@ def map_fanduel_market_to_entries(
             add(build_inning1_runs_total_key(float(handicap)), outcome, runner)
         return entries
 
-    # Batter HR yes
+    # Batter HR yes / 2+
     if lower == "to hit a home run" or market_type == "TO_HIT_A_HOME_RUN":
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_hr_player_key(player), "Yes", runner)
+                add(build_hr_player_key(player, 1), "Yes", runner)
+        return entries
+
+    if lower == "to hit 2+ home runs" or market_type == "TO_HIT_2+_HOME_RUNS":
+        for runner in runners:
+            player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
+            if player:
+                add(build_hr_player_key(player, 2), "Yes", runner)
         return entries
 
     # Batter runs yes / 2+
@@ -358,14 +409,73 @@ def map_fanduel_market_to_entries(
                 add(build_runs_player_key(player, threshold), "Yes", runner)
         return entries
 
+    # Hits yes / 2+
+    if lower in {"to record a hit", "to record 2+ hits"} or market_type in {
+        "PLAYER_TO_RECORD_A_HIT",
+        "PLAYER_TO_RECORD_2+_HITS",
+    }:
+        threshold = 2 if "2+" in lower or "2+" in market_type else 1
+        for runner in runners:
+            player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
+            if player:
+                add(build_hits_player_key(player, threshold), "Yes", runner)
+        return entries
+
+    # RBI yes / 2+
+    if lower in {"to record an rbi", "to record 2+ rbis"} or market_type in {
+        "TO_RECORD_AN_RBI",
+        "TO_RECORD_2+_RBIS",
+    }:
+        threshold = 2 if "2+" in lower or "2+" in market_type else 1
+        for runner in runners:
+            player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
+            if player:
+                add(build_rbi_player_key(player, threshold), "Yes", runner)
+        return entries
+
+    # Total bases N+
+    tb_match = re.match(r"to record (\d+)\+ total bases$", lower)
+    if tb_match or "TOTAL_BASES" in market_type:
+        threshold = int(tb_match.group(1)) if tb_match else None
+        if threshold is None:
+            m = re.search(r"(\d+)\+", lower)
+            threshold = int(m.group(1)) if m else None
+        if threshold is not None:
+            for runner in runners:
+                player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
+                if player:
+                    add(build_total_bases_player_key(player, threshold), "Yes", runner)
+            return entries
+
+    # Stolen bases yes / 2+
+    if lower in {"to record a stolen base", "to record 2+ stolen bases"} or market_type in {
+        "TO_RECORD_A_STOLEN_BASE",
+        "TO_RECORD_2+_STOLEN_BASES",
+    }:
+        threshold = 2 if "2+" in lower or "2+" in market_type else 1
+        for runner in runners:
+            player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
+            if player:
+                add(build_sb_player_key(player, threshold), "Yes", runner)
+        return entries
+
     # Pitcher strikeouts O/U
     strikeout_match = re.match(r"^(.+?)\s*-\s*strikeouts$", lower)
-    if strikeout_match or "TOTAL_STRIKEOUTS" in market_type:
+    if (
+        strikeout_match
+        or "TOTAL_STRIKEOUTS" in market_type
+        or market_type.endswith("_TOTAL_STRIKEOUTS")
+    ):
         player_raw = market_label.split(" - ")[0].strip() if " - " in market_label else ""
+        if not player_raw and strikeout_match:
+            player_raw = strikeout_match.group(1).strip()
         player = resolve_roster_player(player_raw, roster) if player_raw else ""
         if player:
             for runner in runners:
                 runner_name = str(runner.get("runnerName", ""))
+                # Skip alt "N+ Strikeouts" ladders here — O/U only.
+                if re.search(r"\d+\s*\+\s*strikeouts?", strip_accents(runner_name)):
+                    continue
                 handicap = runner.get("handicap")
                 if handicap in (None, "", 0, 0.0):
                     handicap = parse_signed_line(runner_name)

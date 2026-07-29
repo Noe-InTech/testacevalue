@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
 from baseball_constants import UNIBET_BASEBALL_LISTING_PATH, UNIBET_KBO_LISTING_PATH, UNIBET_MLB_LISTING_PATH
 from baseball_listings import competition_from_blob, is_baseball_outright_name
-from unibet_client import UnibetClient, UnibetMarket
+from baseball_market_mapping import normalize_person_name
+from unibet_client import UnibetClient, UnibetMarket, UnibetOutcome
+
+_EMBEDDED_OUTCOME_BLOCK_RE = re.compile(
+    r'\{[^{}]*?"marketDesc":"([^"]+)"[^{}]*?\}',
+    flags=re.I,
+)
 
 
 @dataclass(frozen=True)
@@ -165,21 +172,40 @@ class UnibetBaseballClient(UnibetClient):
         return home, away
 
     def build_event_payload(self, event: UnibetBaseballEvent) -> dict[str, Any]:
-        markets = self.get_event_markets(event.url)
-        # Prefer richer extract_all if available
+        html = ""
         try:
             html = self.get_event_html(event.url)
-            all_markets = self.extract_all_event_markets_from_html(html)
-            if len(all_markets) > len(markets):
-                markets = all_markets
         except Exception:
-            pass
+            html = ""
+
+        markets = self.get_event_markets(event.url) if not html else []
+        if html:
+            try:
+                markets = self.extract_all_event_markets_from_html(html)
+            except Exception:
+                markets = self.get_event_markets(event.url)
+
+        player_markets = (
+            self.extract_baseball_player_markets_from_html(html) if html else []
+        )
+
         merged: dict[str, UnibetMarket] = {}
         for market in markets:
+            # Drop anonymous SSR HR board — embedded per-player markets replace it.
+            if strip_home_runs_joueur(market.label) and not player_has_named_outcomes(
+                market
+            ):
+                continue
             existing = merged.get(market.label)
             if existing is None or len(market.outcomes) > len(existing.outcomes):
                 merged[market.label] = market
+        for market in player_markets:
+            existing = merged.get(market.label)
+            if existing is None or len(market.outcomes) > len(existing.outcomes):
+                merged[market.label] = market
+
         market_list = list(merged.values())
+        roster = self._extract_roster_from_markets(market_list)
         return {
             "url": event.url,
             "event_id": event.event_id,
@@ -188,7 +214,7 @@ class UnibetBaseballClient(UnibetClient):
             "away_team": event.away_team,
             "start_date": event.start_date,
             "competition": event.competition,
-            "roster": [],
+            "roster": roster,
             "market_count": len(market_list),
             "markets": [
                 {
@@ -198,3 +224,120 @@ class UnibetBaseballClient(UnibetClient):
                 for market in market_list
             ],
         }
+
+    def extract_baseball_player_markets_from_html(self, html: str) -> list[UnibetMarket]:
+        """Per-player HR (and similar) markets from embedded LVS JSON."""
+        grouped: dict[str, dict[str, UnibetOutcome]] = defaultdict(dict)
+        for market_desc, description, odds in self._iter_embedded_outcome_blocks(html):
+            if odds is None:
+                continue
+            lower = market_desc.lower()
+            if not self._is_player_hr_market_desc(lower):
+                continue
+            if any(
+                token in lower
+                for token in ("double chance", "triple chance", "duo", "trio")
+            ):
+                continue
+            grouped[market_desc][description] = UnibetOutcome(
+                label=description,
+                odds=odds,
+            )
+        markets: list[UnibetMarket] = []
+        for label, outcomes in grouped.items():
+            if not outcomes:
+                continue
+            markets.append(
+                UnibetMarket(label=label, outcomes=tuple(outcomes.values()))
+            )
+        return markets
+
+    def _iter_embedded_outcome_blocks(self, html: str):
+        # Blocks where marketDesc appears after description/price — also scan
+        # reverse-order objects via a looser pass on description+price+marketDesc.
+        seen: set[tuple[str, str, float]] = set()
+        for match in _EMBEDDED_OUTCOME_BLOCK_RE.finditer(html):
+            block = match.group(0)
+            market_desc = self._extract_json_string(block, "marketDesc")
+            description = self._extract_json_string(block, "description")
+            if not market_desc or not description:
+                continue
+            odds = self._parse_decimal_odds(
+                self._extract_json_string(block, "price") or ""
+            )
+            if odds is None:
+                continue
+            key = (market_desc.strip(), description.strip(), float(odds))
+            if key in seen:
+                continue
+            seen.add(key)
+            yield market_desc.strip(), description.strip(), odds
+
+        # Fallback: description may precede marketDesc outside a single flat object
+        # when nested braces break the simple regex — pair nearby fields.
+        for match in re.finditer(
+            r'"description":"([^"]+)"[\s\S]{0,240}?"price":"([^"]+)"[\s\S]{0,240}?"marketDesc":"([^"]+)"',
+            html,
+            flags=re.I,
+        ):
+            description, price, market_desc = (
+                match.group(1).strip(),
+                match.group(2),
+                match.group(3).strip(),
+            )
+            odds = self._parse_decimal_odds(price)
+            if odds is None:
+                continue
+            key = (market_desc, description, float(odds))
+            if key in seen:
+                continue
+            seen.add(key)
+            yield market_desc, description, odds
+
+    @staticmethod
+    def _extract_json_string(block: str, key: str) -> str | None:
+        field = re.search(rf'"{re.escape(key)}":"([^"]*)"', block)
+        return field.group(1).strip() if field else None
+
+    @staticmethod
+    def _is_player_hr_market_desc(lower: str) -> bool:
+        if "nombre de home runs" not in lower:
+            return False
+        # Per-player: "Nombre de Home Runs- Contreras, Willson - Match"
+        return bool(
+            re.search(r"nombre de home runs\s*-\s*.+\s*-\s*match", lower)
+        )
+
+    @staticmethod
+    def _extract_roster_from_markets(markets: list[UnibetMarket]) -> list[str]:
+        roster: list[str] = []
+        for market in markets:
+            player_from_label = re.search(
+                r"nombre de home runs\s*-\s*(.+?)\s*-\s*match",
+                market.label,
+                flags=re.I,
+            )
+            if player_from_label:
+                roster.append(normalize_person_name(player_from_label.group(1)))
+            for outcome in market.outcomes:
+                tier = re.match(r"(.+?)\s+(\d+)\+$", outcome.label.strip())
+                if tier:
+                    roster.append(normalize_person_name(tier.group(1)))
+        return sorted({name for name in roster if name})
+
+
+def strip_home_runs_joueur(label: str) -> bool:
+    lower = re.sub(r"\s+", " ", label.strip().lower())
+    return lower in {
+        "nombre de home runs - joueur",
+        "nombre de home runs- joueur",
+    }
+
+
+def player_has_named_outcomes(market: UnibetMarket) -> bool:
+    for outcome in market.outcomes:
+        if re.search(r"[A-Za-z].*\d+\+", outcome.label):
+            return True
+        if "," in outcome.label and re.search(r"\d+\+", outcome.label):
+            return True
+    return False

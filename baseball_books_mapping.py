@@ -56,8 +56,14 @@ def is_baseball_comparable_label(label: str) -> bool:
         "marque",
         "marqueur de home run",
         "home run",
+        "nombre de home runs",
         "strikeout",
         "retraits sur des",
+        "hits",
+        "rbi",
+        "bases",
+        "stolen",
+        "vol de base",
         "prolongation",
         "manche supplementaire",
         "resultat",
@@ -299,6 +305,40 @@ def normalize_unibet_market(
         )
         if item:
             markets.append(item)
+        return markets
+
+    # Per-player HR: "Nombre de Home Runs- Contreras, Willson - Match"
+    # Outcomes: "Contreras, Willson 1+" / "2+"
+    hr_player = re.search(
+        r"nombre de home runs\s*-\s*(.+?)\s*-\s*match",
+        lower,
+    )
+    if hr_player and "duo" not in lower and "trio" not in lower and "chance" not in lower:
+        player_from_label = resolve_roster_player(hr_player.group(1), roster)
+        for raw, odds in outcomes:
+            if odds is None:
+                continue
+            tier = re.match(r"(.+?)\s+(\d+)\+\s*$", str(raw).strip())
+            if tier:
+                player = resolve_roster_player(tier.group(1), roster) or player_from_label
+                threshold = int(tier.group(2))
+            elif str(raw).strip() in {"1+", "2+", "3+"}:
+                player = player_from_label
+                threshold = int(str(raw).strip().rstrip("+"))
+            else:
+                continue
+            if not player:
+                continue
+            item = build_market(
+                build_hr_player_key(player, threshold),
+                "hr_player",
+                label,
+                {"Yes": float(odds)},
+                player_name=player,
+                line=str(threshold) if threshold > 1 else "",
+            )
+            if item:
+                markets.append(item)
         return markets
 
     return markets

@@ -7,8 +7,10 @@ from baseball_books_mapping import (
 )
 from baseball_market_mapping import (
     build_h2h_key,
+    build_hits_player_key,
     build_hr_player_key,
     build_inning1_runs_total_key,
+    build_rbi_player_key,
     build_run_line_key,
     build_runs_total_key,
     build_runs_team_key,
@@ -310,6 +312,63 @@ class BaseballMappingTests(unittest.TestCase):
         )
         self.assertEqual(len(markets), 1)
         self.assertEqual(markets[0].compare_key, build_inning1_runs_total_key(0.5))
+
+    def test_normalize_person_name_last_first(self) -> None:
+        from baseball_market_mapping import normalize_person_name, player_token
+
+        self.assertEqual(normalize_person_name("Contreras, Willson"), "Willson Contreras")
+        self.assertEqual(player_token("Contreras, Willson"), "contreras")
+        self.assertEqual(player_token("Willson Contreras"), "contreras")
+
+    def test_normalize_unibet_hr_player_named(self) -> None:
+        markets = normalize_unibet_market(
+            "Nombre de Home Runs- Contreras, Willson - Match",
+            [("Contreras, Willson 1+", 3.25), ("Contreras, Willson 2+", 15.0)],
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+        )
+        keys = {item.compare_key for item in markets}
+        self.assertIn(build_hr_player_key("Willson Contreras", 1), keys)
+        self.assertIn(build_hr_player_key("Willson Contreras", 2), keys)
+        yes = next(item for item in markets if item.compare_key.endswith("|contreras") or item.compare_key == "hr_player|contreras")
+        self.assertEqual(yes.outcomes[0].label, "Yes")
+
+    def test_map_fanduel_rbi_and_hits(self) -> None:
+        rbi = map_fanduel_market_to_entries(
+            {
+                "marketName": "To Record An RBI",
+                "marketType": "TO_RECORD_AN_RBI",
+                "runners": [{"runnerName": "Willson Contreras", "runnerStatus": "ACTIVE"}],
+            },
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+            roster=["Willson Contreras"],
+        )
+        self.assertEqual(rbi[0][0], build_rbi_player_key("Willson Contreras", 1))
+        hits = map_fanduel_market_to_entries(
+            {
+                "marketName": "To Record 2+ Hits",
+                "marketType": "PLAYER_TO_RECORD_2+_HITS",
+                "runners": [{"runnerName": "Jacob Wilson", "runnerStatus": "ACTIVE"}],
+            },
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+            roster=["Jacob Wilson"],
+        )
+        self.assertEqual(hits[0][0], build_hits_player_key("Jacob Wilson", 2))
+
+    def test_map_fanduel_hr_two_plus(self) -> None:
+        entries = map_fanduel_market_to_entries(
+            {
+                "marketName": "To Hit 2+ Home Runs",
+                "marketType": "TO_HIT_2+_HOME_RUNS",
+                "runners": [{"runnerName": "Nick Kurtz", "runnerStatus": "ACTIVE"}],
+            },
+            home_team="Athletics",
+            away_team="Boston Red Sox",
+            roster=["Nick Kurtz"],
+        )
+        self.assertEqual(entries[0][0], build_hr_player_key("Nick Kurtz", 2))
 
     def test_kbo_team_match(self) -> None:
         self.assertTrue(players_match("LG Twins", "LG Twins"))

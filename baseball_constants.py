@@ -68,6 +68,10 @@ COMPARABLE_FAMILIES = frozenset(
         "inning1_runs_total",
         "hr_player",
         "runs_player",
+        "hits_player",
+        "rbi_player",
+        "total_bases_player",
+        "sb_player",
         "strikeouts_pitcher",
     }
 )
