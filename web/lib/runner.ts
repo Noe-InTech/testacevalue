@@ -121,6 +121,21 @@ export interface RunnerSportStatus {
   comparable_count?: number;
 }
 
+export interface RunnerLastUpdate {
+  ok?: boolean;
+  changed?: boolean;
+  scheduled?: boolean;
+  before?: string;
+  after?: string;
+  before_message?: string;
+  after_message?: string;
+  branch?: string;
+  message?: string;
+  scheduled_at?: string;
+  finished_at?: string;
+  error?: string;
+}
+
 export interface RunnerHealth {
   ok: boolean;
   running: boolean;
@@ -129,11 +144,51 @@ export interface RunnerHealth {
   configured_url?: string;
   sports?: string[];
   sports_status?: Record<string, RunnerSportStatus>;
+  git_head?: string;
+  last_update?: RunnerLastUpdate;
   fetched_at?: string;
   reachable: boolean;
   configured: boolean;
   error?: string;
   runner_host?: string;
+}
+
+export async function requestRunnerSelfUpdate(options?: {
+  restartTunnel?: boolean;
+}): Promise<Response> {
+  const { baseUrl, secret } = runnerConfig();
+  if (!baseUrl || !secret) {
+    return new Response(
+      JSON.stringify({ error: "RUNNER_URL / RUNNER_SECRET manquants sur Vercel." }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/self-update`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Runner-Secret": secret,
+      },
+      body: JSON.stringify({ restart_tunnel: Boolean(options?.restartTunnel) }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
+    const data = await response.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "connexion impossible";
+    return new Response(
+      JSON.stringify({
+        error: `Runner EU injoignable (${detail}).`,
+      }),
+      { status: 502, headers: { "Content-Type": "application/json" } },
+    );
+  }
 }
 
 export async function fetchRunnerHealth(): Promise<RunnerHealth> {
@@ -182,6 +237,8 @@ export async function fetchRunnerHealth(): Promise<RunnerHealth> {
       sport: data.sport || "",
       public_url: typeof data.public_url === "string" ? data.public_url : "",
       configured_url: configuredUrl,
+      git_head: typeof data.git_head === "string" ? data.git_head : "",
+      last_update: data.last_update,
       reachable: true,
       configured: true,
       runner_host: runnerHost,
