@@ -14,8 +14,6 @@ export function AppShell() {
 
   return (
     <main className="page">
-      <RunnerStatus />
-
       <div className="sport-tabs">
         <button
           type="button"
@@ -56,6 +54,8 @@ export function AppShell() {
       ) : (
         <BaseballDashboard />
       )}
+
+      <RunnerStatus />
     </main>
   );
 }
