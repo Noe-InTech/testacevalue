@@ -135,7 +135,7 @@ export function filterWnbaRows(
     matchQuery,
   }: {
     statId: string;
-    book: WnbaBookFilter;
+    book: string;
     query: string;
     matchQuery: string;
   },

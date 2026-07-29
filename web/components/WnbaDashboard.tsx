@@ -31,9 +31,19 @@ import {
   saveCachedNbaResults,
   type NbaBookFilter,
 } from "@/lib/nba";
+import {
+  BASEBALL_BOOK_FILTERS,
+  BASEBALL_STAT_FILTERS,
+  clearCachedBaseballResults,
+  filterBaseballRows,
+  hasBaseballData,
+  loadCachedBaseballResults,
+  saveCachedBaseballResults,
+  type BaseballBookFilter,
+} from "@/lib/baseball";
 
-type BasketballLeague = "wnba" | "nba";
-type BookFilter = WnbaBookFilter | NbaBookFilter;
+type BasketballLeague = "wnba" | "nba" | "baseball";
+type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter;
 
 function leagueConfig(league: BasketballLeague) {
   if (league === "nba") {
@@ -49,6 +59,21 @@ function leagueConfig(league: BasketballLeague) {
       statFilters: NBA_STAT_FILTERS,
       bookFilters: NBA_BOOK_FILTERS,
       filterRows: filterNbaRows,
+    };
+  }
+  if (league === "baseball") {
+    return {
+      label: "Baseball",
+      apiSport: "baseball" as const,
+      marketKind: "baseball" as const,
+      source: "baseball_markets_comparable",
+      hasData: hasBaseballData,
+      loadCache: loadCachedBaseballResults,
+      saveCache: saveCachedBaseballResults,
+      clearCache: clearCachedBaseballResults,
+      statFilters: BASEBALL_STAT_FILTERS,
+      bookFilters: BASEBALL_BOOK_FILTERS,
+      filterRows: filterBaseballRows,
     };
   }
   return {
@@ -565,11 +590,24 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   return (
     <>
       <header className="hero">
-        <p className="eyebrow">Basket {cfg.label}</p>
-        <h1>Props joueurs — books FR vs FanDuel</h1>
+        <p className="eyebrow">{cfg.label === "Baseball" ? "Baseball MLB / KBO" : `Basket ${cfg.label}`}</p>
+        <h1>
+          {cfg.label === "Baseball"
+            ? "Marchés baseball — books FR vs FanDuel"
+            : "Props joueurs — books FR vs FanDuel"}
+        </h1>
         <p className="lead">
-          Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
-          ({cfg.label} — Unibet, Betclic, Winamax) avec FanDuel.
+          {cfg.label === "Baseball" ? (
+            <>
+              Compare <strong>vainqueur, handicap, totaux, F5, 1ère manche, HR</strong> (MLB / KBO —
+              Unibet, Winamax) avec FanDuel.
+            </>
+          ) : (
+            <>
+              Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
+              ({cfg.label} — Unibet, Betclic, Winamax) avec FanDuel.
+            </>
+          )}
         </p>
       </header>
 
