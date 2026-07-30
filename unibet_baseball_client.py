@@ -1,4 +1,4 @@
-"""Client Unibet FR — baseball / MLB / KBO."""
+"""Client Unibet FR — baseball / MLB / KBO / NPB."""
 
 from __future__ import annotations
 
@@ -7,7 +7,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
-from baseball_constants import UNIBET_BASEBALL_LISTING_PATH, UNIBET_KBO_LISTING_PATH, UNIBET_MLB_LISTING_PATH
+from baseball_constants import (
+    UNIBET_BASEBALL_LISTING_PATH,
+    UNIBET_KBO_LISTING_PATH,
+    UNIBET_MLB_LISTING_PATH,
+    UNIBET_NPB_LISTING_PATH,
+)
 from baseball_listings import competition_from_blob, is_baseball_outright_name
 from baseball_market_mapping import normalize_person_name
 from unibet_client import UnibetClient, UnibetMarket, UnibetOutcome
@@ -81,9 +86,52 @@ class UnibetBaseballClient(UnibetClient):
                 )
         return sorted(events.values(), key=lambda item: item.name)
 
+    def list_npb_events(self) -> list[UnibetBaseballEvent]:
+        events: dict[str, UnibetBaseballEvent] = {}
+        try:
+            html = self.get_tennis_listing_html(UNIBET_NPB_LISTING_PATH)
+        except Exception:
+            return []
+        self._ingest_paths(
+            html,
+            events,
+            pattern=r'href="(/paris-baseball/japon/npb/\d+/[^"#?]+)"',
+            competition="NPB",
+        )
+        for match in re.finditer(
+            r'href="(/paris-en-direct/(\d+)/([a-z0-9\-]+))"',
+            html,
+            flags=re.I,
+        ):
+            path, event_id, slug = match.group(1), match.group(2), match.group(3)
+            if is_baseball_outright_name(slug):
+                continue
+            home, away = self._teams_from_slug(slug)
+            if not home or not away:
+                continue
+            if competition_from_blob(slug, home, away) != "NPB":
+                continue
+            key = f"{home}|{away}".lower()
+            url = f"{self.base_url}{path}"
+            existing = events.get(key)
+            if existing is None:
+                events[key] = UnibetBaseballEvent(
+                    event_id=str(event_id),
+                    name=f"{home} - {away}",
+                    home_team=home,
+                    away_team=away,
+                    url=url,
+                    competition="NPB",
+                )
+        return sorted(events.values(), key=lambda item: item.name)
+
     def list_baseball_events(self) -> list[UnibetBaseballEvent]:
         merged: dict[str, UnibetBaseballEvent] = {}
-        for event in [*self.list_mlb_events(), *self.list_kbo_events()]:
+        for event in [
+            *self.list_mlb_events(),
+            *self.list_kbo_events(),
+            *self.list_npb_events(),
+        ]:
             key = f"{event.home_team}|{event.away_team}".lower()
             merged[key] = event
         return sorted(merged.values(), key=lambda item: (item.competition, item.name))
@@ -162,6 +210,23 @@ class UnibetBaseballClient(UnibetClient):
             "kt-wiz": "KT Wiz",
             "hanwha-eagles": "Hanwha Eagles",
             "lotte-giants": "Lotte Giants",
+            # NPB
+            "chiba-lotte-marines": "Chiba Lotte Marines",
+            "chunichi-dragons": "Chunichi Dragons",
+            "fukuoka-softbank-hawks": "Fukuoka SoftBank Hawks",
+            "hanshin-tigers": "Hanshin Tigers",
+            "hiroshima-carp": "Hiroshima Carp",
+            "hokkaido-nippon-ham-fighters": "Hokkaido Nippon-Ham Fighters",
+            "nippon-ham-fighters": "Hokkaido Nippon-Ham Fighters",
+            "orix-buffaloes": "Orix Buffaloes",
+            "rakuten-eagles": "Rakuten Eagles",
+            "tohoku-rakuten-golden-eagles": "Tohoku Rakuten Golden Eagles",
+            "saitama-seibu-lions": "Saitama Seibu Lions",
+            "seibu-lions": "Saitama Seibu Lions",
+            "tokyo-yakult-swallows": "Tokyo Yakult Swallows",
+            "yakult-swallows": "Tokyo Yakult Swallows",
+            "yokohama-baystars": "Yokohama BayStars",
+            "yomiuri-giants": "Yomiuri Giants",
         }
         body = slug.replace("-vs-", "|").replace("-at-", "|")
         if "|" not in body:

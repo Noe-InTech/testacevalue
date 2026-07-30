@@ -1,4 +1,4 @@
-"""Client Betclic FR — baseball / MLB / KBO."""
+"""Client Betclic FR — baseball / MLB / KBO / NPB."""
 
 from __future__ import annotations
 
@@ -60,6 +60,19 @@ BASEBALL_TEAM_SLUGS: tuple[tuple[str, str], ...] = tuple(
             ("nc-dinos", "NC Dinos"),
             ("samsung-lions", "Samsung Lions"),
             ("ssg-landers", "SSG Landers"),
+            # NPB
+            ("chiba-lotte-marines", "Chiba Lotte Marines"),
+            ("chunichi-dragons", "Chunichi Dragons"),
+            ("fukuoka-softbank-hawks", "Fukuoka SoftBank Hawks"),
+            ("hanshin-tigers", "Hanshin Tigers"),
+            ("hiroshima-carp", "Hiroshima Carp"),
+            ("hokkaido-nippon-ham-fighters", "Hokkaido Nippon-Ham Fighters"),
+            ("orix-buffaloes", "Orix Buffaloes"),
+            ("tohoku-rakuten-golden-eagles", "Tohoku Rakuten Golden Eagles"),
+            ("saitama-seibu-lions", "Saitama Seibu Lions"),
+            ("tokyo-yakult-swallows", "Tokyo Yakult Swallows"),
+            ("yokohama-baystars", "Yokohama BayStars"),
+            ("yomiuri-giants", "Yomiuri Giants"),
         ),
         key=lambda item: len(item[0]),
         reverse=True,
@@ -90,6 +103,13 @@ class BetclicBaseballClient(BetclicClient):
             link
             for link in self.list_baseball_matches()
             if link.competition == "KBO"
+        ]
+
+    def list_npb_matches(self) -> list[BetclicBaseballMatchLink]:
+        return [
+            link
+            for link in self.list_baseball_matches()
+            if link.competition == "NPB"
         ]
 
     def list_baseball_matches(self) -> list[BetclicBaseballMatchLink]:
@@ -123,7 +143,7 @@ class BetclicBaseballClient(BetclicClient):
         if not home or not away:
             return None
         competition = competition_from_blob(href, home, away)
-        if competition not in {"MLB", "KBO"}:
+        if competition not in {"MLB", "KBO", "NPB"}:
             return None
         return BetclicBaseballMatchLink(
             match_id=match.group(1),

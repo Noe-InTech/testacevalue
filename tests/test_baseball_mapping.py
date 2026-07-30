@@ -397,6 +397,19 @@ class BaseballMappingTests(unittest.TestCase):
         self.assertTrue(players_match("LG Twins", "LG Twins"))
         self.assertTrue(players_match("Kia Tigers", "KIA Tigers"))
 
+    def test_competition_from_blob_npb(self) -> None:
+        from baseball_listings import competition_from_blob
+
+        self.assertEqual(
+            competition_from_blob("/paris-baseball/japon/npb/123/yomiuri-giants-vs-hanshin-tigers"),
+            "NPB",
+        )
+        self.assertEqual(competition_from_blob("Yomiuri Giants", "Hanshin Tigers"), "MLB")
+        self.assertEqual(
+            competition_from_blob("japon-npb", "Yomiuri Giants", "Hanshin Tigers"),
+            "NPB",
+        )
+
 
 class BaseballCompareHelpersTests(unittest.TestCase):
     def test_compare_h2h_odds_alignment(self) -> None:

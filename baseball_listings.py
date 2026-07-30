@@ -16,6 +16,7 @@ OUTRIGHT_MARKERS = (
     "outright",
     "mlb-20",
     "kbo-20",
+    "npb-20",
     "player markets",
     "player awards",
 )

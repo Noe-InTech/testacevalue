@@ -1,4 +1,4 @@
-"""Client FanDuel — baseball / MLB / KBO / CPBL."""
+"""Client FanDuel — baseball / MLB / KBO / NPB / CPBL."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from baseball_constants import (
     FANDUEL_KBO_COMPETITION_ID,
     FANDUEL_MLB_COMPETITION_ID,
     FANDUEL_MLB_CONTENT_PAGE,
+    FANDUEL_NPB_COMPETITION_ID,
 )
 from baseball_listings import competition_from_blob, looks_like_game_name
 from fanduel_client import FanDuelClient
@@ -122,15 +123,29 @@ class FanDuelBaseballClient(FanDuelClient):
             competition_hint="KBO",
         )
 
+    def list_npb_events(self) -> list[FanDuelBaseballEvent]:
+        if not FANDUEL_NPB_COMPETITION_ID:
+            return []
+        return self._list_competition_events(
+            FANDUEL_NPB_COMPETITION_ID,
+            competition_hint="NPB",
+        )
+
     def list_baseball_events(self) -> list[FanDuelBaseballEvent]:
         merged: dict[str, FanDuelBaseballEvent] = {}
         for event in self.list_mlb_events():
             merged[event.event_id] = event
         for event in self.list_kbo_events():
             merged[event.event_id] = event
-        # CPBL for FD-only inventory
+        for event in self.list_npb_events():
+            merged[event.event_id] = event
+        # CPBL (+ future NPB) for FD-only inventory
         for competition_id in FANDUEL_BASEBALL_COMPETITION_IDS:
-            if competition_id in {FANDUEL_MLB_COMPETITION_ID, FANDUEL_KBO_COMPETITION_ID}:
+            if competition_id in {
+                FANDUEL_MLB_COMPETITION_ID,
+                FANDUEL_KBO_COMPETITION_ID,
+                FANDUEL_NPB_COMPETITION_ID,
+            }:
                 continue
             try:
                 for event in self._list_competition_events(

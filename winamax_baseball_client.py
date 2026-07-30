@@ -1,4 +1,4 @@
-"""Client Winamax FR — baseball / MLB / KBO."""
+"""Client Winamax FR — baseball / MLB / KBO / NPB."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from baseball_constants import (
     WINAMAX_BASEBALL_SPORT_ID,
     WINAMAX_KBO_TOURNAMENT_ID,
     WINAMAX_MLB_TOURNAMENT_ID,
+    WINAMAX_NPB_TOURNAMENT_ID,
 )
 from baseball_listings import competition_from_blob
 from winamax_client import WinamaxClient
@@ -33,9 +34,16 @@ class WinamaxBaseballClient(WinamaxClient):
     def list_kbo_matches(self) -> list[WinamaxBaseballMatchLink]:
         return self._list_by_tournament(WINAMAX_KBO_TOURNAMENT_ID, "KBO")
 
+    def list_npb_matches(self) -> list[WinamaxBaseballMatchLink]:
+        return self._list_by_tournament(WINAMAX_NPB_TOURNAMENT_ID, "NPB")
+
     def list_baseball_matches(self) -> list[WinamaxBaseballMatchLink]:
         merged: dict[str, WinamaxBaseballMatchLink] = {}
-        for link in [*self.list_mlb_matches(), *self.list_kbo_matches()]:
+        for link in [
+            *self.list_mlb_matches(),
+            *self.list_kbo_matches(),
+            *self.list_npb_matches(),
+        ]:
             merged[link.match_id] = link
         return sorted(merged.values(), key=lambda item: (item.competition, item.start_date, item.title))
 

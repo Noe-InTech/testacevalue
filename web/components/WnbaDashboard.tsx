@@ -590,7 +590,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   return (
     <>
       <header className="hero">
-        <p className="eyebrow">{cfg.label === "Baseball" ? "Baseball MLB / KBO" : `Basket ${cfg.label}`}</p>
+        <p className="eyebrow">{cfg.label === "Baseball" ? "Baseball MLB / KBO / NPB" : `Basket ${cfg.label}`}</p>
         <h1>
           {cfg.label === "Baseball"
             ? "Marchés baseball — books FR vs FanDuel"
@@ -599,7 +599,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         <p className="lead">
           {cfg.label === "Baseball" ? (
             <>
-              Compare <strong>vainqueur, handicap, totaux, F5, 1ère manche, HR</strong> (MLB / KBO —
+              Compare <strong>vainqueur, totaux, F5, 1ère manche, marqueurs HR / runs</strong> (MLB / KBO / NPB —
               Unibet, Betclic, Winamax) avec FanDuel.
             </>
           ) : (

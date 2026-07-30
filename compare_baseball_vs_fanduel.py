@@ -1,4 +1,4 @@
-"""Compare marchés baseball (MLB / KBO) — books FR vs FanDuel.
+"""Compare marchés baseball (MLB / KBO / NPB) — books FR vs FanDuel.
 
 Pipeline séparé du tennis / basket.
 """
@@ -631,7 +631,7 @@ def build_results_payload(
         "fd_only_comparables": fd_only_rows if include_fd_only_rows else [],
         "match_progress": match_progress,
         "notes": [
-            "Pipeline baseball (MLB + KBO) séparé du tennis / basket.",
+            "Pipeline baseball (MLB + KBO + NPB) séparé du tennis / basket.",
             "Référence US: FanDuel (game lines + props joueur).",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
             "Betclic soft-fail si 403 (IP hors FR) — Unibet/Winamax continuent.",
@@ -708,7 +708,7 @@ def fetch_live_listings(
             on_status(message)
 
     warnings: list[str] = []
-    status("Chargement parallele des calendriers baseball (MLB/KBO)...")
+    status("Chargement parallele des calendriers baseball (MLB/KBO/NPB)...")
     with ThreadPoolExecutor(max_workers=4) as pool:
         fut_unibet = pool.submit(unibet.list_baseball_events)
         fut_betclic = pool.submit(betclic.list_baseball_matches)

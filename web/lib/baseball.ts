@@ -24,10 +24,9 @@ export const BASEBALL_STAT_FILTERS: BaseballStatFilter[] = [
   { id: "sb", label: "Stolen bases", families: ["sb_player"] },
   { id: "strikeouts", label: "Strikeouts", families: ["strikeouts_pitcher"] },
   { id: "h2h", label: "Vainqueur", families: ["h2h"] },
-  { id: "run_line", label: "Handicap", families: ["run_line"] },
   { id: "runs_total", label: "Total runs", families: ["runs_total"] },
   { id: "runs_team", label: "Total équipe", families: ["runs_team"] },
-  { id: "f5", label: "F5", families: ["f5_h2h", "f5_run_line", "f5_runs_total"] },
+  { id: "f5", label: "F5", families: ["f5_h2h", "f5_runs_total"] },
   { id: "inning1", label: "1ère manche", families: ["inning1_result", "inning1_runs_total"] },
 ];
 
