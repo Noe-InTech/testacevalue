@@ -141,6 +141,11 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const [statFilter, setStatFilter] = useState("all");
   const [bookFilter, setBookFilter] = useState<BookFilter>("Tous");
   const [progressSearch, setProgressSearch] = useState("");
+  const [comparablesSearch, setComparablesSearch] = useState("");
+  const [frHigherSearch, setFrHigherSearch] = useState("");
+  const [valuesSearch, setValuesSearch] = useState("");
+  const [frOnlySearch, setFrOnlySearch] = useState("");
+  const [fdOnlySearch, setFdOnlySearch] = useState("");
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(defaultOpenSections);
   const [payload, setPayload] = useState<MarketPayload | null>(null);
   const [status, setStatus] = useState<RunStatus | null>(null);
@@ -830,11 +835,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         badge={comparables.length}
         open={openSections.comparables}
         onOpenChange={(open) => setSectionOpen("comparables", open)}
+        search={{
+          value: comparablesSearch,
+          onChange: setComparablesSearch,
+          placeholder: "Joueur, match, book, marche...",
+        }}
       >
         <ResultsTable
           title=""
           rows={comparables}
           marketKind={cfg.marketKind}
+          searchQuery={comparablesSearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -847,11 +858,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         badge={frHigherRows.length}
         open={openSections.frHigher}
         onOpenChange={(open) => setSectionOpen("frHigher", open)}
+        search={{
+          value: frHigherSearch,
+          onChange: setFrHigherSearch,
+          placeholder: "Joueur, match, book, marche...",
+        }}
       >
         <ResultsTable
           title=""
           rows={frHigherRows}
           marketKind={cfg.marketKind}
+          searchQuery={frHigherSearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -864,12 +881,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         badge={valueRows.length}
         open={openSections.values}
         onOpenChange={(open) => setSectionOpen("values", open)}
+        search={{
+          value: valuesSearch,
+          onChange: setValuesSearch,
+          placeholder: "Pari, match, book, cote...",
+        }}
       >
         <ValuesTable
           title=""
           rows={valueRows}
           embedded
-          searchQuery={globalSearch}
+          searchQuery={valuesSearch}
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
           emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
@@ -881,11 +903,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         badge={frOnlyRows.length}
         open={openSections.frOnly}
         onOpenChange={(open) => setSectionOpen("frOnly", open)}
+        search={{
+          value: frOnlySearch,
+          onChange: setFrOnlySearch,
+          placeholder: "Joueur, match, book, marche...",
+        }}
       >
         <ResultsTable
           title=""
           rows={frOnlyRows}
           marketKind={cfg.marketKind}
+          searchQuery={frOnlySearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
@@ -898,11 +926,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         badge={fdOnlyRows.length}
         open={openSections.fdOnly}
         onOpenChange={(open) => setSectionOpen("fdOnly", open)}
+        search={{
+          value: fdOnlySearch,
+          onChange: setFdOnlySearch,
+          placeholder: "Joueur, match, marche FanDuel...",
+        }}
       >
         <ResultsTable
           title=""
           rows={fdOnlyRows}
           marketKind={cfg.marketKind}
+          searchQuery={fdOnlySearch}
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}

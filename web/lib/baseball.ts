@@ -16,6 +16,13 @@ export interface BaseballStatFilter {
 
 export const BASEBALL_STAT_FILTERS: BaseballStatFilter[] = [
   { id: "all", label: "Tous", families: [] },
+  { id: "h2h", label: "Vainqueur", families: ["h2h"] },
+  { id: "runs_total", label: "Total runs", families: ["runs_total"] },
+  { id: "runs_team", label: "Total equipe", families: ["runs_team"] },
+  { id: "f5_h2h", label: "F5 vainqueur", families: ["f5_h2h"] },
+  { id: "f5_total", label: "F5 total runs", families: ["f5_runs_total"] },
+  { id: "inning1_result", label: "1re manche vainqueur", families: ["inning1_result"] },
+  { id: "inning1_total", label: "1re manche total", families: ["inning1_runs_total"] },
   { id: "hr", label: "Home run", families: ["hr_player"] },
   { id: "runs_player", label: "Runs joueur", families: ["runs_player"] },
   { id: "hits", label: "Hits", families: ["hits_player"] },
@@ -23,11 +30,6 @@ export const BASEBALL_STAT_FILTERS: BaseballStatFilter[] = [
   { id: "total_bases", label: "Total bases", families: ["total_bases_player"] },
   { id: "sb", label: "Stolen bases", families: ["sb_player"] },
   { id: "strikeouts", label: "Strikeouts", families: ["strikeouts_pitcher"] },
-  { id: "h2h", label: "Vainqueur", families: ["h2h"] },
-  { id: "runs_total", label: "Total runs", families: ["runs_total"] },
-  { id: "runs_team", label: "Total équipe", families: ["runs_team"] },
-  { id: "f5", label: "F5", families: ["f5_h2h", "f5_runs_total"] },
-  { id: "inning1", label: "1ère manche", families: ["inning1_result", "inning1_runs_total"] },
 ];
 
 export const BASEBALL_BOOK_FILTERS = ["Tous", "Winamax", "Unibet", "Betclic"] as const;
