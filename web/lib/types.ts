@@ -16,6 +16,9 @@ export interface ComparableRow {
   cote_us_fanduel_contraire?: string;
   cote_fr_fanduel: string;
   cote_fr_fanduel_contraire?: string;
+  us_source?: string;
+  us_source_label?: string;
+  us_bookmaker?: string;
   prob_fair_fanduel?: string;
   ev_percent?: string;
   ev_percent_raw?: number | null;
@@ -30,6 +33,7 @@ export interface ComparableRow {
   captured_at?: string;
   fr_captured_at?: string;
   fd_captured_at?: string;
+  us_captured_at?: string;
 }
 
 export interface MatchProgressRow {
@@ -229,15 +233,15 @@ export function getTableColumns(marketKind: MarketKind) {
     },
     {
       key: "marche_fanduel" as const,
-      label: "Equiv. FanDuel",
+      label: "Equiv. US",
       hint:
         marketKind === "wnba" || marketKind === "nba"
-          ? "Meme prop joueur chez FanDuel (libelle anglais)"
+          ? "Meme prop joueur cote US (libelle anglais)"
           : marketKind === "baseball"
-            ? "Meme marche baseball chez FanDuel"
+            ? "Meme marche baseball cote par la reference US"
             : marketKind === "victoires"
-              ? "Moneyline FanDuel"
-              : "Meme marche chez FanDuel (libelle anglais)",
+              ? "Moneyline reference US"
+              : "Meme marche cote US (libelle anglais)",
     },
     {
       key: "cote_fr" as const,
@@ -246,38 +250,50 @@ export function getTableColumns(marketKind: MarketKind) {
     },
     { key: "bookmaker_fr" as const, label: "Book FR", hint: "Bookmaker FR retenu pour ce cote" },
     {
+      key: "us_source_label" as const,
+      label: "Book US",
+      hint:
+        marketKind === "baseball"
+          ? "Source US reelle retenue sur la ligne (FanDuel ou RotoWire · DraftKings)"
+          : "Source US reelle retenue sur la ligne",
+    },
+    {
       key: "cote_us_fanduel_ml" as const,
-      label: "FD (US)",
-      hint: "Cote FanDuel moneyline pour ce cote",
+      label: "US (ML)",
+      hint: "Cote moneyline de la reference US retenue pour ce cote",
     },
     {
       key: "cote_fr_fanduel" as const,
-      label: "FD (FR)",
-      hint: "Cote FanDuel convertie en decimal FR",
+      label: "US (FR)",
+      hint: "Cote de la reference US convertie en decimal FR",
     },
     {
       key: "cote_us_fanduel_contraire" as const,
-      label: "FD contraire",
+      label: "US contraire",
       hint:
         marketKind === "victoires"
-          ? "Cote FanDuel du joueur adverse"
-          : "Cote FanDuel du cote oppose (ex. Moins si la ligne est Plus)",
+          ? "Cote US du joueur adverse"
+          : "Cote US du cote oppose (ex. Moins si la ligne est Plus)",
       format: (row: ComparableRow) => formatFdContraire(row),
     },
     {
       key: "ecart_fr_moins_fd" as const,
       label: "Ecart",
-      hint: "Cote FR moins cote FanDuel (FR). Positif = FR plus haut",
+      hint: "Cote FR moins cote US (FR). Positif = FR plus haut",
     },
     {
       key: "meilleur_cote" as const,
       label: "Qui paie mieux",
-      hint: "Book FR ou FanDuel selon la cote la plus haute (brut)",
+      hint: "Book FR ou reference US selon la cote la plus haute (brut)",
     },
   ];
 
-  if (marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball") {
+  if (marketKind === "baseball") {
     return coreColumns;
+  }
+
+  if (marketKind === "wnba" || marketKind === "nba") {
+    return coreColumns.filter((column) => column.key !== "us_source_label");
   }
 
   return coreColumns;

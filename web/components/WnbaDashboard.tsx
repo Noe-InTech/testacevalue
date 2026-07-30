@@ -611,14 +611,15 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         <p className="eyebrow">{cfg.label === "Baseball" ? "Baseball MLB / KBO / NPB" : `Basket ${cfg.label}`}</p>
         <h1>
           {cfg.label === "Baseball"
-            ? "Marchés baseball — books FR vs FanDuel"
+            ? "Marchés baseball — books FR vs référence US"
             : "Props joueurs — books FR vs FanDuel"}
         </h1>
         <p className="lead">
           {cfg.label === "Baseball" ? (
             <>
               Compare <strong>vainqueur, totaux, F5, 1ère manche, marqueurs HR / runs</strong> (MLB / KBO / NPB —
-              Unibet, Betclic, Winamax) avec FanDuel.
+              Unibet, Betclic, Winamax) avec la référence US réelle par ligne: FanDuel, ou RotoWire · DraftKings
+              pour certains runs joueur.
             </>
           ) : (
             <>
@@ -867,7 +868,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Lignes ou le book FR paie mieux que FanDuel"
+        title={cfg.label === "Baseball" ? "Lignes ou le book FR paie mieux que la référence US" : "Lignes ou le book FR paie mieux que FanDuel"}
         badge={frHigherRows.length}
         open={openSections.frHigher}
         onOpenChange={(open) => setSectionOpen("frHigher", open)}
@@ -885,12 +886,16 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage="Aucune ligne ou la cote FR bat FanDuel pour ces filtres."
+          emptyMessage={
+            cfg.label === "Baseball"
+              ? "Aucune ligne ou la cote FR bat la référence US pour ces filtres."
+              : "Aucune ligne ou la cote FR bat FanDuel pour ces filtres."
+          }
         />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Values MPTO — book FR vs FanDuel"
+        title={cfg.label === "Baseball" ? "Values MPTO — book FR vs référence US" : "Values MPTO — book FR vs FanDuel"}
         badge={valueRows.length}
         open={openSections.values}
         onOpenChange={(open) => setSectionOpen("values", open)}
@@ -912,7 +917,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Props FR sans equivalent FanDuel (meme seuil)"
+        title={cfg.label === "Baseball" ? "Props FR sans equivalent US (meme seuil)" : "Props FR sans equivalent FanDuel (meme seuil)"}
         badge={frOnlyRows.length}
         open={openSections.frOnly}
         onOpenChange={(open) => setSectionOpen("frOnly", open)}
@@ -930,19 +935,23 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage="Toutes les lignes FR ont un equivalent FanDuel, ou pas de prop FR."
+          emptyMessage={
+            cfg.label === "Baseball"
+              ? "Toutes les lignes FR ont un equivalent US, ou pas de prop FR."
+              : "Toutes les lignes FR ont un equivalent FanDuel, ou pas de prop FR."
+          }
         />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Props FanDuel sans equivalent FR (meme seuil)"
+        title={cfg.label === "Baseball" ? "Props US sans equivalent FR (meme seuil)" : "Props FanDuel sans equivalent FR (meme seuil)"}
         badge={fdOnlyRows.length}
         open={openSections.fdOnly}
         onOpenChange={(open) => setSectionOpen("fdOnly", open)}
         search={{
           value: fdOnlySearch,
           onChange: setFdOnlySearch,
-          placeholder: "Joueur, match, marche FanDuel...",
+          placeholder: cfg.label === "Baseball" ? "Joueur, match, marche US..." : "Joueur, match, marche FanDuel...",
         }}
       >
         <ResultsTable
@@ -953,7 +962,11 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage="Toutes les lignes FanDuel ont un equivalent FR, ou pas de prop FanDuel."
+          emptyMessage={
+            cfg.label === "Baseball"
+              ? "Toutes les lignes US ont un equivalent FR, ou pas de prop US."
+              : "Toutes les lignes FanDuel ont un equivalent FR, ou pas de prop FanDuel."
+          }
         />
       </CollapsibleSection>
     </>

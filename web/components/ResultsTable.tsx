@@ -63,6 +63,22 @@ function rowKey(row: ComparableRow, index: number): string {
     .join("|");
 }
 
+function renderCell(row: ComparableRow, column: TableColumn) {
+  if (column.key === "us_source_label") {
+    if (!row.us_source_label) {
+      return "—";
+    }
+    const badgeClass =
+      row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
+    const label =
+      row.us_source === "rotowire" && row.us_bookmaker
+        ? `${row.us_source_label} · ${row.us_bookmaker}`
+        : row.us_source_label;
+    return <span className={badgeClass}>{label}</span>;
+  }
+  return "format" in column && column.format ? column.format(row) : row[column.key as keyof ComparableRow];
+}
+
 export function ResultsTable({
   title,
   rows,
@@ -118,9 +134,7 @@ export function ResultsTable({
                         data-label={column.label}
                         className={column.key === "meilleur_cote" ? "side" : undefined}
                       >
-                        {"format" in column && column.format
-                          ? column.format(row)
-                          : row[column.key as keyof ComparableRow]}
+                        {renderCell(row, column)}
                       </td>
                     ))}
                   </tr>

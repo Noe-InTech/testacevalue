@@ -24,19 +24,23 @@ from typing import Any, Callable
 from baseball_books_mapping import BOOK_NORMALIZERS, is_baseball_comparable_label, normalized_market_to_dict
 from baseball_constants import BOOK_LABELS, COMPARABLE_FAMILIES
 from baseball_market_mapping import (
+    build_runs_player_key,
     is_comparable_key,
     map_fanduel_market_to_entries,
+    resolve_roster_player,
     teams_match,
 )
 from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
 from betclic_baseball_client import BetclicBaseballClient
 from fanduel_baseball_client import FanDuelBaseballClient
 from fanduel_client import (
+    american_to_decimal_fr,
     decimal_fr_to_american,
     format_american_moneyline,
     format_french_decimal,
     runner_fanduel_price_bundle,
 )
+from rotowire_mlb_props_client import RotoWireMlbPropsClient, RotoWireRunsRow
 from unibet_baseball_client import UnibetBaseballClient
 from winamax_baseball_client import WinamaxBaseballClient
 
@@ -176,6 +180,7 @@ def build_fanduel_map(
     home_team: str,
     away_team: str,
     roster: list[str],
+    captured_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     if not fanduel_event:
         return {}
@@ -198,6 +203,10 @@ def build_fanduel_map(
                     "compare_key": compare_key,
                     "market_label": market_label,
                     "market_family": compare_key.split("|", 1)[0],
+                    "source": "fanduel",
+                    "source_label": "FanDuel",
+                    "source_bookmaker": "FanDuel",
+                    "captured_at": captured_at or "",
                     "outcomes": {},
                 },
             )
@@ -205,11 +214,75 @@ def build_fanduel_map(
     return variant_map
 
 
+def build_rotowire_runs_map(
+    rows: list[RotoWireRunsRow],
+    *,
+    home_team: str,
+    away_team: str,
+    roster: list[str],
+    captured_at: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    variant_map: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row.over_line != 0.5:
+            continue
+        if not teams_match(home_team, away_team, row.home_team, row.away_team):
+            continue
+        player = resolve_roster_player(row.player_name, roster)
+        compare_key = build_runs_player_key(player, 1)
+        variant_map[compare_key] = {
+            "compare_key": compare_key,
+            "market_label": row.market_label,
+            "market_family": "runs_player",
+            "player_name": player,
+            "source": "rotowire",
+            "source_label": "RotoWire",
+            "source_bookmaker": row.bookmaker,
+            "captured_at": captured_at or "",
+            "outcomes": {
+                "Yes": {
+                    "american": row.over_american,
+                    "decimal_raw": american_to_decimal_fr(row.over_american),
+                    "decimal_fr": american_to_decimal_fr(row.over_american),
+                },
+                "No": {
+                    "american": row.under_american,
+                    "decimal_raw": american_to_decimal_fr(row.under_american),
+                    "decimal_fr": american_to_decimal_fr(row.under_american),
+                },
+            },
+        }
+    return variant_map
+
+
+def overlay_us_reference_map(
+    base_map: dict[str, dict[str, Any]],
+    *,
+    rotowire_rows: list[RotoWireRunsRow],
+    home_team: str,
+    away_team: str,
+    roster: list[str],
+    rotowire_captured_at: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    merged = dict(base_map)
+    merged.update(
+        build_rotowire_runs_map(
+            rotowire_rows,
+            home_team=home_team,
+            away_team=away_team,
+            roster=roster,
+            captured_at=rotowire_captured_at,
+        )
+    )
+    return merged
+
+
 def outcome_label_fr(outcome: str) -> str:
     mapping = {
         "Over": "Plus",
         "Under": "Moins",
         "Yes": "Oui",
+        "No": "Non",
         "home": "Domicile",
         "away": "Extérieur",
         "draw": "Nul",
@@ -222,6 +295,10 @@ def opposite_outcome(outcome: str) -> str | None:
         return "Under"
     if outcome == "Under":
         return "Over"
+    if outcome == "Yes":
+        return "No"
+    if outcome == "No":
+        return "Yes"
     if outcome == "home":
         return "away"
     if outcome == "away":
@@ -325,17 +402,17 @@ def format_ligne_baseball_fr(row: dict[str, Any], *, home_team: str = "", away_t
         return f"{side_name} — {stat}"
     if family == "hr_player" and player:
         thr = line or "1"
-        return f"Oui {thr}+ HR — {player}" if thr not in {"1", "1,0"} else f"Oui HR — {player}"
+        return f"{issue} {thr}+ HR — {player}" if thr not in {"1", "1,0"} else f"{issue} HR — {player}"
     if family == "runs_player" and player:
-        return f"Oui {line or '1'}+ runs — {player}"
+        return f"{issue} {line or '1'}+ runs — {player}"
     if family == "hits_player" and player:
-        return f"Oui {line or '1'}+ hits — {player}"
+        return f"{issue} {line or '1'}+ hits — {player}"
     if family == "rbi_player" and player:
-        return f"Oui {line or '1'}+ RBI — {player}"
+        return f"{issue} {line or '1'}+ RBI — {player}"
     if family == "total_bases_player" and player and line:
-        return f"Oui {line}+ total bases — {player}"
+        return f"{issue} {line}+ total bases — {player}"
     if family == "sb_player" and player:
-        return f"Oui {line or '1'}+ SB — {player}"
+        return f"{issue} {line or '1'}+ SB — {player}"
     if family == "strikeouts_pitcher" and player and line:
         return f"{issue} de {line} K — {player}"
     if player and line:
@@ -362,13 +439,19 @@ def enrich_comparable_row(
         best_side = "tie"
     return {
         **row,
+        "us_source": row.get("us_source", "fanduel"),
+        "us_source_label": row.get("us_source_label", "FanDuel"),
+        "us_bookmaker": row.get("us_bookmaker", "FanDuel"),
+        "us_captured_at": row.get("us_captured_at", ""),
         "best_side": best_side,
         "cote_fr": format_french_decimal(fr_odds),
         "bookmaker_fr": row.get("best_fr_bookmaker", ""),
         "cote_us_fanduel_ml": format_american_moneyline(row.get("fanduel_american")),
         "cote_fr_fanduel": format_french_decimal(fd_decimal),
         "ecart_fr_moins_fd": f"{price_delta:+.2f}".replace(".", ","),
-        "meilleur_cote": "FR" if best_side == "fr" else "FanDuel" if best_side == "fanduel" else "Egalite",
+        "meilleur_cote": (
+            "FR" if best_side == "fr" else str(row.get("us_source_label") or "US") if best_side == "fanduel" else "Egalite"
+        ),
         "issue_fr": outcome_label_fr(str(row.get("outcome", ""))),
         "marche_fr": str(row.get("fr_market_label", "")),
         "marche_fanduel": str(row.get("fanduel_market_label", "")),
@@ -384,6 +467,10 @@ def enrich_fr_only_row(
 ) -> dict[str, Any]:
     return {
         **row,
+        "us_source": "",
+        "us_source_label": "",
+        "us_bookmaker": "",
+        "us_captured_at": "",
         "cote_fr": format_french_decimal(float(row["best_fr_odds"])),
         "bookmaker_fr": row.get("best_fr_bookmaker", ""),
         "cote_us_fanduel_ml": "",
@@ -405,12 +492,16 @@ def enrich_fd_only_row(
 ) -> dict[str, Any]:
     return {
         **row,
+        "us_source": row.get("us_source", "fanduel"),
+        "us_source_label": row.get("us_source_label", "FanDuel"),
+        "us_bookmaker": row.get("us_bookmaker", "FanDuel"),
+        "us_captured_at": row.get("us_captured_at", ""),
         "cote_fr": "",
         "bookmaker_fr": "",
         "cote_us_fanduel_ml": row.get("cote_us_fanduel_ml", ""),
         "cote_fr_fanduel": row.get("cote_fr_fanduel", ""),
         "ecart_fr_moins_fd": "",
-        "meilleur_cote": "FanDuel seul",
+        "meilleur_cote": f"{row.get('us_source_label') or 'US'} seul",
         "issue_fr": outcome_label_fr(str(row.get("outcome", ""))),
         "marche_fr": "",
         "marche_fanduel": str(row.get("fanduel_market_label", "")),
@@ -445,6 +536,10 @@ def compare_normalized_markets(
                         "outcome": outcome,
                         "fr_market_label": fr_market["market_label_raw"],
                         "fanduel_market_label": fd_market.get("market_label", ""),
+                        "us_source": fd_market.get("source", "fanduel"),
+                        "us_source_label": fd_market.get("source_label", "FanDuel"),
+                        "us_bookmaker": fd_market.get("source_bookmaker", "FanDuel"),
+                        "us_captured_at": fd_market.get("captured_at", ""),
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
                         "fanduel_american": fd_bundle.get("american"),
@@ -632,7 +727,7 @@ def build_results_payload(
         "match_progress": match_progress,
         "notes": [
             "Pipeline baseball (MLB + KBO + NPB) séparé du tennis / basket.",
-            "Référence US: FanDuel (game lines + props joueur).",
+            "Référence US: FanDuel sauf runs joueur, qui basculent sur RotoWire · DraftKings quand la paire Oui/Non existe.",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
             "Betclic soft-fail si 403 (IP hors FR) — Unibet/Winamax continuent.",
             *(book_warnings or []),
@@ -761,6 +856,8 @@ def compare_anchor(
     betclic: BetclicBaseballClient,
     winamax: WinamaxBaseballClient,
     fanduel: FanDuelBaseballClient,
+    rotowire_rows: list[RotoWireRunsRow],
+    rotowire_scraped_at: str | None = None,
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
 ) -> dict[str, Any]:
     book_events: dict[str, dict[str, Any]] = {}
@@ -811,8 +908,25 @@ def compare_anchor(
 
     book_lock = threading.Lock()
 
+    def rebuild_us_map() -> dict[str, dict[str, Any]]:
+        base_map = build_fanduel_map(
+            fanduel_payload,
+            home_team=home_team,
+            away_team=away_team,
+            roster=roster,
+            captured_at=fd_scraped_at,
+        )
+        return overlay_us_reference_map(
+            base_map,
+            rotowire_rows=rotowire_rows,
+            home_team=home_team,
+            away_team=away_team,
+            roster=roster,
+            rotowire_captured_at=rotowire_scraped_at,
+        )
+
     def ingest_fr_book(book: str, payload: dict[str, Any] | None) -> None:
-        nonlocal roster, fr_scraped_at, fr_map
+        nonlocal roster, fr_scraped_at, fr_map, fd_map
         if not payload:
             return
         with book_lock:
@@ -830,15 +944,7 @@ def compare_anchor(
                 away_team=away_team,
                 roster=roster,
             )
-            if fanduel_payload is not None:
-                fd_map.update(
-                    build_fanduel_map(
-                        fanduel_payload,
-                        home_team=home_team,
-                        away_team=away_team,
-                        roster=roster,
-                    )
-                )
+            fd_map = rebuild_us_map()
             flush(book)
 
     def ingest_fanduel(payload: dict[str, Any] | None) -> None:
@@ -849,12 +955,7 @@ def compare_anchor(
             fanduel_payload = payload
             fd_scraped_at = utc_now()
             roster = merge_roster(roster, [home_team, away_team])
-            fd_map = build_fanduel_map(
-                payload,
-                home_team=home_team,
-                away_team=away_team,
-                roster=roster,
-            )
+            fd_map = rebuild_us_map()
             flush("fanduel")
 
     unibet_event = next(
@@ -957,11 +1058,17 @@ def run_compare(*, match_filter: str = "") -> dict[str, Any]:
     betclic = BetclicBaseballClient()
     winamax = WinamaxBaseballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBaseballClient()
+    rotowire = RotoWireMlbPropsClient()
     unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_live_listings(
         unibet=unibet,
         betclic=betclic,
         winamax=winamax,
         fanduel=fanduel,
+    )
+    rotowire_rows, rotowire_scraped_at = _safe_call(
+        "RotoWire Runs",
+        rotowire.fetch_draftkings_runs_rows,
+        ([], None),
     )
     anchors = discover_anchors(
         unibet_events=unibet_events,
@@ -983,6 +1090,8 @@ def run_compare(*, match_filter: str = "") -> dict[str, Any]:
             betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
+            rotowire_rows=rotowire_rows,
+            rotowire_scraped_at=rotowire_scraped_at,
         )
         for anchor in anchors
     ]
@@ -1006,6 +1115,7 @@ def run_live_compare(
     betclic = BetclicBaseballClient()
     winamax = WinamaxBaseballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBaseballClient()
+    rotowire = RotoWireMlbPropsClient()
 
     write_run_status_file(status_json, "running", "Chargement des matchs baseball...", match_filter=match_filter)
     write_progress_json(progress_json, [], partial=True)
@@ -1019,6 +1129,12 @@ def run_live_compare(
         winamax=winamax,
         fanduel=fanduel,
         on_status=on_listing_status,
+    )
+    on_listing_status("Chargement de la référence US RotoWire/DraftKings (runs joueur)...")
+    rotowire_rows, rotowire_scraped_at = _safe_call(
+        "RotoWire Runs",
+        rotowire.fetch_draftkings_runs_rows,
+        ([], None),
     )
     anchors = discover_anchors(
         unibet_events=unibet_events,
@@ -1091,6 +1207,8 @@ def run_live_compare(
                 betclic=betclic,
                 winamax=winamax,
                 fanduel=fanduel,
+                rotowire_rows=rotowire_rows,
+                rotowire_scraped_at=rotowire_scraped_at,
                 on_partial=make_on_partial(match_key, index),
             )
             futures[future] = (index, anchor)

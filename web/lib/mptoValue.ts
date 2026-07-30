@@ -39,7 +39,7 @@ export function parseFrenchDecimal(value: string | undefined | null): number | n
   return parsed;
 }
 
-/** MPTO de-vig sur un marche a 2 issues (cotes ref FanDuel). */
+/** MPTO de-vig sur un marche a 2 issues (cotes ref US retenues sur la ligne). */
 export function computeMptoValue(
   fdOdds: number,
   fdOppositeOdds: number,
@@ -114,7 +114,7 @@ export function computeValueFromComparable(
     return null;
   }
 
-  // Refuse toute ligne ou la cle FR ≠ cle FanDuel (mauvais appariement).
+  // Refuse toute ligne ou la cle FR ≠ cle US de reference (mauvais appariement).
   if (
     row.compare_key &&
     row.fanduel_compare_key &&

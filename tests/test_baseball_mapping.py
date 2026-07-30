@@ -20,6 +20,7 @@ from baseball_market_mapping import (
     teams_match,
 )
 from betclic_baseball_client import BetclicBaseballClient
+from rotowire_mlb_props_client import RotoWireMlbPropsClient, RotoWireRunsRow
 from tennis_market_mapping import players_match
 
 
@@ -484,6 +485,77 @@ class BaseballCompareHelpersTests(unittest.TestCase):
         over = next(row for row in rows if row["outcome"] == "Over")
         self.assertEqual(over["best_side"], "fr")
         self.assertIn("7,5", over["ligne_props_fr"])
+
+    def test_rotowire_runs_extracts_draftkings_over_under(self) -> None:
+        client = RotoWireMlbPropsClient()
+        html = """
+        <script>
+        const prop = "runs";
+        const settings = {
+            container: propID,
+            data: [{"name":"CJ Abrams","team":"WSH","opp":"@ATL","draftkings_runs":"0.5","draftkings_runsUnder":"-135","draftkings_runsOver":"-101"}],
+            export: {}
+        };
+        </script>
+        """
+        rows = client.extract_draftkings_runs_rows_from_html(html)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row.player_name, "CJ Abrams")
+        self.assertEqual(row.home_team, "Atlanta Braves")
+        self.assertEqual(row.away_team, "Washington Nationals")
+        self.assertEqual(row.over_line, 0.5)
+        self.assertEqual(row.over_american, -101)
+        self.assertEqual(row.under_american, -135)
+
+    def test_compare_runs_player_uses_rotowire_yes_no_pair(self) -> None:
+        from compare_baseball_vs_fanduel import build_rotowire_runs_map, compare_normalized_markets
+
+        key = build_runs_player_key("CJ Abrams", 1)
+        fr_map = {
+            key: {
+                "compare_key": key,
+                "market_family": "runs_player",
+                "market_label_raw": "Le joueur inscrit 1 run ou +",
+                "player_name": "CJ Abrams",
+                "line": "1",
+                "outcomes": {
+                    "Yes": {"odds": 2.3, "bookmaker_label": "Unibet"},
+                },
+            }
+        }
+        us_map = build_rotowire_runs_map(
+            [
+                RotoWireRunsRow(
+                    player_name="CJ Abrams",
+                    home_team="Atlanta Braves",
+                    away_team="Washington Nationals",
+                    over_line=0.5,
+                    over_american=-101,
+                    under_american=-135,
+                )
+            ],
+            home_team="Atlanta Braves",
+            away_team="Washington Nationals",
+            roster=["CJ Abrams"],
+            captured_at="2026-07-30T08:00:00+00:00",
+        )
+        rows = compare_normalized_markets(
+            fr_map,
+            us_map,
+            home_team="Atlanta Braves",
+            away_team="Washington Nationals",
+        )
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["outcome"], "Yes")
+        self.assertEqual(row["us_source"], "rotowire")
+        self.assertEqual(row["us_source_label"], "RotoWire")
+        self.assertEqual(row["us_bookmaker"], "DraftKings")
+        self.assertEqual(row["issue_fr_contraire"], "Non")
+        self.assertTrue(row["paire_fd_complete"])
+        self.assertEqual(row["cote_us_fanduel_contraire"], "-135")
+        self.assertEqual(row["ligne_props_fr"], "Oui 1+ runs — CJ Abrams")
 
 
 if __name__ == "__main__":

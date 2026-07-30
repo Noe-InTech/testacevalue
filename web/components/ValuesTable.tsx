@@ -15,7 +15,7 @@ interface ValuesTableProps {
   showCaptureDetails?: boolean;
 }
 
-const COLUMNS = 8;
+const COLUMNS = 9;
 
 function filterRows(rows: ValueBetRow[], query: string): ValueBetRow[] {
   const needle = query.trim().toLowerCase();
@@ -23,7 +23,7 @@ function filterRows(rows: ValueBetRow[], query: string): ValueBetRow[] {
     return rows;
   }
   return rows.filter((row) =>
-    [row.match, row.bet, row.opposite, row.bookmaker, row.coteFd, row.coteFr]
+    [row.match, row.bet, row.opposite, row.bookmaker, row.coteFd, row.coteFr, row.source.us_source_label, row.source.us_bookmaker]
       .join(" ")
       .toLowerCase()
       .includes(needle),
@@ -52,7 +52,7 @@ export function ValuesTable({
     ) : (
       <div className="table-wrap">
         <p className="table-hint">
-          Edge MPTO (ref. FanDuel) · Kelly fractionne a 0,25 · uniquement si la cote FR bat FanDuel.
+          Edge MPTO (ref. US) · Kelly fractionne a 0,25 · FanDuel par defaut, RotoWire · DraftKings pour certains runs joueur.
           {showCaptureDetails
             ? " Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire)."
             : ""}
@@ -63,7 +63,8 @@ export function ValuesTable({
               <th>Match</th>
               <th>Pari</th>
               <th>Contraire</th>
-              <th>Cote FD</th>
+              <th>Book US</th>
+              <th>Cote US</th>
               <th>Cote FR</th>
               <th>Book</th>
               <th>Edge</th>
@@ -89,7 +90,20 @@ export function ValuesTable({
                     <td data-label="Match">{row.match}</td>
                     <td data-label="Pari">{row.bet}</td>
                     <td data-label="Contraire">{row.opposite}</td>
-                    <td data-label="Cote FD">{row.coteFd}</td>
+                    <td data-label="Book US">
+                      <span
+                        className={
+                          row.source.us_source === "rotowire"
+                            ? "us-source-badge us-source-badge-rotowire"
+                            : "us-source-badge us-source-badge-fanduel"
+                        }
+                      >
+                        {row.source.us_source === "rotowire" && row.source.us_bookmaker
+                          ? `${row.source.us_source_label} · ${row.source.us_bookmaker}`
+                          : row.source.us_source_label || "FanDuel"}
+                      </span>
+                    </td>
+                    <td data-label="Cote US">{row.coteFd}</td>
                     <td data-label="Cote FR">{row.coteFr}</td>
                     <td data-label="Book">{row.bookmaker}</td>
                     <td data-label="Edge" className="value-edge">

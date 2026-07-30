@@ -56,9 +56,13 @@ def assemble_anchor_result(
                     {
                         "compare_key": compare_key,
                         "market_family": fd_market.get("market_family", compare_key.split("|", 1)[0]),
-                        "player_name": "",
+                        "player_name": fd_market.get("player_name", ""),
                         "outcome": outcome,
                         "fanduel_market_label": fd_market.get("market_label", ""),
+                        "us_source": fd_market.get("source", "fanduel"),
+                        "us_source_label": fd_market.get("source_label", "FanDuel"),
+                        "us_bookmaker": fd_market.get("source_bookmaker", "FanDuel"),
+                        "us_captured_at": fd_market.get("captured_at", ""),
                         "cote_fr_fanduel": format_french_decimal(float(fd_bundle["decimal_fr"])),
                         "cote_us_fanduel_ml": format_american_moneyline(fd_bundle.get("american")),
                     }

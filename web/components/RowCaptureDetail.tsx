@@ -26,12 +26,25 @@ export function RowCaptureDetail({
   row: ComparableRow;
   runGeneratedAt?: string;
 }) {
-  const hasPreciseCapture = Boolean(row.fr_captured_at || row.fd_captured_at || row.captured_at);
+  const hasPreciseCapture = Boolean(
+    row.fr_captured_at || row.us_captured_at || row.fd_captured_at || row.captured_at,
+  );
+  const usLabel =
+    row.us_source === "rotowire" && row.us_bookmaker
+      ? `${row.us_source_label || "RotoWire"} · ${row.us_bookmaker}`
+      : row.us_source_label || "FanDuel";
+  const usBadgeClass =
+    row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
 
   return (
     <div className="row-capture-detail">
       <p className="row-capture-title">Detail des cotes (clique pour fermer)</p>
       <dl className="row-capture-list">
+        <dt>Source US</dt>
+        <dd>
+          <span className={usBadgeClass}>{usLabel}</span>
+        </dd>
+
         <dt>Cote FR</dt>
         <dd>{displayOdds(row.cote_fr)}</dd>
 
@@ -53,8 +66,8 @@ export function RowCaptureDetail({
         <dt>Cote FR ({row.bookmaker_fr || "book FR"})</dt>
         <dd>{formatCaptureTime(row.fr_captured_at || row.captured_at || runGeneratedAt)}</dd>
 
-        <dt>Cote FanDuel</dt>
-        <dd>{formatCaptureTime(row.fd_captured_at || row.captured_at || runGeneratedAt)}</dd>
+        <dt>Cote US ({usLabel})</dt>
+        <dd>{formatCaptureTime(row.us_captured_at || row.fd_captured_at || row.captured_at || runGeneratedAt)}</dd>
 
         <dt>Run global</dt>
         <dd>{formatCaptureTime(runGeneratedAt || row.captured_at)}</dd>
