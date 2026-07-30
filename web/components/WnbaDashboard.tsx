@@ -12,7 +12,7 @@ import { getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
 import {
   clearCachedWnbaResults,
-  countRowsByStat,
+  countRowsByStat as countWnbaRowsByStat,
   filterWnbaRows,
   hasWnbaData,
   loadCachedWnbaResults,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/wnba";
 import {
   clearCachedNbaResults,
+  countRowsByStat as countNbaRowsByStat,
   filterNbaRows,
   hasNbaData,
   loadCachedNbaResults,
@@ -35,6 +36,7 @@ import {
   BASEBALL_BOOK_FILTERS,
   BASEBALL_STAT_FILTERS,
   clearCachedBaseballResults,
+  countRowsByStat as countBaseballRowsByStat,
   filterBaseballRows,
   hasBaseballData,
   loadCachedBaseballResults,
@@ -59,6 +61,7 @@ function leagueConfig(league: BasketballLeague) {
       statFilters: NBA_STAT_FILTERS,
       bookFilters: NBA_BOOK_FILTERS,
       filterRows: filterNbaRows,
+      countRowsByStat: countNbaRowsByStat,
     };
   }
   if (league === "baseball") {
@@ -74,6 +77,7 @@ function leagueConfig(league: BasketballLeague) {
       statFilters: BASEBALL_STAT_FILTERS,
       bookFilters: BASEBALL_BOOK_FILTERS,
       filterRows: filterBaseballRows,
+      countRowsByStat: countBaseballRowsByStat,
     };
   }
   return {
@@ -88,6 +92,7 @@ function leagueConfig(league: BasketballLeague) {
     statFilters: WNBA_STAT_FILTERS,
     bookFilters: WNBA_BOOK_FILTERS,
     filterRows: filterWnbaRows,
+    countRowsByStat: countWnbaRowsByStat,
   };
 }
 
@@ -537,8 +542,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     [payload],
   );
   const statCounts = useMemo(
-    () => countRowsByStat(statCountRows),
-    [statCountRows],
+    () => cfg.countRowsByStat(statCountRows),
+    [cfg, statCountRows],
   );
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
   const filteredProgress = useMemo(() => {
