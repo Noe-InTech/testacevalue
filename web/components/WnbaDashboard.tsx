@@ -528,9 +528,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => cfg.filterRows(payload?.fd_only_comparables ?? [], filterOptions),
     [payload, filterOptions],
   );
-  const statCounts = useMemo(
-    () => countRowsByStat(payload?.comparables ?? []),
+  const statCountRows = useMemo(
+    () => [
+      ...(payload?.comparables ?? []),
+      ...(payload?.fr_only_comparables ?? []),
+      ...(payload?.fd_only_comparables ?? []),
+    ],
     [payload],
+  );
+  const statCounts = useMemo(
+    () => countRowsByStat(statCountRows),
+    [statCountRows],
   );
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
   const filteredProgress = useMemo(() => {
