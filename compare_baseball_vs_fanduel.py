@@ -229,7 +229,7 @@ def build_rotowire_runs_map(
         if not teams_match(home_team, away_team, row.home_team, row.away_team):
             continue
         player = resolve_roster_player(row.player_name, roster)
-        compare_key = build_runs_player_key(player, 1)
+        compare_key = build_runs_player_key(player, 1, roster=roster)
         variant_map[compare_key] = {
             "compare_key": compare_key,
             "market_label": row.market_label,

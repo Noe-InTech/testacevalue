@@ -338,11 +338,31 @@ class BaseballMappingTests(unittest.TestCase):
         self.assertEqual(markets[0].compare_key, build_inning1_runs_total_key(0.5))
 
     def test_normalize_person_name_last_first(self) -> None:
-        from baseball_market_mapping import normalize_person_name, player_token
+        from baseball_market_mapping import normalize_person_name, player_token, player_compare_token
 
         self.assertEqual(normalize_person_name("Contreras, Willson"), "Willson Contreras")
         self.assertEqual(player_token("Contreras, Willson"), "contreras")
         self.assertEqual(player_token("Willson Contreras"), "contreras")
+        self.assertEqual(
+            player_compare_token("Brandon Lowe", ["Brandon Lowe", "Nathaniel Lowe"]),
+            "blowe",
+        )
+        self.assertEqual(
+            player_compare_token("Nathaniel Lowe", ["Brandon Lowe", "Nathaniel Lowe"]),
+            "nlowe",
+        )
+
+    def test_normalize_winamax_runs_player_disambiguates_lowe(self) -> None:
+        markets = normalize_winamax_market(
+            "Marque 1 runs ou plus (1)",
+            [("Brandon Lowe", 1.7), ("Nathaniel Lowe", 2.5)],
+            home_team="Cincinnati Reds",
+            away_team="Pittsburgh Pirates",
+            roster=["Brandon Lowe", "Nathaniel Lowe"],
+        )
+        keys = {item.compare_key: item.outcomes[0].odds for item in markets}
+        self.assertEqual(keys["runs_player|blowe|1"], 1.7)
+        self.assertEqual(keys["runs_player|nlowe|1"], 2.5)
 
     def test_normalize_unibet_hr_player_named(self) -> None:
         markets = normalize_unibet_market(

@@ -39,6 +39,46 @@ def player_token(name: str) -> str:
     return parts[-1]
 
 
+def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
+    """Assign stable compare tokens; disambiguate shared last names on a roster."""
+    grouped: dict[str, list[str]] = {}
+    for raw_name in roster:
+        canonical = normalize_person_name(str(raw_name or "").strip())
+        if not canonical:
+            continue
+        last = player_token(canonical)
+        grouped.setdefault(last, []).append(canonical)
+
+    tokens: dict[str, str] = {}
+    for last, names in grouped.items():
+        unique_names = sorted(set(names), key=lambda item: strip_accents(item))
+        if len(unique_names) == 1:
+            tokens[unique_names[0]] = last
+            continue
+        for name in unique_names:
+            parts = re.split(r"[\s.]+", strip_accents(name))
+            parts = [part for part in parts if part]
+            prefix = parts[0][0] if parts else "x"
+            tokens[name] = f"{prefix}{last}"
+    return tokens
+
+
+def player_compare_token(name: str, roster: list[str] | None = None) -> str:
+    canonical = normalize_person_name(str(name or "").strip())
+    if not canonical:
+        return "player"
+    if not roster:
+        return player_token(canonical)
+    token_map = build_player_compare_tokens(roster)
+    resolved = resolve_roster_player(canonical, roster)
+    if resolved in token_map:
+        return token_map[resolved]
+    for roster_name, token in token_map.items():
+        if strip_accents(canonical) == strip_accents(roster_name):
+            return token
+    return player_token(canonical)
+
+
 def normalize_person_name(name: str) -> str:
     """Normalize ``Last, First`` (Unibet) to ``First Last``."""
     text = str(name or "").strip()
@@ -55,8 +95,28 @@ def resolve_roster_player(name: str, roster: list[str]) -> str:
     if not text:
         return text
     for candidate in roster:
-        if players_match(text, candidate):
-            return normalize_person_name(candidate)
+        canonical = normalize_person_name(candidate)
+        if strip_accents(text) == strip_accents(canonical):
+            return canonical
+    fuzzy_matches = [
+        normalize_person_name(candidate)
+        for candidate in roster
+        if players_match(text, candidate)
+    ]
+    if len(fuzzy_matches) == 1:
+        return fuzzy_matches[0]
+    if len(fuzzy_matches) > 1:
+        text_parts = re.split(r"[\s.]+", strip_accents(text))
+        text_parts = [part for part in text_parts if part]
+        if text_parts:
+            first = text_parts[0]
+            hinted = [
+                candidate
+                for candidate in fuzzy_matches
+                if first in strip_accents(candidate).split()
+            ]
+            if len(hinted) == 1:
+                return hinted[0]
     return text
 
 
@@ -172,48 +232,83 @@ def build_inning1_runs_total_key(line: float | str) -> str:
     return f"inning1_runs_total|{format_numeric_line(line)}"
 
 
-def build_hr_player_key(player_name: str, threshold: int | float | str = 1) -> str:
-    token = player_token(player_name)
+def build_hr_player_key(
+    player_name: str,
+    threshold: int | float | str = 1,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    token = player_compare_token(player_name, roster)
     thr = format_numeric_line(threshold)
     if thr in {"1", "1.0"}:
         return f"hr_player|{token}"
     return f"hr_player|{token}|{thr}"
 
 
-def build_hits_player_key(player_name: str, threshold: int | float | str = 1) -> str:
-    token = player_token(player_name)
+def build_hits_player_key(
+    player_name: str,
+    threshold: int | float | str = 1,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    token = player_compare_token(player_name, roster)
     thr = format_numeric_line(threshold)
     if thr in {"1", "1.0"}:
         return f"hits_player|{token}"
     return f"hits_player|{token}|{thr}"
 
 
-def build_rbi_player_key(player_name: str, threshold: int | float | str = 1) -> str:
-    token = player_token(player_name)
+def build_rbi_player_key(
+    player_name: str,
+    threshold: int | float | str = 1,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    token = player_compare_token(player_name, roster)
     thr = format_numeric_line(threshold)
     if thr in {"1", "1.0"}:
         return f"rbi_player|{token}"
     return f"rbi_player|{token}|{thr}"
 
 
-def build_total_bases_player_key(player_name: str, threshold: int | float | str) -> str:
-    return f"total_bases_player|{player_token(player_name)}|{format_numeric_line(threshold)}"
+def build_total_bases_player_key(
+    player_name: str,
+    threshold: int | float | str,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    return f"total_bases_player|{player_compare_token(player_name, roster)}|{format_numeric_line(threshold)}"
 
 
-def build_sb_player_key(player_name: str, threshold: int | float | str = 1) -> str:
-    token = player_token(player_name)
+def build_sb_player_key(
+    player_name: str,
+    threshold: int | float | str = 1,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    token = player_compare_token(player_name, roster)
     thr = format_numeric_line(threshold)
     if thr in {"1", "1.0"}:
         return f"sb_player|{token}"
     return f"sb_player|{token}|{thr}"
 
 
-def build_runs_player_key(player_name: str, threshold: int | float | str) -> str:
-    return f"runs_player|{player_token(player_name)}|{format_numeric_line(threshold)}"
+def build_runs_player_key(
+    player_name: str,
+    threshold: int | float | str,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    return f"runs_player|{player_compare_token(player_name, roster)}|{format_numeric_line(threshold)}"
 
 
-def build_strikeouts_pitcher_key(player_name: str, line: float | str) -> str:
-    return f"strikeouts_pitcher|{player_token(player_name)}|{format_numeric_line(line)}"
+def build_strikeouts_pitcher_key(
+    player_name: str,
+    line: float | str,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    return f"strikeouts_pitcher|{player_compare_token(player_name, roster)}|{format_numeric_line(line)}"
 
 
 def fanduel_ou_outcome(runner_name: str) -> str | None:
@@ -387,14 +482,14 @@ def map_fanduel_market_to_entries(
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_hr_player_key(player, 1), "Yes", runner)
+                add(build_hr_player_key(player, 1, roster=roster), "Yes", runner)
         return entries
 
     if lower == "to hit 2+ home runs" or market_type == "TO_HIT_2+_HOME_RUNS":
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_hr_player_key(player, 2), "Yes", runner)
+                add(build_hr_player_key(player, 2, roster=roster), "Yes", runner)
         return entries
 
     # Batter runs yes / 2+
@@ -406,7 +501,7 @@ def map_fanduel_market_to_entries(
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_runs_player_key(player, threshold), "Yes", runner)
+                add(build_runs_player_key(player, threshold, roster=roster), "Yes", runner)
         return entries
 
     # Hits yes / 2+
@@ -418,7 +513,7 @@ def map_fanduel_market_to_entries(
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_hits_player_key(player, threshold), "Yes", runner)
+                add(build_hits_player_key(player, threshold, roster=roster), "Yes", runner)
         return entries
 
     # RBI yes / 2+
@@ -430,7 +525,7 @@ def map_fanduel_market_to_entries(
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_rbi_player_key(player, threshold), "Yes", runner)
+                add(build_rbi_player_key(player, threshold, roster=roster), "Yes", runner)
         return entries
 
     # Total bases N+
@@ -444,7 +539,7 @@ def map_fanduel_market_to_entries(
             for runner in runners:
                 player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
                 if player:
-                    add(build_total_bases_player_key(player, threshold), "Yes", runner)
+                    add(build_total_bases_player_key(player, threshold, roster=roster), "Yes", runner)
             return entries
 
     # Stolen bases yes / 2+
@@ -456,7 +551,7 @@ def map_fanduel_market_to_entries(
         for runner in runners:
             player = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
             if player:
-                add(build_sb_player_key(player, threshold), "Yes", runner)
+                add(build_sb_player_key(player, threshold, roster=roster), "Yes", runner)
         return entries
 
     # Pitcher strikeouts O/U
@@ -482,7 +577,7 @@ def map_fanduel_market_to_entries(
                 outcome = fanduel_ou_outcome(runner_name)
                 if handicap is None or outcome is None:
                     continue
-                add(build_strikeouts_pitcher_key(player, float(handicap)), outcome, runner)
+                add(build_strikeouts_pitcher_key(player, float(handicap), roster=roster), outcome, runner)
         return entries
 
     return entries

@@ -331,7 +331,7 @@ def normalize_unibet_market(
             if not player:
                 continue
             item = build_market(
-                build_hr_player_key(player, threshold),
+                build_hr_player_key(player, threshold, roster=roster),
                 "hr_player",
                 label,
                 {"Yes": float(odds)},
@@ -477,7 +477,7 @@ def normalize_winamax_market(
                 continue
             player = resolve_roster_player(raw, roster)
             item = build_market(
-                build_hr_player_key(player),
+                build_hr_player_key(player, roster=roster),
                 "hr_player",
                 label,
                 {"Yes": float(odds)},
@@ -495,7 +495,7 @@ def normalize_winamax_market(
                 continue
             player = resolve_roster_player(raw, roster)
             item = build_market(
-                build_runs_player_key(player, threshold),
+                build_runs_player_key(player, threshold, roster=roster),
                 "runs_player",
                 label,
                 {"Yes": float(odds)},
@@ -702,7 +702,7 @@ def normalize_betclic_market(
                 continue
             player = resolve_roster_player(raw, roster)
             item = build_market(
-                build_hr_player_key(player),
+                build_hr_player_key(player, roster=roster),
                 "hr_player",
                 label,
                 {"Yes": float(odds)},
@@ -723,7 +723,7 @@ def normalize_betclic_market(
                 continue
             player = resolve_roster_player(raw, roster)
             item = build_market(
-                build_runs_player_key(player, threshold),
+                build_runs_player_key(player, threshold, roster=roster),
                 "runs_player",
                 label,
                 {"Yes": float(odds)},
@@ -763,7 +763,7 @@ def normalize_betclic_market(
             by_line.setdefault(format_line(line), {})[side] = float(odds)
         for line_key, outcome_map in by_line.items():
             item = build_market(
-                build_strikeouts_pitcher_key(player, line_key),
+                build_strikeouts_pitcher_key(player, line_key, roster=roster),
                 "strikeouts_pitcher",
                 label,
                 outcome_map,
