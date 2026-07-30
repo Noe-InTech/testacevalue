@@ -265,15 +265,19 @@ def overlay_us_reference_map(
     rotowire_captured_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     merged = dict(base_map)
-    merged.update(
-        build_rotowire_runs_map(
-            rotowire_rows,
-            home_team=home_team,
-            away_team=away_team,
-            roster=roster,
-            captured_at=rotowire_captured_at,
-        )
+    rotowire_map = build_rotowire_runs_map(
+        rotowire_rows,
+        home_team=home_team,
+        away_team=away_team,
+        roster=roster,
+        captured_at=rotowire_captured_at,
     )
+    for compare_key, rotowire_market in rotowire_map.items():
+        fanduel_market = merged.get(compare_key)
+        fanduel_outcomes = (fanduel_market or {}).get("outcomes", {})
+        has_complete_fanduel_pair = bool(fanduel_outcomes.get("Yes") and fanduel_outcomes.get("No"))
+        if not has_complete_fanduel_pair:
+            merged[compare_key] = rotowire_market
     return merged
 
 

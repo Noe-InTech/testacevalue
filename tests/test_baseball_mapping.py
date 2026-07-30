@@ -557,6 +557,80 @@ class BaseballCompareHelpersTests(unittest.TestCase):
         self.assertEqual(row["cote_us_fanduel_contraire"], "-135")
         self.assertEqual(row["ligne_props_fr"], "Oui 1+ runs — CJ Abrams")
 
+    def test_overlay_us_reference_prefers_fanduel_complete_pair(self) -> None:
+        from compare_baseball_vs_fanduel import overlay_us_reference_map
+
+        key = build_runs_player_key("CJ Abrams", 1)
+        merged = overlay_us_reference_map(
+            {
+                key: {
+                    "compare_key": key,
+                    "market_label": "To Score A Run",
+                    "market_family": "runs_player",
+                    "source": "fanduel",
+                    "source_label": "FanDuel",
+                    "source_bookmaker": "FanDuel",
+                    "outcomes": {
+                        "Yes": {"american": 120, "decimal_raw": 2.2, "decimal_fr": 2.2},
+                        "No": {"american": -150, "decimal_raw": 1.67, "decimal_fr": 1.67},
+                    },
+                }
+            },
+            rotowire_rows=[
+                RotoWireRunsRow(
+                    player_name="CJ Abrams",
+                    home_team="Atlanta Braves",
+                    away_team="Washington Nationals",
+                    over_line=0.5,
+                    over_american=-101,
+                    under_american=-135,
+                )
+            ],
+            home_team="Atlanta Braves",
+            away_team="Washington Nationals",
+            roster=["CJ Abrams"],
+            rotowire_captured_at="2026-07-30T08:00:00+00:00",
+        )
+        self.assertEqual(merged[key]["source"], "fanduel")
+        self.assertEqual(merged[key]["outcomes"]["No"]["american"], -150)
+
+    def test_overlay_us_reference_falls_back_to_rotowire_when_fanduel_incomplete(self) -> None:
+        from compare_baseball_vs_fanduel import overlay_us_reference_map
+
+        key = build_runs_player_key("CJ Abrams", 1)
+        merged = overlay_us_reference_map(
+            {
+                key: {
+                    "compare_key": key,
+                    "market_label": "To Score A Run",
+                    "market_family": "runs_player",
+                    "source": "fanduel",
+                    "source_label": "FanDuel",
+                    "source_bookmaker": "FanDuel",
+                    "outcomes": {
+                        "Yes": {"american": 120, "decimal_raw": 2.2, "decimal_fr": 2.2},
+                    },
+                }
+            },
+            rotowire_rows=[
+                RotoWireRunsRow(
+                    player_name="CJ Abrams",
+                    home_team="Atlanta Braves",
+                    away_team="Washington Nationals",
+                    over_line=0.5,
+                    over_american=-101,
+                    under_american=-135,
+                )
+            ],
+            home_team="Atlanta Braves",
+            away_team="Washington Nationals",
+            roster=["CJ Abrams"],
+            rotowire_captured_at="2026-07-30T08:00:00+00:00",
+        )
+        self.assertEqual(merged[key]["source"], "rotowire")
+        self.assertEqual(merged[key]["source_bookmaker"], "DraftKings")
+        self.assertEqual(merged[key]["outcomes"]["No"]["american"], -135)
+
 
 if __name__ == "__main__":
     unittest.main()
