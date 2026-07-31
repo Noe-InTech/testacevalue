@@ -76,6 +76,7 @@ cat >"${STATUS_FILE}" <<EOF
   "before_message": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "${BEFORE_MSG}"),
   "after_message": $(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "${AFTER_MSG}"),
   "branch": "${BRANCH}",
+  "restart_tunnel": $([[ "${RESTART_TUNNEL:-}" == "1" ]] && echo true || echo false),
   "finished_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
@@ -86,8 +87,25 @@ restart_cmd aces-runner || {
   exit 1
 }
 
-# Ne redemarre cloudflared que si le service existe (evite de casser l'URL sans besoin).
-if systemctl list-unit-files cloudflared-aces.service >/dev/null 2>&1; then
+if [[ "${RESTART_TUNNEL:-}" == "1" ]]; then
+  if systemctl list-unit-files cloudflared-aces.service >/dev/null 2>&1; then
+    echo "RESTART_TUNNEL=1 — restart cloudflared-aces (nouvelle URL trycloudflare)"
+    restart_cmd cloudflared-aces || {
+      echo "restart cloudflared-aces a echoue"
+      exit 1
+    }
+    sleep 3
+    if [[ -f /var/log/cloudflared-aces.log ]]; then
+      URL="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' /var/log/cloudflared-aces.log | tail -1 || true)"
+      if [[ -n "${URL:-}" ]]; then
+        echo "${URL}" >"${REPO_DIR}/runner/data/public_url.txt"
+        echo "public_url=${URL}"
+      fi
+    fi
+  else
+    echo "cloudflared-aces absent — skip tunnel restart"
+  fi
+elif systemctl list-unit-files cloudflared-aces.service >/dev/null 2>&1; then
   echo "cloudflared-aces present — laisse tourner (URL stable)"
 fi
 

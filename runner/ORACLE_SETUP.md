@@ -204,12 +204,34 @@ Astuce : **Ajouter a l'ecran d'accueil** pour un acces rapide.
 
 ---
 
+## Bouton « Réparer le runner » (page Lien runner)
+
+Marche **même si le tunnel Cloudflare est mort** (HTTP 530) : le site déclenche un workflow GitHub qui SSH sur la VM.
+
+**Secrets GitHub** (Settings → Secrets and variables → Actions) — une fois :
+
+| Secret | Valeur |
+|--------|--------|
+| `ORACLE_HOST` | IP publique VM (ex. `145.241.170.3`) |
+| `ORACLE_SSH_KEY` | Contenu **privé** de `~/.ssh/oracle_aces` |
+| `VERCEL_TOKEN` | Token Vercel (patch `RUNNER_URL` auto) |
+| `VERCEL_PROJECT_ID` | Id projet Vercel |
+| `VERCEL_TEAM_ID` | Id team (si compte team) |
+| `VERCEL_DEPLOY_HOOK` | (optionnel) Deploy Hook pour forcer un redeploy |
+
+Sur Vercel, garder `GITHUB_TOKEN` + `GITHUB_OWNER` + `GITHUB_REPO` (déjà utilisés pour les compares) pour pouvoir dispatcher le workflow.
+
+Sans secrets Vercel, la VM redémarre quand même ; tu colles l’URL affichée dans le résumé du run GitHub Actions.
+
+---
+
 ## Depannage
 
 | Symptome | Cause probable | Fix |
 |----------|----------------|-----|
 | Site : `RUNNER_URL manquant` | Variables Vercel | Ajoute + redeploy |
 | Site : `Secret incorrect` | PIN different | Aligner TRIGGER_SECRET et RUNNER_SECRET |
+| Site : HTTP 530 / tunnel mort | cloudflared ou URL perimee | Bouton **Réparer le runner** (ou reboot Oracle si SSH mort) |
 | Timeout / pas de reponse | Port 8787 ferme | Security list + `ufw` |
 | `curl` PC vers VM echoue | IP ou firewall | Verifie IP publique instance |
 | Compare echoue dans logs | Books FR | Normalement OK en EU ; voir `journalctl` |

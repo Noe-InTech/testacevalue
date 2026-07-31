@@ -1,0 +1,166 @@
+name: Repair runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Motif (optionnel)"
+        required: false
+        default: "manual"
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check SSH secrets
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          if [ -z "$ORACLE_HOST" ] || [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "::error::Secrets ORACLE_HOST et ORACLE_SSH_KEY requis (GitHub → Settings → Secrets)."
+            exit 1
+          fi
+
+      - name: Setup SSH key
+        env:
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/oracle_aces
+          chmod 600 ~/.ssh/oracle_aces
+          ssh-keyscan -T 20 -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Repair services on VM
+        id: repair
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i ~/.ssh/oracle_aces -o StrictHostKeyChecking=accept-new -o ConnectTimeout=45 -o ServerAliveInterval=5 ubuntu@"$ORACLE_HOST")
+
+          echo "==> git pull + restart runner + tunnel"
+          "${SSH[@]}" bash -s <<'REMOTE'
+          set -euo pipefail
+          REPO=/opt/testacevalue
+          cd "$REPO"
+          git fetch --prune origin main || true
+          git merge --ff-only origin/main || echo "git merge skipped/failed (continue)"
+          sudo systemctl restart aces-runner
+          sudo systemctl restart cloudflared-aces
+          sleep 5
+          sudo systemctl is-active aces-runner cloudflared-aces
+          REMOTE
+
+          echo "==> read tunnel URL"
+          URL=""
+          for i in $(seq 1 30); do
+            URL="$("${SSH[@]}" 'grep -oE "https://[a-z0-9-]+\\.trycloudflare\\.com" /var/log/cloudflared-aces.log 2>/dev/null | tail -1' || true)"
+            if [ -n "${URL:-}" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          if [ -z "${URL:-}" ]; then
+            URL="$("${SSH[@]}" 'cat /opt/testacevalue/runner/data/public_url.txt 2>/dev/null' || true)"
+          fi
+
+          if [ -z "${URL:-}" ]; then
+            echo "::error::URL tunnel introuvable apres restart."
+            exit 1
+          fi
+
+          "${SSH[@]}" "printf '%s\n' '$URL' > /opt/testacevalue/runner/data/public_url.txt"
+          echo "TUNNEL_URL=$URL" >> "$GITHUB_ENV"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Tunnel URL"
+            echo "\`$URL\`"
+            echo
+            echo "Vercel RUNNER_URL = $URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update Vercel RUNNER_URL
+        if: ${{ env.TUNNEL_URL != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK }}
+          TUNNEL_URL: ${{ env.TUNNEL_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+            echo "::warning::VERCEL_TOKEN / VERCEL_PROJECT_ID absents — colle manuellement RUNNER_URL=$TUNNEL_URL"
+            echo "Colle manuellement sur Vercel: RUNNER_URL=$TUNNEL_URL" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ -n "${VERCEL_TEAM_ID:-}" ]; then
+            ENV_QS="?teamId=${VERCEL_TEAM_ID}"
+            LIST_URL="https://api.vercel.com/v6/deployments?teamId=${VERCEL_TEAM_ID}&projectId=${VERCEL_PROJECT_ID}&target=production&limit=1"
+            REDEPLOY_QS="?teamId=${VERCEL_TEAM_ID}"
+          else
+            ENV_QS=""
+            LIST_URL="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&target=production&limit=1"
+            REDEPLOY_QS=""
+          fi
+
+          ENV_JSON=$(curl -fsS -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env${ENV_QS}")
+
+          ENV_ID=$(echo "$ENV_JSON" | python3 -c '
+          import json,sys
+          data=json.load(sys.stdin)
+          envs=data.get("envs") or []
+          for e in envs:
+            if e.get("key")=="RUNNER_URL":
+              print(e.get("id",""))
+              break
+          ')
+
+          if [ -n "${ENV_ID:-}" ]; then
+            echo "Patch existing RUNNER_URL id=$ENV_ID"
+            curl -fsS -X PATCH \
+              "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env/${ENV_ID}${ENV_QS}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"value\":\"${TUNNEL_URL}\"}" >/tmp/vercel_env.json
+          else
+            echo "Create RUNNER_URL"
+            curl -fsS -X POST \
+              "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env${ENV_QS}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"key\":\"RUNNER_URL\",\"value\":\"${TUNNEL_URL}\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\",\"development\"]}" \
+              >/tmp/vercel_env.json
+          fi
+
+          if [ -n "${VERCEL_DEPLOY_HOOK:-}" ]; then
+            echo "Trigger deploy hook"
+            curl -fsS -X POST "$VERCEL_DEPLOY_HOOK" >/tmp/vercel_hook.json || \
+              echo "::warning::Deploy hook a echoue"
+          else
+            echo "Redeploy latest production deployment"
+            DEPLOY_ID=$(curl -fsS -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "$LIST_URL" \
+              | python3 -c 'import json,sys; d=json.load(sys.stdin); print((d.get("deployments") or [{}])[0].get("uid",""))')
+            if [ -n "${DEPLOY_ID:-}" ]; then
+              curl -fsS -X POST \
+                "https://api.vercel.com/v13/deployments/${DEPLOY_ID}/redeploy${REDEPLOY_QS}" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{"target":"production"}' >/tmp/vercel_redeploy.json || \
+                echo "::warning::Redeploy API a echoue — RUNNER_URL est patché; redeploy manuel si besoin."
+            else
+              echo "::warning::Aucun deployment production trouvé pour redeploy."
+            fi
+          fi
+
+          echo "RUNNER_URL mis a jour: $TUNNEL_URL" >> "$GITHUB_STEP_SUMMARY"
