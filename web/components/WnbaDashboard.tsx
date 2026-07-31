@@ -10,6 +10,7 @@ import { buildValueRows } from "@/lib/mptoValue";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
+import { getDisplayRunMeta } from "@/lib/runMeta";
 import {
   clearCachedWnbaResults,
   countRowsByStat as countWnbaRowsByStat,
@@ -525,6 +526,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => buildValueRows(frHigherRows, cfg.marketKind),
     [frHigherRows, cfg.marketKind],
   );
+  const displayMeta = useMemo(() => getDisplayRunMeta(status, payload), [status, payload]);
   const frOnlyRows = useMemo(
     () => cfg.filterRows(payload?.fr_only_comparables ?? [], filterOptions),
     [payload, filterOptions, cfg],
@@ -618,14 +620,14 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           {cfg.label === "Baseball" ? (
             <>
               Compare <strong>vainqueur, totaux, F5, runs 1re manche, marqueurs HR / runs</strong> (MLB / KBO / NPB —
-              Unibet, Betclic, Winamax) avec la référence US réelle par ligne: FanDuel, ou RotoWire · DraftKings
-              pour certains runs joueur.
+              Unibet, Betclic, Winamax) avec la référence US: <strong>FanDuel en priorité</strong>, RotoWire · DraftKings
+              seulement si la ligne est absente cote FanDuel.
             </>
           ) : (
             <>
               Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
-              ({cfg.label} — Unibet, Betclic, Winamax) avec la référence US réelle: FanDuel, ou RotoWire · DraftKings
-              pour pts/reb/ast/3pts si la paire O/U FanDuel est incomplete.
+              ({cfg.label} — Unibet, Betclic, Winamax) avec la référence US: <strong>FanDuel en priorité</strong>,
+              RotoWire · DraftKings seulement si la ligne est absente cote FanDuel.
             </>
           )}
         </p>
@@ -752,13 +754,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         ) : null}
         <div>
           <span className="meta-label">Etape</span>
-          <strong>{status?.message ?? "—"}</strong>
+          <strong className={displayMeta.tone === "warn" ? "meta-warn" : undefined}>{displayMeta.stepLabel}</strong>
         </div>
         <div>
           <span className="meta-label">Statut</span>
-          <strong>
-            {status?.status ?? "idle"}
-            {payload?.partial ? " (partiel)" : ""}
+          <strong className={displayMeta.tone === "warn" ? "meta-warn" : undefined}>
+            {displayMeta.statusLabel}
           </strong>
         </div>
         <div>
@@ -783,11 +784,11 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           <strong>{valueRows.length}</strong>
         </div>
         <div>
-          <span className="meta-label">FR sans FD</span>
+          <span className="meta-label">FR sans US</span>
           <strong>{frOnlyRows.length}</strong>
         </div>
         <div>
-          <span className="meta-label">FD sans FR</span>
+          <span className="meta-label">US sans FR</span>
           <strong>{fdOnlyRows.length}</strong>
         </div>
       </section>

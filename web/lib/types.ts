@@ -254,7 +254,7 @@ export function getTableColumns(marketKind: MarketKind) {
       label: "Book US",
       hint:
         marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba"
-          ? "Source US reelle retenue sur la ligne (FanDuel ou RotoWire · DraftKings)"
+          ? "Source US reelle: FanDuel en priorite, sinon RotoWire · DraftKings"
           : "Source US reelle retenue sur la ligne",
     },
     {

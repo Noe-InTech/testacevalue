@@ -88,7 +88,7 @@ class RotoWireBasketballTests(unittest.TestCase):
         )
         self.assertEqual(merged["points_player|clark|18.5"]["source"], "fanduel")
 
-    def test_overlay_uses_rotowire_when_fanduel_pair_incomplete(self) -> None:
+    def test_overlay_keeps_partial_fanduel(self) -> None:
         row = RotoWireBasketballPropRow(
             player_name="Caitlin Clark",
             home_team="Portland Fire",
@@ -111,6 +111,28 @@ class RotoWireBasketballTests(unittest.TestCase):
         }
         merged = overlay_us_reference_map(
             base,
+            rotowire_rows=[row],
+            home_team="Portland Fire",
+            away_team="Indiana Fever",
+            roster=["Caitlin Clark"],
+        )
+        market = merged["points_player|clark|18.5"]
+        self.assertEqual(market["source"], "fanduel")
+        self.assertNotIn("Under", market["outcomes"])
+
+    def test_overlay_uses_rotowire_when_fanduel_missing(self) -> None:
+        row = RotoWireBasketballPropRow(
+            player_name="Caitlin Clark",
+            home_team="Portland Fire",
+            away_team="Indiana Fever",
+            market_family="points_player",
+            market_label="Points",
+            line=18.5,
+            over_american=-110,
+            under_american=-120,
+        )
+        merged = overlay_us_reference_map(
+            {},
             rotowire_rows=[row],
             home_team="Portland Fire",
             away_team="Indiana Fever",

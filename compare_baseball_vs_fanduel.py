@@ -264,6 +264,7 @@ def overlay_us_reference_map(
     roster: list[str],
     rotowire_captured_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
+    """FanDuel d'abord; RotoWire seulement si la ligne est absente cote FanDuel."""
     merged = dict(base_map)
     rotowire_map = build_rotowire_runs_map(
         rotowire_rows,
@@ -274,9 +275,8 @@ def overlay_us_reference_map(
     )
     for compare_key, rotowire_market in rotowire_map.items():
         fanduel_market = merged.get(compare_key)
-        fanduel_outcomes = (fanduel_market or {}).get("outcomes", {})
-        has_complete_fanduel_pair = bool(fanduel_outcomes.get("Yes") and fanduel_outcomes.get("No"))
-        if not has_complete_fanduel_pair:
+        fanduel_outcomes = (fanduel_market or {}).get("outcomes") or {}
+        if not fanduel_outcomes:
             merged[compare_key] = rotowire_market
     return merged
 
@@ -731,7 +731,7 @@ def build_results_payload(
         "match_progress": match_progress,
         "notes": [
             "Pipeline baseball (MLB + KBO + NPB) séparé du tennis / basket.",
-            "Référence US: FanDuel sauf runs joueur, qui basculent sur RotoWire · DraftKings quand la paire Oui/Non existe.",
+            "Référence US: FanDuel en priorité; RotoWire · DraftKings seulement si la ligne est absente cote FanDuel (ex. runs joueur).",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
             "Betclic soft-fail si 403 (IP hors FR) — Unibet/Winamax continuent.",
             *(book_warnings or []),

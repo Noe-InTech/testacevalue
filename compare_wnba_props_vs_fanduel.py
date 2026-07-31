@@ -249,6 +249,7 @@ def overlay_us_reference_map(
     roster: list[str],
     rotowire_captured_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
+    """FanDuel d'abord; RotoWire seulement si la ligne est absente cote FanDuel."""
     merged = dict(base_map)
     rotowire_map = build_rotowire_player_props_map(
         rotowire_rows,
@@ -259,11 +260,8 @@ def overlay_us_reference_map(
     )
     for compare_key, rotowire_market in rotowire_map.items():
         fanduel_market = merged.get(compare_key)
-        fanduel_outcomes = (fanduel_market or {}).get("outcomes", {})
-        has_complete_fanduel_pair = bool(
-            fanduel_outcomes.get("Over") and fanduel_outcomes.get("Under")
-        )
-        if not has_complete_fanduel_pair:
+        fanduel_outcomes = (fanduel_market or {}).get("outcomes") or {}
+        if not fanduel_outcomes:
             merged[compare_key] = rotowire_market
     return merged
 
@@ -656,7 +654,7 @@ def build_results_payload(
         "match_progress": match_progress,
         "notes": [
             f"Pipeline {league_label} séparé du tennis.",
-            "Référence US: FanDuel, ou RotoWire · DraftKings pour pts/reb/ast/3pts si paire O/U FanDuel incomplete.",
+            "Référence US: FanDuel en priorité; RotoWire · DraftKings seulement si la ligne pts/reb/ast/3pts est absente cote FanDuel.",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
             *(book_warnings or []),
         ],

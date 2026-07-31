@@ -297,10 +297,20 @@ def recover_stuck_run() -> bool:
 
     sport = SPORTS.get(sport_key) if sport_key else None
     if sport is not None:
+        results = read_json(sport.results_json, {})
+        has_rows = bool(
+            results.get("comparables")
+            or results.get("comparable_count")
+            or (isinstance(results.get("aces"), dict) and results["aces"].get("comparables"))
+        )
         write_status(
             sport,
-            "error",
-            "Comparaison precedente interrompue (process mort ou timeout). Tu peux relancer.",
+            "idle",
+            (
+                "Comparaison precedente interrompue — resultats conserves. Tu peux relancer."
+                if has_rows
+                else "Comparaison precedente interrompue. Tu peux relancer."
+            ),
             clear_run_started_at=True,
         )
     print(f"Stuck run recovered ({sport_key or 'unknown'})")

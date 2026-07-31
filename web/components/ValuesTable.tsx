@@ -52,7 +52,7 @@ export function ValuesTable({
     ) : (
       <div className="table-wrap">
         <p className="table-hint">
-          Edge MPTO (ref. US) · Kelly fractionne a 0,25 · FanDuel par defaut, RotoWire · DraftKings pour certains runs joueur.
+          Edge MPTO (ref. US) · Kelly fractionne a 0,25 · FanDuel en priorite, RotoWire · DraftKings si ligne absente cote FanDuel.
           {showCaptureDetails
             ? " Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire)."
             : ""}

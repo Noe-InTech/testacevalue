@@ -10,6 +10,7 @@ import { buildValueRows } from "@/lib/mptoValue";
 import type { ApiPayload, RunStatus, TennisMarketKind } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
 import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
+import { getDisplayRunMeta } from "@/lib/runMeta";
 import {
   hasTennisData,
   loadCachedTennisResults,
@@ -89,6 +90,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const runStartedAtRef = useRef<string | null>(null);
   const runAbortRef = useRef<AbortController | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [cacheSavedAt, setCacheSavedAt] = useState<string | null>(null);
 
   const isRunning = busy || status?.status === "running";
 
@@ -101,6 +103,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     if (cached) {
       setRawPayload(cached.payload);
       setStatus(cached.status);
+      setCacheSavedAt(cached.savedAt);
     }
   }, []);
 
@@ -122,11 +125,13 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
       setRawPayload(nextPayload);
       // Toujours persister, meme pendant un run (sinon fermer l'app = resultats perdus).
       saveCachedTennisResults(nextPayload, nextStatus);
+      setCacheSavedAt(new Date().toISOString());
     } else if (data.source === "runner-unreachable") {
       // Ne pas vider l'ecran pendant un run — juste retomber sur le cache si dispo.
       const cached = loadCachedTennisResults();
       if (cached) {
         setRawPayload(cached.payload);
+        setCacheSavedAt(cached.savedAt);
         if (!status || status.status !== "running") {
           setStatus(cached.status);
         }
@@ -421,6 +426,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     () => buildValueRows(frHigherRows, marketTab),
     [frHigherRows, marketTab],
   );
+  const displayMeta = useMemo(() => getDisplayRunMeta(status, rawPayload), [status, rawPayload]);
   const frOnlyRows = useMemo(() => payload?.fr_only_comparables ?? [], [payload]);
   const fdOnlyRows = useMemo(() => payload?.fd_only_comparables ?? [], [payload]);
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
@@ -622,15 +628,20 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           <span className="meta-label">Derniere mise a jour</span>
           <strong>{formatTimestamp(rootMeta?.generated_at)}</strong>
         </div>
+        {cacheSavedAt ? (
+          <div>
+            <span className="meta-label">Memoire locale</span>
+            <strong>{formatTimestamp(cacheSavedAt)}</strong>
+          </div>
+        ) : null}
         <div>
           <span className="meta-label">Etape</span>
-          <strong>{status?.message ?? "—"}</strong>
+          <strong className={displayMeta.tone === "warn" ? "meta-warn" : undefined}>{displayMeta.stepLabel}</strong>
         </div>
         <div>
           <span className="meta-label">Statut</span>
-          <strong>
-            {status?.status ?? "idle"}
-            {payload?.partial ? " (partiel)" : ""}
+          <strong className={displayMeta.tone === "warn" ? "meta-warn" : undefined}>
+            {displayMeta.statusLabel}
           </strong>
         </div>
         <div>
@@ -667,13 +678,13 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
         </div>
         <div>
           <span className="meta-label" title="Lignes FR sans equivalent FanDuel sur la meme ligne">
-            FR sans FD
+            FR sans US
           </span>
           <strong>{payload?.fr_only_count ?? 0}</strong>
         </div>
         <div>
-          <span className="meta-label" title="Lignes FanDuel sans equivalent FR sur la meme ligne">
-            FD sans FR
+          <span className="meta-label" title="Lignes US sans equivalent FR sur la meme ligne">
+            US sans FR
           </span>
           <strong>{payload?.fd_only_count ?? 0}</strong>
         </div>

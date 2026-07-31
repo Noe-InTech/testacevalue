@@ -128,6 +128,10 @@ button:disabled {
   margin-bottom: 4px;
 }
 
+.meta-warn {
+  color: #a15c00;
+}
+
 .panel-header {
   display: flex;
   align-items: center;

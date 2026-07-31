@@ -313,12 +313,33 @@ class WnbaDraftKingsIsolationTests(unittest.TestCase):
 
 
 class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
-    def test_compare_uses_rotowire_when_fanduel_incomplete(self) -> None:
+    def test_compare_uses_rotowire_when_fanduel_missing(self) -> None:
         fr_map = {
             "points_player|clark|20.5": _fr_slot(
                 "points_player|clark|20.5", over=1.95, under=1.8, player="Caitlin Clark"
             )
         }
+        us_map = overlay_us_reference_map(
+            {},
+            rotowire_rows=[_rw_row("Caitlin Clark", "points_player", 20.5, over=-120, under=-110)],
+            home_team=HOME,
+            away_team=AWAY,
+            roster=ROSTER,
+            rotowire_captured_at="2026-07-31T12:00:00+00:00",
+        )
+        self.assertEqual(us_map["points_player|clark|20.5"]["source"], "rotowire")
+        rows = compare_normalized_props(fr_map, us_map)
+        self.assertEqual(len(rows), 2)
+        over = next(row for row in rows if row["outcome"] == "Over")
+        self.assertEqual(over["us_source"], "rotowire")
+        self.assertEqual(over["us_bookmaker"], "DraftKings")
+        self.assertEqual(over["us_source_label"], "RotoWire")
+        self.assertAlmostEqual(float(over["best_fr_odds"]), 1.95)
+        expected_us = american_to_decimal_fr(-120)
+        self.assertAlmostEqual(float(over["fanduel_odds"]), float(expected_us))
+        self.assertTrue(over["paire_fd_complete"])
+
+    def test_keeps_partial_fanduel_over_rotowire(self) -> None:
         incomplete_fd = {
             "points_player|clark|20.5": {
                 "compare_key": "points_player|clark|20.5",
@@ -338,19 +359,9 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
             home_team=HOME,
             away_team=AWAY,
             roster=ROSTER,
-            rotowire_captured_at="2026-07-31T12:00:00+00:00",
         )
-        self.assertEqual(us_map["points_player|clark|20.5"]["source"], "rotowire")
-        rows = compare_normalized_props(fr_map, us_map)
-        self.assertEqual(len(rows), 2)
-        over = next(row for row in rows if row["outcome"] == "Over")
-        self.assertEqual(over["us_source"], "rotowire")
-        self.assertEqual(over["us_bookmaker"], "DraftKings")
-        self.assertEqual(over["us_source_label"], "RotoWire")
-        self.assertAlmostEqual(float(over["best_fr_odds"]), 1.95)
-        expected_us = american_to_decimal_fr(-120)
-        self.assertAlmostEqual(float(over["fanduel_odds"]), float(expected_us))
-        self.assertTrue(over["paire_fd_complete"])
+        self.assertEqual(us_map["points_player|clark|20.5"]["source"], "fanduel")
+        self.assertNotIn("Under", us_map["points_player|clark|20.5"]["outcomes"])
 
     def test_keeps_fanduel_when_pair_complete(self) -> None:
         complete_fd = {

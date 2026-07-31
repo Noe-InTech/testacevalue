@@ -614,7 +614,7 @@ class BaseballCompareHelpersTests(unittest.TestCase):
         self.assertEqual(merged[key]["source"], "fanduel")
         self.assertEqual(merged[key]["outcomes"]["No"]["american"], -150)
 
-    def test_overlay_us_reference_falls_back_to_rotowire_when_fanduel_incomplete(self) -> None:
+    def test_overlay_us_reference_keeps_partial_fanduel(self) -> None:
         from compare_baseball_vs_fanduel import overlay_us_reference_map
 
         key = build_runs_player_key("CJ Abrams", 1)
@@ -632,6 +632,31 @@ class BaseballCompareHelpersTests(unittest.TestCase):
                     },
                 }
             },
+            rotowire_rows=[
+                RotoWireRunsRow(
+                    player_name="CJ Abrams",
+                    home_team="Atlanta Braves",
+                    away_team="Washington Nationals",
+                    over_line=0.5,
+                    over_american=-101,
+                    under_american=-135,
+                )
+            ],
+            home_team="Atlanta Braves",
+            away_team="Washington Nationals",
+            roster=["CJ Abrams"],
+            rotowire_captured_at="2026-07-30T08:00:00+00:00",
+        )
+        self.assertEqual(merged[key]["source"], "fanduel")
+        self.assertIn("Yes", merged[key]["outcomes"])
+        self.assertNotIn("No", merged[key]["outcomes"])
+
+    def test_overlay_us_reference_uses_rotowire_when_fanduel_missing(self) -> None:
+        from compare_baseball_vs_fanduel import overlay_us_reference_map
+
+        key = build_runs_player_key("CJ Abrams", 1)
+        merged = overlay_us_reference_map(
+            {},
             rotowire_rows=[
                 RotoWireRunsRow(
                     player_name="CJ Abrams",
