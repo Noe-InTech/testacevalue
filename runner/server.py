@@ -744,6 +744,19 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         sport_key = str(body.get("sport", "tennis")).strip().lower()
+        if sport_key in DISABLED_SPORTS:
+            self._json_response(
+                503,
+                {
+                    "error": (
+                        f"Sport « {sport_key} » temporairement désactivé "
+                        "(trop lourd pour la VM). Relance tennis / baseball / WNBA / NBA."
+                    ),
+                    "disabled": True,
+                    "sport": sport_key,
+                },
+            )
+            return
         sport = SPORTS.get(sport_key)
         if sport is None:
             self._json_response(
