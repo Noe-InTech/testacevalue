@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
@@ -21,6 +22,8 @@ class FanDuelSoccerEvent:
     home_team: str
     away_team: str
     open_date: str
+    competition_id: str = ""
+    competition_name: str = ""
 
 
 def split_soccer_teams(name: str) -> tuple[str, str]:
@@ -39,17 +42,26 @@ def split_soccer_teams(name: str) -> tuple[str, str]:
 
 
 class FanDuelSoccerClient(FanDuelClient):
-    def _events_from_payload(self, payload: dict[str, Any]) -> list[FanDuelSoccerEvent]:
+    def _events_from_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        competition_id: str = "",
+        competition_name: str = "",
+    ) -> list[FanDuelSoccerEvent]:
         events = (payload.get("attachments") or {}).get("events") or {}
         results: list[FanDuelSoccerEvent] = []
         for event_id, event in events.items():
+            if not isinstance(event, dict):
+                continue
             name = str(event.get("name", "")).strip()
             home, away = split_soccer_teams(name)
             if not home or not away:
                 continue
-            # skip futures shells
             if " v " not in name and " vs " not in name.lower() and " @ " not in name:
                 continue
+            cid = competition_id or str(event.get("competitionId") or "")
+            cname = competition_name
             results.append(
                 FanDuelSoccerEvent(
                     event_id=str(event_id),
@@ -57,17 +69,56 @@ class FanDuelSoccerClient(FanDuelClient):
                     home_team=home,
                     away_team=away,
                     open_date=str(event.get("openDate", "")),
+                    competition_id=cid,
+                    competition_name=cname,
                 )
             )
         return results
 
+    def discover_soccer_competition_ids(self) -> tuple[str, ...]:
+        """Toutes les compétitions foot actuelles via page SPORT."""
+        try:
+            payload = self._get(
+                "/api/content-managed-page",
+                {"page": "SPORT", "eventTypeId": FANDUEL_SOCCER_EVENT_TYPE_ID},
+            )
+        except RuntimeError:
+            return FANDUEL_SOCCER_COMPETITION_IDS
+        competitions = (payload.get("attachments") or {}).get("competitions") or {}
+        ids = tuple(str(cid) for cid in competitions.keys())
+        if not ids:
+            return FANDUEL_SOCCER_COMPETITION_IDS
+        # Merge whitelist in case SPORT omits some
+        merged = list(dict.fromkeys([*ids, *FANDUEL_SOCCER_COMPETITION_IDS]))
+        return tuple(merged)
+
     def list_soccer_events(
         self,
         competition_ids: tuple[str, ...] | None = None,
+        *,
+        discover: bool = True,
     ) -> list[FanDuelSoccerEvent]:
-        ids = competition_ids or FANDUEL_SOCCER_COMPETITION_IDS
         merged: dict[str, FanDuelSoccerEvent] = {}
-        for competition_id in ids:
+
+        # Absorb events already listed on the SPORT page (fast path).
+        if discover and competition_ids is None:
+            try:
+                sport_payload = self._get(
+                    "/api/content-managed-page",
+                    {"page": "SPORT", "eventTypeId": FANDUEL_SOCCER_EVENT_TYPE_ID},
+                )
+                competitions = (sport_payload.get("attachments") or {}).get("competitions") or {}
+                for event in self._events_from_payload(sport_payload):
+                    merged[event.event_id] = event
+                ids = tuple(str(cid) for cid in competitions.keys()) or FANDUEL_SOCCER_COMPETITION_IDS
+                # Keep whitelist extras
+                ids = tuple(dict.fromkeys([*ids, *FANDUEL_SOCCER_COMPETITION_IDS]))
+            except RuntimeError:
+                ids = FANDUEL_SOCCER_COMPETITION_IDS
+        else:
+            ids = competition_ids or FANDUEL_SOCCER_COMPETITION_IDS
+
+        def fetch_comp(competition_id: str) -> list[FanDuelSoccerEvent]:
             try:
                 payload = self._get(
                     "/api/competition-page",
@@ -78,9 +129,22 @@ class FanDuelSoccerClient(FanDuelClient):
                     },
                 )
             except RuntimeError:
-                continue
-            for event in self._events_from_payload(payload):
-                merged[event.event_id] = event
+                return []
+            comps = (payload.get("attachments") or {}).get("competitions") or {}
+            cname = ""
+            if str(competition_id) in comps and isinstance(comps[str(competition_id)], dict):
+                cname = str(comps[str(competition_id)].get("name") or "")
+            return self._events_from_payload(
+                payload,
+                competition_id=str(competition_id),
+                competition_name=cname,
+            )
+
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            futs = [pool.submit(fetch_comp, cid) for cid in ids]
+            for fut in as_completed(futs):
+                for event in fut.result():
+                    merged[event.event_id] = event
         return sorted(merged.values(), key=lambda e: e.open_date)
 
     def get_event_payload(self, event_id: str) -> dict[str, Any]:

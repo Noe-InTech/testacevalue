@@ -20,10 +20,15 @@ export const SOCCER_STAT_FILTERS: SoccerStatFilter[] = [
   { id: "first", label: "1er buteur", families: ["first_goalscorer"] },
   { id: "decisif", label: "Décisif", families: ["score_or_assist"] },
   { id: "passeur", label: "Passeur", families: ["anytime_assist"] },
-  { id: "tirs", label: "Tirs", families: ["shots_player"] },
-  { id: "cadres", label: "Tirs cadrés", families: ["shots_on_target_player"] },
+  { id: "tirs", label: "Tirs joueur", families: ["shots_player"] },
+  { id: "tirs_team", label: "Tirs équipe", families: ["shots_team"] },
+  { id: "tirs_match", label: "Tirs match", families: ["shots_match"] },
+  { id: "cadres", label: "Tirs cadrés joueur", families: ["shots_on_target_player"] },
+  { id: "cadres_team", label: "Tirs cadrés équipe", families: ["shots_on_target_team"] },
+  { id: "cadres_match", label: "Tirs cadrés match", families: ["shots_on_target_match"] },
   { id: "carton", label: "Carton", families: ["player_card"] },
-  { id: "corners", label: "Corners", families: ["corners_match"] },
+  { id: "corners", label: "Corners match", families: ["corners_match"] },
+  { id: "corners_team", label: "Corners équipe", families: ["corners_team"] },
 ];
 
 export const SOCCER_BOOK_FILTERS = ["Tous", "Winamax", "Unibet", "Betclic"] as const;
@@ -102,15 +107,30 @@ export function rowStatFamily(row: ComparableRow & { compare_key?: string; marke
     return "anytime_assist";
   }
   if (line.includes("cadr")) {
+    if (line.includes("équipe") || line.includes("equipe")) {
+      return "shots_on_target_team";
+    }
+    if (line.includes("match")) {
+      return "shots_on_target_match";
+    }
     return "shots_on_target_player";
   }
   if (line.includes("tir")) {
+    if (line.includes("équipe") || line.includes("equipe")) {
+      return "shots_team";
+    }
+    if (line.includes("match")) {
+      return "shots_match";
+    }
     return "shots_player";
   }
   if (line.includes("carton")) {
     return "player_card";
   }
   if (line.includes("corner")) {
+    if (line.includes("équipe") || line.includes("equipe")) {
+      return "corners_team";
+    }
     return "corners_match";
   }
   if (line.includes("buteur")) {

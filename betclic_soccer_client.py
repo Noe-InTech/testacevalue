@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from betclic_client import BetclicClient
-from soccer_constants import BETCLIC_SOCCER_LISTING_PATHS
+from soccer_constants import BETCLIC_SOCCER_HUB_PATH, BETCLIC_SOCCER_LISTING_PATHS
 
 
 @dataclass(frozen=True)
@@ -26,11 +26,38 @@ def _title_from_slug_part(part: str) -> str:
 
 
 class BetclicSoccerClient(BetclicClient):
+    def discover_listing_paths(self) -> tuple[str, ...]:
+        """Hub + compétitions liées + whitelist (actuelles et à venir)."""
+        discovered: list[str] = []
+        try:
+            html = self.get_page_html(BETCLIC_SOCCER_HUB_PATH)
+        except Exception:
+            html = ""
+        if html:
+            for href in re.findall(
+                r'href="(/football-sfootball/[^"#?]*)"',
+                html,
+                flags=re.I,
+            ):
+                if "-m" in href or "esoccer" in href.lower():
+                    continue
+                discovered.append(href.rstrip("/"))
+        merged = list(
+            dict.fromkeys(
+                [
+                    BETCLIC_SOCCER_HUB_PATH,
+                    *discovered,
+                    *BETCLIC_SOCCER_LISTING_PATHS,
+                ]
+            )
+        )
+        return tuple(merged)
+
     def list_soccer_matches(
         self,
         listing_paths: tuple[str, ...] | None = None,
     ) -> list[BetclicSoccerMatchLink]:
-        paths = listing_paths or BETCLIC_SOCCER_LISTING_PATHS
+        paths = listing_paths or self.discover_listing_paths()
         links: dict[str, BetclicSoccerMatchLink] = {}
         for path in paths:
             try:

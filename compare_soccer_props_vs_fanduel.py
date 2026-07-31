@@ -24,8 +24,8 @@ from soccer_market_mapping import (
     is_comparable_soccer_key,
     map_fanduel_soccer_market,
 )
-from tennis_market_mapping import players_match
 from unibet_soccer_client import UnibetSoccerClient
+from winamax_soccer_client import WinamaxSoccerClient, WinamaxSoccerMatchLink
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,29 +42,31 @@ def utc_now() -> str:
 
 
 def teams_match(home_a: str, away_a: str, home_b: str, away_b: str) -> bool:
-    return (
-        players_match(home_a, home_b) and players_match(away_a, away_b)
-    ) or (
-        players_match(home_a, away_b) and players_match(away_a, home_b)
-    )
+    from soccer_market_mapping import soccer_teams_match
+
+    return soccer_teams_match(home_a, away_a, home_b, away_b)
 
 
 def build_best_fr_map(
     book_events: dict[str, dict[str, Any]],
     *,
     roster: list[str],
+    home_team: str = "",
+    away_team: str = "",
 ) -> dict[str, dict[str, Any]]:
     best: dict[str, dict[str, Any]] = {}
     for bookmaker, event in book_events.items():
         normalizer = BOOK_NORMALIZERS.get(bookmaker)
         if not normalizer:
             continue
+        home = str(event.get("home_team") or home_team or "")
+        away = str(event.get("away_team") or away_team or "")
         for market in event.get("markets", []):
             label = str(market.get("label", "")).strip()
             if not is_soccer_player_prop_label(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
-            for item in normalizer(label, outcomes, roster):
+            for item in normalizer(label, outcomes, roster, home_team=home, away_team=away):
                 payload = normalized_market_to_dict(item)
                 for outcome, odds in payload["outcomes"].items():
                     slot = best.setdefault(
@@ -99,8 +101,15 @@ def build_fanduel_map(
     if not fanduel_event:
         return {}
     variant_map: dict[str, dict[str, Any]] = {}
+    home = str(fanduel_event.get("home_team") or "")
+    away = str(fanduel_event.get("away_team") or "")
     for market in fanduel_event.get("markets", []):
-        mapped = map_fanduel_soccer_market(market, roster=roster)
+        mapped = map_fanduel_soccer_market(
+            market,
+            roster=roster,
+            home_team=home,
+            away_team=away,
+        )
         if not mapped:
             continue
         market_label = str(market.get("marketName", ""))
@@ -303,6 +312,7 @@ def discover_anchors(
     *,
     betclic_links: list[Any],
     unibet_events: list[Any],
+    winamax_links: list[Any],
     fanduel_events: list[Any],
 ) -> list[dict[str, Any]]:
     anchors: dict[str, dict[str, Any]] = {}
@@ -321,29 +331,58 @@ def discover_anchors(
                 "urls": {},
                 "betclic_match_id": None,
                 "unibet_event_id": None,
+                "winamax_match_id": None,
                 "fanduel_event_id": None,
             }
         return anchors[key]
 
-    for link in betclic_links:
-        anchor = ensure_anchor(link.home_team, link.away_team)
-        anchor["sources"].add("betclic")
-        anchor["urls"]["betclic"] = link.url
-        anchor["betclic_match_id"] = link.match_id
-
-    for event in unibet_events:
+    def attach_fr(source: str, home: str, away: str, url: str, **ids: Any) -> None:
         matched = None
         for key, anchor in anchors.items():
-            if teams_match(anchor["home_team"], anchor["away_team"], event.home_team, event.away_team):
+            if teams_match(anchor["home_team"], anchor["away_team"], home, away):
                 matched = key
                 break
         if matched is None:
-            anchor = ensure_anchor(event.home_team, event.away_team)
+            anchor = ensure_anchor(home, away)
         else:
             anchor = anchors[matched]
-        anchor["sources"].add("unibet")
-        anchor["urls"]["unibet"] = event.url
-        anchor["unibet_event_id"] = event.event_id
+        anchor["sources"].add(source)
+        anchor["urls"][source] = url
+        for field, value in ids.items():
+            if value is not None:
+                anchor[field] = value
+
+    for link in betclic_links:
+        attach_fr(
+            "betclic",
+            link.home_team,
+            link.away_team,
+            link.url,
+            betclic_match_id=link.match_id,
+        )
+
+    for event in unibet_events:
+        attach_fr(
+            "unibet",
+            event.home_team,
+            event.away_team,
+            event.url,
+            unibet_event_id=event.event_id,
+        )
+
+    for link in winamax_links:
+        attach_fr(
+            "winamax",
+            link.home_team,
+            link.away_team,
+            link.url,
+            winamax_match_id=link.match_id,
+            winamax_home=link.home_team,
+            winamax_away=link.away_team,
+            winamax_title=link.title,
+            winamax_start=link.start_date,
+            winamax_competition=link.competition,
+        )
 
     for event in fanduel_events:
         matched = None
@@ -357,11 +396,10 @@ def discover_anchors(
         anchor["sources"].add("fanduel")
         anchor["fanduel_event_id"] = event.event_id
 
-    # Keep anchors that have FanDuel + at least one FR book
     return [
         a
         for a in anchors.values()
-        if "fanduel" in a["sources"] and (a["sources"] & {"betclic", "unibet"})
+        if "fanduel" in a["sources"] and (a["sources"] & {"betclic", "unibet", "winamax"})
     ]
 
 
@@ -405,8 +443,9 @@ def build_results_payload(results: list[dict[str, Any]], *, partial: bool = Fals
         "fd_only_comparables": fd_only,
         "match_progress": progress,
         "notes": [
-            "Familles: buteur, 1er buteur, décisif, passeur, tirs, tirs cadrés, carton, corners.",
-            "Overlap confirmé surtout sur buteur (Anytime Goalscorer ↔ Buteur t. rég).",
+            "Familles: buteur, 1er buteur, décisif, passeur, tirs joueur/équipe/match, tirs cadrés, carton, corners.",
+            "Books FR: Winamax + Betclic + Unibet. US: FanDuel (toutes compétitions SPORT).",
+            "Overlap fort sur buteur; tirs match/équipe et corners surtout US tant que FR ne les ouvre pas.",
         ],
     }
 
@@ -428,6 +467,7 @@ def process_anchor(
     *,
     betclic: BetclicSoccerClient,
     unibet: UnibetSoccerClient,
+    winamax: WinamaxSoccerClient,
     fanduel: FanDuelSoccerClient,
 ) -> dict[str, Any]:
     book_events: dict[str, dict[str, Any]] = {}
@@ -447,6 +487,20 @@ def process_anchor(
             book_events["unibet"] = unibet.build_soccer_event_payload(anchor["urls"]["unibet"])
         except Exception as exc:
             log.warning("Unibet fail %s: %s", anchor["match"], exc)
+    if anchor.get("winamax_match_id"):
+        try:
+            link = WinamaxSoccerMatchLink(
+                match_id=str(anchor["winamax_match_id"]),
+                url=str(anchor["urls"].get("winamax") or ""),
+                title=str(anchor.get("winamax_title") or anchor["match"]),
+                home_team=str(anchor.get("winamax_home") or anchor["home_team"]),
+                away_team=str(anchor.get("winamax_away") or anchor["away_team"]),
+                start_date=str(anchor.get("winamax_start") or ""),
+                competition=str(anchor.get("winamax_competition") or ""),
+            )
+            book_events["winamax"] = winamax.build_soccer_event_payload(link)
+        except Exception as exc:
+            log.warning("Winamax fail %s: %s", anchor["match"], exc)
 
     fd_event = None
     fd_scraped_at = None
@@ -461,7 +515,12 @@ def process_anchor(
         *[roster_from_markets(ev.get("markets") or []) for ev in book_events.values()],
         roster_from_markets((fd_event or {}).get("markets") or []),
     )
-    fr_map = build_best_fr_map(book_events, roster=roster)
+    fr_map = build_best_fr_map(
+        book_events,
+        roster=roster,
+        home_team=str(anchor.get("home_team") or ""),
+        away_team=str(anchor.get("away_team") or ""),
+    )
     fd_map = build_fanduel_map(fd_event, roster=roster, captured_at=fd_scraped_at)
     return assemble_anchor_result(
         anchor,
@@ -499,25 +558,30 @@ def run_live_compare(
 
     betclic = BetclicSoccerClient()
     unibet = UnibetSoccerClient()
+    winamax = WinamaxSoccerClient()
     fanduel = FanDuelSoccerClient()
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         fut_b = pool.submit(betclic.list_soccer_matches)
         fut_u = pool.submit(unibet.list_soccer_events)
+        fut_w = pool.submit(winamax.list_soccer_matches)
         fut_f = pool.submit(fanduel.list_soccer_events)
         betclic_links = fut_b.result()
         unibet_events = fut_u.result()
+        winamax_links = fut_w.result()
         fanduel_events = fut_f.result()
 
     log.info(
-        "Listings: betclic=%s unibet=%s fanduel=%s",
+        "Listings: betclic=%s unibet=%s winamax=%s fanduel=%s",
         len(betclic_links),
         len(unibet_events),
+        len(winamax_links),
         len(fanduel_events),
     )
     anchors = discover_anchors(
         betclic_links=betclic_links,
         unibet_events=unibet_events,
+        winamax_links=winamax_links,
         fanduel_events=fanduel_events,
     )
     if match_filter:
@@ -528,7 +592,13 @@ def run_live_compare(
     results: list[dict[str, Any]] = []
 
     def _handle(anchor: dict[str, Any]) -> dict[str, Any]:
-        return process_anchor(anchor, betclic=betclic, unibet=unibet, fanduel=fanduel)
+        return process_anchor(
+            anchor,
+            betclic=betclic,
+            unibet=unibet,
+            winamax=winamax,
+            fanduel=fanduel,
+        )
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futs = {pool.submit(_handle, a): a for a in anchors}

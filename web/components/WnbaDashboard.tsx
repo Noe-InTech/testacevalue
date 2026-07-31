@@ -661,7 +661,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           ) : cfg.label === "Foot" ? (
             <>
               Compare <strong>buteur, 1er buteur, décisif, passeur, tirs, tirs cadrés, carton, corners</strong>{" "}
-              (Unibet, Betclic, Winamax) avec <strong>FanDuel</strong>. Les pills filtrent par famille — seules celles
+              (Winamax, Unibet, Betclic) avec <strong>FanDuel</strong> — toutes compétitions actuelles / à venir.
+              Les pills filtrent par famille — seules celles
               avec des lignes apparaissent.
             </>
           ) : (
