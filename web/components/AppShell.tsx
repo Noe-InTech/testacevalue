@@ -5,63 +5,57 @@ import { useState } from "react";
 import { BaseballDashboard } from "@/components/BaseballDashboard";
 import { Dashboard } from "@/components/Dashboard";
 import { NbaDashboard } from "@/components/NbaDashboard";
-import { SoccerDashboard } from "@/components/SoccerDashboard";
 import { WnbaDashboard } from "@/components/WnbaDashboard";
 import type { SportKey } from "@/lib/types";
 
+/** Foot temporairement désactivé (scrape trop lourd pour la VM). */
+const ENABLED_SPORTS: SportKey[] = ["tennis", "wnba", "nba", "baseball"];
+
 export function AppShell() {
   const [sport, setSport] = useState<SportKey>("tennis");
+  const activeSport = ENABLED_SPORTS.includes(sport) ? sport : "tennis";
 
   return (
     <main className="page">
       <div className="sport-tabs">
         <button
           type="button"
-          className={`sport-tab${sport === "tennis" ? " active" : ""}`}
+          className={`sport-tab${activeSport === "tennis" ? " active" : ""}`}
           onClick={() => setSport("tennis")}
         >
           Tennis
         </button>
         <button
           type="button"
-          className={`sport-tab${sport === "wnba" ? " active" : ""}`}
+          className={`sport-tab${activeSport === "wnba" ? " active" : ""}`}
           onClick={() => setSport("wnba")}
         >
           WNBA
         </button>
         <button
           type="button"
-          className={`sport-tab${sport === "nba" ? " active" : ""}`}
+          className={`sport-tab${activeSport === "nba" ? " active" : ""}`}
           onClick={() => setSport("nba")}
         >
           NBA
         </button>
         <button
           type="button"
-          className={`sport-tab${sport === "baseball" ? " active" : ""}`}
+          className={`sport-tab${activeSport === "baseball" ? " active" : ""}`}
           onClick={() => setSport("baseball")}
         >
           Baseball
         </button>
-        <button
-          type="button"
-          className={`sport-tab${sport === "soccer" ? " active" : ""}`}
-          onClick={() => setSport("soccer")}
-        >
-          Foot
-        </button>
       </div>
 
-      {sport === "tennis" ? (
+      {activeSport === "tennis" ? (
         <Dashboard embedded />
-      ) : sport === "wnba" ? (
+      ) : activeSport === "wnba" ? (
         <WnbaDashboard />
-      ) : sport === "nba" ? (
+      ) : activeSport === "nba" ? (
         <NbaDashboard />
-      ) : sport === "baseball" ? (
-        <BaseballDashboard />
       ) : (
-        <SoccerDashboard />
+        <BaseballDashboard />
       )}
     </main>
   );

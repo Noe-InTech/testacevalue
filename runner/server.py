@@ -108,6 +108,8 @@ SPORTS: dict[str, SportConfig] = {
 
 
 STUCK_RUN_SECONDS = 60 * 60
+# Foot désactivé tant que le scrape full-slate sature la VM free-tier.
+DISABLED_SPORTS = frozenset({"soccer"})
 PUBLIC_URL_FILE = DATA_DIR / "public_url.txt"
 LAST_UPDATE_FILE = DATA_DIR / "last_update.json"
 SELF_UPDATE_SCRIPT = ROOT / "runner" / "self_update.sh"

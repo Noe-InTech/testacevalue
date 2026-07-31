@@ -17,6 +17,17 @@ export async function POST(request: Request) {
 
   const match = (body.match || "").trim();
   const sport = (body.sport || "tennis").trim().toLowerCase();
+  if (sport === "soccer") {
+    return NextResponse.json(
+      {
+        error:
+          "Foot temporairement désactivé (scrape trop lourd pour la VM). Utilise tennis / baseball / WNBA / NBA.",
+        disabled: true,
+        sport: "soccer",
+      },
+      { status: 503 },
+    );
+  }
   const markets = Array.isArray(body.markets)
     ? body.markets.map((item) => String(item).trim()).filter(Boolean).join(",")
     : (body.markets || "").trim();
