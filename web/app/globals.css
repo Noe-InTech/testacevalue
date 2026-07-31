@@ -76,6 +76,34 @@ input {
   gap: 12px;
 }
 
+.launch-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.launch-filter-row .ghost-btn {
+  white-space: nowrap;
+  padding: 12px 14px;
+}
+
+.competition-picker {
+  display: grid;
+  gap: 8px;
+}
+
+.competition-picker .hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.competition-picker .filter-chips {
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
 label {
   display: grid;
   gap: 8px;

@@ -169,6 +169,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const cfg = leagueConfig(league);
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
+  const [competitions, setCompetitions] = useState<
+    Array<{ id: string; name: string; event_count?: number }>
+  >([]);
+  const [compsOpen, setCompsOpen] = useState(false);
+  const [compsBusy, setCompsBusy] = useState(false);
+  const [compsError, setCompsError] = useState("");
   const [globalSearch, setGlobalSearch] = useState("");
   const [displayMatchFilter, setDisplayMatchFilter] = useState("");
   const [statFilter, setStatFilter] = useState("all");
@@ -421,6 +427,47 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     }
     throw new Error(`Delai depasse (~${waitMinutes} min). Recharge la page.`);
   }, [refresh, cfg, league]);
+
+  useEffect(() => {
+    setCompetitions([]);
+    setCompsOpen(false);
+    setCompsError("");
+    setMatch("");
+  }, [league]);
+
+  const supportsCompetitionPicker = league === "soccer" || league === "baseball";
+
+  const loadCompetitions = async () => {
+    if (compsOpen) {
+      setCompsOpen(false);
+      return;
+    }
+    setCompsBusy(true);
+    setCompsError("");
+    try {
+      const response = await fetch(`/api/competitions?sport=${encodeURIComponent(cfg.apiSport)}`, {
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Impossible de charger les ligues.");
+      }
+      const rows = Array.isArray(data.competitions) ? data.competitions : [];
+      setCompetitions(
+        rows.map((row: { id?: string; name?: string; event_count?: number }) => ({
+          id: String(row.id || row.name || ""),
+          name: String(row.name || ""),
+          event_count: Number(row.event_count || 0),
+        })).filter((row: { name: string }) => row.name),
+      );
+      setCompsOpen(true);
+    } catch (exc) {
+      setCompsError(exc instanceof Error ? exc.message : "Erreur chargement ligues.");
+      setCompsOpen(true);
+    } finally {
+      setCompsBusy(false);
+    }
+  };
 
   const onCancel = async () => {
     if (!secret.trim()) {
@@ -690,14 +737,70 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           />
         </label>
         <label>
-          Filtre match au lancement (optionnel)
-          <input
-            type="text"
-            value={match}
-            onChange={(event) => setMatch(event.target.value)}
-            placeholder="dream, lynx, gray..."
-          />
+          Filtre match / ligue au lancement (optionnel)
+          <div className={supportsCompetitionPicker ? "launch-filter-row" : undefined}>
+            <input
+              type="text"
+              value={match}
+              onChange={(event) => setMatch(event.target.value)}
+              placeholder={
+                league === "soccer"
+                  ? "équipe ou ligue (MLS, Ligue 1, Eliteserien...)"
+                  : league === "baseball"
+                    ? "équipe ou ligue (MLB, KBO, NPB...)"
+                    : "dream, lynx, gray..."
+              }
+            />
+            {supportsCompetitionPicker ? (
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => {
+                  loadCompetitions().catch(() => undefined);
+                }}
+                disabled={busy || compsBusy}
+              >
+                {compsBusy ? "…" : compsOpen ? "Masquer" : "Ligues"}
+              </button>
+            ) : null}
+          </div>
         </label>
+        {supportsCompetitionPicker && compsOpen ? (
+          <div className="competition-picker">
+            {compsError ? <p className="error">{compsError}</p> : null}
+            {!compsError && competitions.length === 0 ? (
+              <p className="hint">Aucune ligue renvoyee par le runner.</p>
+            ) : null}
+            {competitions.length > 0 ? (
+              <>
+                <p className="hint">
+                  Clique une ligue pour filtrer le scrape (tu peux encore editer le champ).
+                </p>
+                <div className="filter-chips" role="group" aria-label="Ligues disponibles">
+                  {competitions.map((comp) => {
+                    const active =
+                      match.trim().toLowerCase() === comp.name.toLowerCase() ||
+                      (match.trim().length >= 3 &&
+                        comp.name.toLowerCase().includes(match.trim().toLowerCase()));
+                    return (
+                      <button
+                        key={comp.id || comp.name}
+                        type="button"
+                        className={`filter-chip${active ? " active" : ""}`}
+                        onClick={() => setMatch(comp.name)}
+                      >
+                        {comp.name}
+                        {typeof comp.event_count === "number" && comp.event_count > 0 ? (
+                          <span className="chip-count">{comp.event_count}</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         <button type="button" onClick={onSubmit} disabled={busy}>
           {busy ? `Comparaison ${cfg.label}...` : `Lancer comparaison ${cfg.label}`}
         </button>

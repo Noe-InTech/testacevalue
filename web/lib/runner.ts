@@ -89,6 +89,37 @@ export async function cancelRunner(sport = "tennis"): Promise<Response> {
   });
 }
 
+export async function fetchRunnerCompetitions(sport = "soccer"): Promise<Response> {
+  const { baseUrl } = runnerConfig();
+  if (!baseUrl) {
+    return new Response(
+      JSON.stringify({ error: "RUNNER_URL manquant sur Vercel." }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  try {
+    const response = await fetch(
+      `${baseUrl}/api/competitions?sport=${encodeURIComponent(sport)}`,
+      {
+        cache: "no-store",
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+    const data = await response.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "connexion impossible";
+    return new Response(
+      JSON.stringify({ error: `Runner EU injoignable (${detail}).` }),
+      { status: 502, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
+
 export async function fetchRunnerResults(sport = "tennis"): Promise<{
   payload: unknown;
   status: unknown;

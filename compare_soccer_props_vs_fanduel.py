@@ -308,6 +308,28 @@ def roster_from_markets(markets: list[dict[str, Any]]) -> list[str]:
     return names
 
 
+def anchor_matches_filter(anchor: dict[str, Any], needle: str) -> bool:
+    """Filtre équipe OU ligue/compétition (sous-chaine, case-insensitive)."""
+    text = needle.strip().lower()
+    if not text:
+        return True
+    urls = anchor.get("urls") or {}
+    blob = " ".join(
+        [
+            str(anchor.get("match") or ""),
+            str(anchor.get("home_team") or ""),
+            str(anchor.get("away_team") or ""),
+            str(anchor.get("competition") or ""),
+            str(anchor.get("fanduel_competition") or ""),
+            str(anchor.get("winamax_competition") or ""),
+            str(urls.get("betclic") or ""),
+            str(urls.get("unibet") or ""),
+            str(urls.get("winamax") or ""),
+        ]
+    ).lower()
+    return text in blob
+
+
 def discover_anchors(
     *,
     betclic_links: list[Any],
@@ -395,6 +417,11 @@ def discover_anchors(
         anchor = anchors[matched]
         anchor["sources"].add("fanduel")
         anchor["fanduel_event_id"] = event.event_id
+        if getattr(event, "competition_name", ""):
+            anchor["competition"] = event.competition_name
+            anchor["fanduel_competition"] = event.competition_name
+        if getattr(event, "competition_id", ""):
+            anchor["fanduel_competition_id"] = event.competition_id
 
     return [
         a
@@ -586,7 +613,7 @@ def run_live_compare(
     )
     if match_filter:
         needle = match_filter.lower()
-        anchors = [a for a in anchors if needle in a["match"].lower()]
+        anchors = [a for a in anchors if anchor_matches_filter(a, needle)]
 
     # MLS / ligues props d'abord — tirs FanDuel surtout sur MLS aujourd'hui.
     def _anchor_priority(anchor: dict[str, Any]) -> tuple[int, str]:

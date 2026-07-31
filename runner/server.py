@@ -28,6 +28,28 @@ CURRENT_PROC: subprocess.Popen[str] | None = None
 CANCEL_REQUESTED = False
 
 from atomic_json import write_json_atomic  # noqa: E402
+from soccer_competitions import list_soccer_competitions  # noqa: E402
+
+
+def list_competitions_for_sport(sport_key: str) -> list[dict[str, Any]]:
+    if sport_key == "soccer":
+        return list_soccer_competitions()
+    if sport_key == "baseball":
+        return [
+            {"id": "mlb", "name": "MLB", "event_count": 0, "source": "static"},
+            {"id": "kbo", "name": "KBO", "event_count": 0, "source": "static"},
+            {"id": "npb", "name": "NPB", "event_count": 0, "source": "static"},
+        ]
+    if sport_key in {"wnba", "nba"}:
+        return [
+            {
+                "id": sport_key,
+                "name": sport_key.upper(),
+                "event_count": 0,
+                "source": "static",
+            }
+        ]
+    return []
 
 
 @dataclass(frozen=True)
@@ -634,6 +656,33 @@ class Handler(BaseHTTPRequestHandler):
                     "sports_status": sports_status,
                     "git_head": _git_head_short(),
                     "last_update": read_last_update(),
+                    "fetched_at": utc_now(),
+                },
+            )
+            return
+        if path == "/api/competitions":
+            sport = self._resolve_sport(self.path)
+            if sport is None:
+                self._json_response(
+                    400,
+                    {"error": "Sport inconnu (tennis, wnba, nba, baseball ou soccer)."},
+                )
+                return
+            try:
+                competitions = list_competitions_for_sport(sport.key)
+            except Exception as exc:
+                self._json_response(
+                    500,
+                    {"error": f"Liste competitions impossible: {exc}", "sport": sport.key},
+                )
+                return
+            self._json_response(
+                200,
+                {
+                    "ok": True,
+                    "sport": sport.key,
+                    "competitions": competitions,
+                    "count": len(competitions),
                     "fetched_at": utc_now(),
                 },
             )

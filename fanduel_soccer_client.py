@@ -49,7 +49,9 @@ class FanDuelSoccerClient(FanDuelClient):
         competition_id: str = "",
         competition_name: str = "",
     ) -> list[FanDuelSoccerEvent]:
-        events = (payload.get("attachments") or {}).get("events") or {}
+        attachments = payload.get("attachments") or {}
+        events = attachments.get("events") or {}
+        competitions = attachments.get("competitions") or {}
         results: list[FanDuelSoccerEvent] = []
         for event_id, event in events.items():
             if not isinstance(event, dict):
@@ -62,6 +64,10 @@ class FanDuelSoccerClient(FanDuelClient):
                 continue
             cid = competition_id or str(event.get("competitionId") or "")
             cname = competition_name
+            if not cname and cid and isinstance(competitions.get(cid), dict):
+                cname = str(competitions[cid].get("name") or "")
+            elif not cname and cid and isinstance(competitions.get(str(cid)), dict):
+                cname = str(competitions[str(cid)].get("name") or "")
             results.append(
                 FanDuelSoccerEvent(
                     event_id=str(event_id),
