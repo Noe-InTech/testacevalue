@@ -325,12 +325,15 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     }
     const timer = window.setInterval(() => {
       refresh({ silent: true }).catch(() => undefined);
-    }, 1000);
+    }, league === "soccer" ? 2500 : 1000);
     return () => window.clearInterval(timer);
-  }, [isRunning, refresh]);
+  }, [isRunning, refresh, league]);
 
   const waitForCompletion = useCallback(async (signal?: AbortSignal) => {
-    const hardDeadline = Date.now() + 20 * 60 * 1000;
+    // Foot: scrape long (~300 matchs) — ne pas abandonner le suivi a 20 min.
+    const waitMinutes = league === "soccer" ? 60 : league === "baseball" ? 35 : 20;
+    const hardDeadline = Date.now() + waitMinutes * 60 * 1000;
+    const pollMs = league === "soccer" ? 2000 : 500;
     let lastRows = 0;
     let lastMatches = 0;
     let unreachableStreak = 0;
@@ -339,7 +342,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       if (signal?.aborted) {
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
       if (signal?.aborted) {
         return;
       }
@@ -416,8 +419,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       setInfo(`${finalRows} ligne(s) affichees (delai max atteint).`);
       return;
     }
-    throw new Error("Delai depasse (~20 min). Recharge la page.");
-  }, [refresh, cfg]);
+    throw new Error(`Delai depasse (~${waitMinutes} min). Recharge la page.`);
+  }, [refresh, cfg, league]);
 
   const onCancel = async () => {
     if (!secret.trim()) {

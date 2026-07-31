@@ -79,12 +79,13 @@ SPORTS: dict[str, SportConfig] = {
         result_json=DATA_DIR / "latest_soccer.json",
         status_json=DATA_DIR / "run_status_soccer.json",
         combined=False,
-        timeout=1200,
+        # ~300+ anchors FR∩US : 20 min coupait trop tot.
+        timeout=3600,
     ),
 }
 
 
-STUCK_RUN_SECONDS = 20 * 60
+STUCK_RUN_SECONDS = 60 * 60
 PUBLIC_URL_FILE = DATA_DIR / "public_url.txt"
 LAST_UPDATE_FILE = DATA_DIR / "last_update.json"
 SELF_UPDATE_SCRIPT = ROOT / "runner" / "self_update.sh"
@@ -293,7 +294,8 @@ def recover_stuck_run() -> bool:
             started = parse_iso(str(status.get("run_started_at") or status.get("updated_at") or ""))
             if started is not None:
                 age = (datetime.now(timezone.utc) - started).total_seconds()
-                if age < STUCK_RUN_SECONDS:
+                limit = float(sport.timeout + 120) if sport is not None else float(STUCK_RUN_SECONDS)
+                if age < limit:
                     return False
             else:
                 return False

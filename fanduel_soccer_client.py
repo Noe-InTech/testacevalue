@@ -140,7 +140,7 @@ class FanDuelSoccerClient(FanDuelClient):
                 competition_name=cname,
             )
 
-        with ThreadPoolExecutor(max_workers=12) as pool:
+        with ThreadPoolExecutor(max_workers=6) as pool:
             futs = [pool.submit(fetch_comp, cid) for cid in ids]
             for fut in as_completed(futs):
                 for event in fut.result():
@@ -150,13 +150,21 @@ class FanDuelSoccerClient(FanDuelClient):
     def get_event_payload(self, event_id: str) -> dict[str, Any]:
         merged_markets: dict[str, dict[str, Any]] = {}
         event_meta: dict[str, Any] = {}
-        for tab in FANDUEL_SOCCER_EVENT_TABS:
+
+        def fetch_tab(tab: str) -> dict[str, Any] | None:
             try:
-                payload = self._get(
+                return self._get(
                     "/api/event-page",
                     {"eventId": str(event_id), "tab": tab},
                 )
             except RuntimeError:
+                return None
+
+        with ThreadPoolExecutor(max_workers=len(FANDUEL_SOCCER_EVENT_TABS)) as pool:
+            payloads = list(pool.map(fetch_tab, FANDUEL_SOCCER_EVENT_TABS))
+
+        for payload in payloads:
+            if not payload:
                 continue
             attachments = payload.get("attachments") or {}
             events = attachments.get("events") or {}

@@ -542,7 +542,7 @@ def run_live_compare(
     match_filter: str | None = None,
     progress_json: Path | None = None,
     status_json: Path | None = None,
-    max_workers: int = 4,
+    max_workers: int = 2,
 ) -> dict[str, Any]:
     write_run_status_file(
         status_json,
@@ -588,7 +588,23 @@ def run_live_compare(
         needle = match_filter.lower()
         anchors = [a for a in anchors if needle in a["match"].lower()]
 
-    log.info("Anchors FR∩US: %s", len(anchors))
+    # MLS / ligues props d'abord — tirs FanDuel surtout sur MLS aujourd'hui.
+    def _anchor_priority(anchor: dict[str, Any]) -> tuple[int, str]:
+        blob = " ".join(
+            [
+                str(anchor.get("match") or ""),
+                str(anchor.get("winamax_competition") or ""),
+                str(anchor.get("urls", {}).get("betclic") or ""),
+            ]
+        ).lower()
+        if any(k in blob for k in ("mls", "new york city", "inter miami", "la galaxy", "seattle sounders")):
+            return (0, blob)
+        if any(k in blob for k in ("premier league", "ligue 1", "serie a", "bundesliga", "la liga", "liga mx")):
+            return (1, blob)
+        return (2, blob)
+
+    anchors = sorted(anchors, key=_anchor_priority)
+    log.info("Anchors FR∩US: %s (MLS/props en tete)", len(anchors))
     results: list[dict[str, Any]] = []
 
     def _handle(anchor: dict[str, Any]) -> dict[str, Any]:
@@ -600,7 +616,9 @@ def run_live_compare(
             fanduel=fanduel,
         )
 
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+    # 2 workers: moins de saturation VM / tunnel (sinon UI « runner instable »).
+    workers = max(1, min(max_workers, 2))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         futs = {pool.submit(_handle, a): a for a in anchors}
         for fut in as_completed(futs):
             try:
