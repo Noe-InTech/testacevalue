@@ -86,8 +86,8 @@ export interface CombinedPropsPayload {
   victoires?: MarketPayload;
 }
 
-export type SportKey = "tennis" | "wnba" | "nba" | "baseball";
-export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba" | "baseball";
+export type SportKey = "tennis" | "wnba" | "nba" | "baseball" | "soccer";
+export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba" | "baseball" | "soccer";
 export type TennisMarketKind = "aces" | "breaks" | "victoires";
 
 export type AcesPayload = MarketPayload;
@@ -173,7 +173,7 @@ function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
       ? "ligne_breaks_fr"
       : marketKind === "victoires"
         ? "ligne_victoires_fr"
-        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball"
+        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball" || marketKind === "soccer"
           ? "ligne_props_fr"
           : "ligne_aces_fr";
   const explicit = row[key]?.trim();
@@ -208,7 +208,9 @@ export function getTableColumns(marketKind: MarketKind) {
         ? "Pari victoire"
         : marketKind === "baseball"
           ? "Pari baseball"
-          : marketKind === "wnba" || marketKind === "nba"
+          : marketKind === "soccer"
+            ? "Prop foot"
+            : marketKind === "wnba" || marketKind === "nba"
             ? "Prop joueur"
             : "Pari aces";
   const lineKey =
@@ -216,7 +218,7 @@ export function getTableColumns(marketKind: MarketKind) {
       ? "ligne_breaks"
       : marketKind === "victoires"
         ? "ligne_victoires"
-        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball"
+        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball" || marketKind === "soccer"
           ? "ligne_props"
           : "ligne_aces";
 
@@ -239,6 +241,8 @@ export function getTableColumns(marketKind: MarketKind) {
           ? "Meme prop joueur cote US (libelle anglais)"
           : marketKind === "baseball"
             ? "Meme marche baseball cote par la reference US"
+            : marketKind === "soccer"
+              ? "Meme prop foot cote US (buteur, decisif, tirs…)"
             : marketKind === "victoires"
               ? "Moneyline reference US"
               : "Meme marche cote US (libelle anglais)",
@@ -253,7 +257,7 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "us_source_label" as const,
       label: "Book US",
       hint:
-        marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba"
+        marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba" || marketKind === "soccer"
           ? "Source US reelle: FanDuel en priorite, sinon RotoWire · DraftKings"
           : "Source US reelle retenue sur la ligne",
     },
@@ -288,7 +292,7 @@ export function getTableColumns(marketKind: MarketKind) {
     },
   ];
 
-  if (marketKind === "baseball") {
+  if (marketKind === "baseball" || marketKind === "soccer") {
     return coreColumns;
   }
 

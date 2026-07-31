@@ -89,7 +89,7 @@ export function formatBetLabel(row: ComparableRow, marketKind?: MarketKind): str
   if (marketKind === "victoires" && row.ligne_victoires_fr) {
     return row.ligne_victoires_fr;
   }
-  if ((marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball") && row.ligne_props_fr) {
+  if ((marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball" || marketKind === "soccer") && row.ligne_props_fr) {
     return row.ligne_props_fr;
   }
   if (marketKind === "aces" && row.ligne_aces_fr) {

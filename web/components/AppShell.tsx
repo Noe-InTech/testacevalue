@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BaseballDashboard } from "@/components/BaseballDashboard";
 import { Dashboard } from "@/components/Dashboard";
 import { NbaDashboard } from "@/components/NbaDashboard";
+import { SoccerDashboard } from "@/components/SoccerDashboard";
 import { WnbaDashboard } from "@/components/WnbaDashboard";
 import type { SportKey } from "@/lib/types";
 
@@ -42,6 +43,13 @@ export function AppShell() {
         >
           Baseball
         </button>
+        <button
+          type="button"
+          className={`sport-tab${sport === "soccer" ? " active" : ""}`}
+          onClick={() => setSport("soccer")}
+        >
+          Foot
+        </button>
       </div>
 
       {sport === "tennis" ? (
@@ -50,8 +58,10 @@ export function AppShell() {
         <WnbaDashboard />
       ) : sport === "nba" ? (
         <NbaDashboard />
-      ) : (
+      ) : sport === "baseball" ? (
         <BaseballDashboard />
+      ) : (
+        <SoccerDashboard />
       )}
     </main>
   );

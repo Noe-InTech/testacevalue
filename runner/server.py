@@ -73,6 +73,14 @@ SPORTS: dict[str, SportConfig] = {
         combined=False,
         timeout=1800,
     ),
+    "soccer": SportConfig(
+        key="soccer",
+        script="compare_soccer_props_vs_fanduel.py",
+        result_json=DATA_DIR / "latest_soccer.json",
+        status_json=DATA_DIR / "run_status_soccer.json",
+        combined=False,
+        timeout=1200,
+    ),
 }
 
 
@@ -335,11 +343,15 @@ def ensure_status_files() -> None:
 
 
 def empty_payload(sport: SportConfig) -> dict[str, Any]:
-    if sport.key in {"wnba", "nba", "baseball"}:
+    if sport.key in {"wnba", "nba", "baseball", "soccer"}:
         source = (
             "baseball_markets_comparable"
             if sport.key == "baseball"
-            else f"{sport.key}_player_props_comparable"
+            else (
+                "soccer_player_props_comparable"
+                if sport.key == "soccer"
+                else f"{sport.key}_player_props_comparable"
+            )
         )
         return {
             "source": source,
@@ -631,7 +643,7 @@ class Handler(BaseHTTPRequestHandler):
         if sport is None:
             self._json_response(
                 400,
-                {"error": "Sport inconnu (tennis, wnba, nba ou baseball)."},
+                {"error": "Sport inconnu (tennis, wnba, nba, baseball ou soccer)."},
             )
             return
         recover_stuck_run()
@@ -683,7 +695,7 @@ class Handler(BaseHTTPRequestHandler):
         if sport is None:
             self._json_response(
                 400,
-                {"error": "Sport inconnu (tennis, wnba, nba ou baseball)."},
+                {"error": "Sport inconnu (tennis, wnba, nba, baseball ou soccer)."},
             )
             return
 
@@ -786,7 +798,7 @@ def main() -> None:
         if current.get("status") != "idle":
             write_status(sport, "idle", "Runner pret.")
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba + baseball)")
+    print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba + baseball + soccer)")
     server.serve_forever()
 
 

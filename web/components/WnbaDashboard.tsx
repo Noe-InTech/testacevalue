@@ -44,9 +44,20 @@ import {
   saveCachedBaseballResults,
   type BaseballBookFilter,
 } from "@/lib/baseball";
+import {
+  SOCCER_BOOK_FILTERS,
+  SOCCER_STAT_FILTERS,
+  clearCachedSoccerResults,
+  countRowsByStat as countSoccerRowsByStat,
+  filterSoccerRows,
+  hasSoccerData,
+  loadCachedSoccerResults,
+  saveCachedSoccerResults,
+  type SoccerBookFilter,
+} from "@/lib/soccer";
 
-type BasketballLeague = "wnba" | "nba" | "baseball";
-type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter;
+type BasketballLeague = "wnba" | "nba" | "baseball" | "soccer";
+type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter | SoccerBookFilter;
 
 function leagueConfig(league: BasketballLeague) {
   if (league === "nba") {
@@ -79,6 +90,22 @@ function leagueConfig(league: BasketballLeague) {
       bookFilters: BASEBALL_BOOK_FILTERS,
       filterRows: filterBaseballRows,
       countRowsByStat: countBaseballRowsByStat,
+    };
+  }
+  if (league === "soccer") {
+    return {
+      label: "Foot",
+      apiSport: "soccer" as const,
+      marketKind: "soccer" as const,
+      source: "soccer_player_props_comparable",
+      hasData: hasSoccerData,
+      loadCache: loadCachedSoccerResults,
+      saveCache: saveCachedSoccerResults,
+      clearCache: clearCachedSoccerResults,
+      statFilters: SOCCER_STAT_FILTERS,
+      bookFilters: SOCCER_BOOK_FILTERS,
+      filterRows: filterSoccerRows,
+      countRowsByStat: countSoccerRowsByStat,
     };
   }
   return {
@@ -610,11 +637,19 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   return (
     <>
       <header className="hero">
-        <p className="eyebrow">{cfg.label === "Baseball" ? "Baseball MLB / KBO / NPB" : `Basket ${cfg.label}`}</p>
+        <p className="eyebrow">
+          {cfg.label === "Baseball"
+            ? "Baseball MLB / KBO / NPB"
+            : cfg.label === "Foot"
+              ? "Football / Soccer"
+              : `Basket ${cfg.label}`}
+        </p>
         <h1>
           {cfg.label === "Baseball"
             ? "Marchés baseball — books FR vs référence US"
-            : "Props joueurs — books FR vs référence US"}
+            : cfg.label === "Foot"
+              ? "Props foot — books FR vs référence US"
+              : "Props joueurs — books FR vs référence US"}
         </h1>
         <p className="lead">
           {cfg.label === "Baseball" ? (
@@ -622,6 +657,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
               Compare <strong>vainqueur, totaux, F5, runs 1re manche, marqueurs HR / runs</strong> (MLB / KBO / NPB —
               Unibet, Betclic, Winamax) avec la référence US: <strong>FanDuel en priorité</strong>, RotoWire · DraftKings
               seulement si la ligne est absente cote FanDuel.
+            </>
+          ) : cfg.label === "Foot" ? (
+            <>
+              Compare <strong>buteur, 1er buteur, décisif, passeur, tirs, tirs cadrés, carton, corners</strong>{" "}
+              (Unibet, Betclic, Winamax) avec <strong>FanDuel</strong>. Les pills filtrent par famille — seules celles
+              avec des lignes apparaissent.
             </>
           ) : (
             <>
