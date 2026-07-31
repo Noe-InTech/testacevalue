@@ -36,10 +36,15 @@ from betclic_basketball_client import BetclicBasketballClient
 from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
 from fanduel_basketball_client import FanDuelBasketballClient
 from fanduel_client import (
+    american_to_decimal_fr,
     decimal_fr_to_american,
     format_american_moneyline,
     format_french_decimal,
     runner_fanduel_price_bundle,
+)
+from rotowire_basketball_props_client import (
+    RotoWireBasketballPropRow,
+    RotoWireBasketballPropsClient,
 )
 from tennis_market_mapping import players_match
 from unibet_basketball_client import UnibetBasketballClient
@@ -111,17 +116,30 @@ def build_fanduel_player_props_map(
     fanduel_event: dict[str, Any] | None,
     *,
     roster: list[str],
+    captured_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     if not fanduel_event:
         return {}
     variant_map: dict[str, dict[str, Any]] = {}
 
     def store_outcome(compare_key: str, market_label: str, outcome: str, bundle: dict[str, Any]) -> None:
+        family = compare_key.split("|", 1)[0]
+        player_name = ""
+        parts = compare_key.split("|")
+        if len(parts) >= 2:
+            # Prefer resolved roster name when already known on an existing slot.
+            player_name = str(variant_map.get(compare_key, {}).get("player_name") or "")
         slot = variant_map.setdefault(
             compare_key,
             {
                 "compare_key": compare_key,
                 "market_label": market_label,
+                "market_family": family,
+                "player_name": player_name,
+                "source": "fanduel",
+                "source_label": "FanDuel",
+                "source_bookmaker": "FanDuel",
+                "captured_at": captured_at or "",
                 "outcomes": {},
             },
         )
@@ -156,6 +174,7 @@ def build_fanduel_player_props_map(
                     continue
                 player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
                 store_outcome(build_double_double_key(player_name), market_label, "Yes", bundle)
+                variant_map[build_double_double_key(player_name)]["player_name"] = player_name
             continue
 
         for _family, pattern in FD_TIER_MARKET_SPECS:
@@ -170,15 +189,83 @@ def build_fanduel_player_props_map(
                 if bundle.get("decimal_fr") is None:
                     continue
                 player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-                store_outcome(
-                    build_player_prop_key(_family, player_name, line),
-                    market_label,
-                    "Over",
-                    bundle,
-                )
+                key = build_player_prop_key(_family, player_name, line)
+                store_outcome(key, market_label, "Over", bundle)
+                variant_map[key]["player_name"] = player_name
             break
 
     return variant_map
+
+
+def build_rotowire_player_props_map(
+    rows: list[RotoWireBasketballPropRow],
+    *,
+    home_team: str,
+    away_team: str,
+    roster: list[str],
+    captured_at: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    variant_map: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not teams_match(home_team, away_team, row.home_team, row.away_team):
+            continue
+        player = resolve_roster_player(row.player_name, roster)
+        compare_key = build_player_prop_key(row.market_family, player, row.line)
+        over_decimal = american_to_decimal_fr(row.over_american)
+        under_decimal = american_to_decimal_fr(row.under_american)
+        if over_decimal is None or under_decimal is None:
+            continue
+        variant_map[compare_key] = {
+            "compare_key": compare_key,
+            "market_label": f"{player} - {row.market_label}",
+            "market_family": row.market_family,
+            "player_name": player,
+            "source": "rotowire",
+            "source_label": "RotoWire",
+            "source_bookmaker": row.bookmaker,
+            "captured_at": captured_at or "",
+            "outcomes": {
+                "Over": {
+                    "american": row.over_american,
+                    "decimal_raw": over_decimal,
+                    "decimal_fr": over_decimal,
+                },
+                "Under": {
+                    "american": row.under_american,
+                    "decimal_raw": under_decimal,
+                    "decimal_fr": under_decimal,
+                },
+            },
+        }
+    return variant_map
+
+
+def overlay_us_reference_map(
+    base_map: dict[str, dict[str, Any]],
+    *,
+    rotowire_rows: list[RotoWireBasketballPropRow],
+    home_team: str,
+    away_team: str,
+    roster: list[str],
+    rotowire_captured_at: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    merged = dict(base_map)
+    rotowire_map = build_rotowire_player_props_map(
+        rotowire_rows,
+        home_team=home_team,
+        away_team=away_team,
+        roster=roster,
+        captured_at=rotowire_captured_at,
+    )
+    for compare_key, rotowire_market in rotowire_map.items():
+        fanduel_market = merged.get(compare_key)
+        fanduel_outcomes = (fanduel_market or {}).get("outcomes", {})
+        has_complete_fanduel_pair = bool(
+            fanduel_outcomes.get("Over") and fanduel_outcomes.get("Under")
+        )
+        if not has_complete_fanduel_pair:
+            merged[compare_key] = rotowire_market
+    return merged
 
 
 def props_outcome_label_fr(outcome: str) -> str:
@@ -256,15 +343,20 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
     issue = props_outcome_label_fr(str(row.get("outcome", "")))
     marche_fr = str(row.get("fr_market_label", ""))
     marche_fd = str(row.get("fanduel_market_label", ""))
+    us_label = str(row.get("us_source_label") or "FanDuel")
     enriched = {
         **row,
+        "us_source": row.get("us_source", "fanduel"),
+        "us_source_label": us_label,
+        "us_bookmaker": row.get("us_bookmaker", "FanDuel"),
+        "us_captured_at": row.get("us_captured_at", ""),
         "best_side": best_side,
         "cote_fr": format_french_decimal(fr_odds),
         "bookmaker_fr": row.get("best_fr_bookmaker", ""),
         "cote_us_fanduel_ml": format_american_moneyline(row.get("fanduel_american")),
         "cote_fr_fanduel": format_french_decimal(fd_decimal),
         "ecart_fr_moins_fd": f"{price_delta:+.2f}".replace(".", ","),
-        "meilleur_cote": "FR" if best_side == "fr" else "FanDuel" if best_side == "fanduel" else "Egalite",
+        "meilleur_cote": "FR" if best_side == "fr" else us_label if best_side == "fanduel" else "Egalite",
         "issue_fr": issue,
         "marche_fr": marche_fr,
         "marche_fanduel": marche_fd,
@@ -278,6 +370,10 @@ def enrich_fr_only_row(row: dict[str, Any]) -> dict[str, Any]:
     marche_fr = str(row.get("fr_market_label", ""))
     return {
         **row,
+        "us_source": "",
+        "us_source_label": "",
+        "us_bookmaker": "",
+        "us_captured_at": "",
         "cote_fr": format_french_decimal(float(row["best_fr_odds"])),
         "bookmaker_fr": row.get("best_fr_bookmaker", ""),
         "cote_us_fanduel_ml": "",
@@ -294,14 +390,19 @@ def enrich_fr_only_row(row: dict[str, Any]) -> dict[str, Any]:
 def enrich_fd_only_row(row: dict[str, Any]) -> dict[str, Any]:
     issue = props_outcome_label_fr(str(row.get("outcome", "")))
     marche_fd = str(row.get("fanduel_market_label", ""))
+    us_label = str(row.get("us_source_label") or "FanDuel")
     return {
         **row,
+        "us_source": row.get("us_source", "fanduel"),
+        "us_source_label": us_label,
+        "us_bookmaker": row.get("us_bookmaker", "FanDuel"),
+        "us_captured_at": row.get("us_captured_at", ""),
         "cote_fr": "",
         "bookmaker_fr": "",
         "cote_us_fanduel_ml": row.get("cote_us_fanduel_ml", ""),
         "cote_fr_fanduel": row.get("cote_fr_fanduel", ""),
         "ecart_fr_moins_fd": "",
-        "meilleur_cote": "FanDuel seul",
+        "meilleur_cote": f"{us_label} seul",
         "issue_fr": issue,
         "marche_fr": "",
         "marche_fanduel": marche_fd,
@@ -369,6 +470,10 @@ def compare_normalized_props(
                     "best_fr_bookmaker": fr_payload["bookmaker_label"],
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
+                    "us_source": fd_market.get("source", "fanduel"),
+                    "us_source_label": fd_market.get("source_label", "FanDuel"),
+                    "us_bookmaker": fd_market.get("source_bookmaker", "FanDuel"),
+                    "us_captured_at": fd_market.get("captured_at", ""),
                     **compute_wnba_paired_fields(
                         outcome=outcome,
                         fr_market=fr_market,
@@ -551,7 +656,7 @@ def build_results_payload(
         "match_progress": match_progress,
         "notes": [
             f"Pipeline {league_label} séparé du tennis.",
-            "Référence US: FanDuel (props joueur O/U).",
+            "Référence US: FanDuel, ou RotoWire · DraftKings pour pts/reb/ast/3pts si paire O/U FanDuel incomplete.",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
             *(book_warnings or []),
         ],
@@ -738,15 +843,30 @@ def compare_anchor(
     betclic: BetclicBasketballClient,
     winamax: WinamaxBasketballClient,
     fanduel: FanDuelBasketballClient,
+    rotowire_rows: list[RotoWireBasketballPropRow] | None = None,
+    rotowire_scraped_at: str | None = None,
     league: str = "wnba",
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
 ) -> dict[str, Any]:
     book_events: dict[str, dict[str, Any]] = {}
-    roster = merge_roster([], [], [], [anchor["home_team"], anchor["away_team"]])
+    home_team = anchor["home_team"]
+    away_team = anchor["away_team"]
+    fanduel_event_meta = None
+    if anchor.get("fanduel_event_id"):
+        fanduel_event_meta = next(
+            (item for item in fanduel_events if item.event_id == anchor["fanduel_event_id"]),
+            None,
+        )
+    if fanduel_event_meta is not None:
+        home_team = fanduel_event_meta.home_team
+        away_team = fanduel_event_meta.away_team
+    roster = merge_roster([], [], [], [home_team, away_team])
     fr_map: dict[str, dict[str, Any]] = {}
     fd_map: dict[str, dict[str, Any]] = {}
     fr_scraped_at: str | None = None
     fd_scraped_at: str | None = None
+    fanduel_payload: dict[str, Any] | None = None
+    rw_rows = rotowire_rows or []
 
     def flush(step: str) -> None:
         flush_anchor_partial(
@@ -770,13 +890,28 @@ def compare_anchor(
             book_events.get("winamax", {}).get("roster"),
             book_events.get("unibet", {}).get("roster"),
             book_events.get("betclic", {}).get("roster"),
-            [anchor["home_team"], anchor["away_team"]],
+            [home_team, away_team],
+        )
+
+    def rebuild_us_map() -> dict[str, dict[str, Any]]:
+        base_map = build_fanduel_player_props_map(
+            fanduel_payload,
+            roster=roster,
+            captured_at=fd_scraped_at,
+        )
+        return overlay_us_reference_map(
+            base_map,
+            rotowire_rows=rw_rows,
+            home_team=home_team,
+            away_team=away_team,
+            roster=roster,
+            rotowire_captured_at=rotowire_scraped_at,
         )
 
     book_lock = threading.Lock()
 
     def ingest_fr_book(book: str, payload: dict[str, Any] | None) -> None:
-        nonlocal roster, fr_scraped_at, fr_map
+        nonlocal roster, fr_scraped_at, fr_map, fd_map
         if not payload:
             return
         with book_lock:
@@ -784,15 +919,18 @@ def compare_anchor(
             roster = merge_roster_from_books()
             fr_scraped_at = utc_now()
             fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+            fd_map = rebuild_us_map()
             flush(book)
 
     def ingest_fanduel(payload: dict[str, Any] | None) -> None:
-        nonlocal roster, fd_scraped_at, fd_map
+        nonlocal roster, fd_scraped_at, fd_map, fanduel_payload
         if not payload:
             return
         with book_lock:
+            fanduel_payload = payload
             fd_scraped_at = utc_now()
-            fd_map = build_fanduel_player_props_map(payload, roster=roster)
+            roster = merge_roster_from_books()
+            fd_map = rebuild_us_map()
             flush("fanduel")
 
     unibet_event = next(
@@ -807,45 +945,37 @@ def compare_anchor(
         (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
         None,
     )
-    fanduel_event = None
-    if anchor.get("fanduel_event_id"):
-        fanduel_event = next(
-            (item for item in fanduel_events if item.event_id == anchor["fanduel_event_id"]),
-            None,
-        )
+    fanduel_event = next(
+        (item for item in fanduel_events if item.event_id == anchor.get("fanduel_event_id")),
+        None,
+    )
 
+    futures: dict[Any, str] = {}
     build_fd_payload = (
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
-
-    # FanDuel en premier (reference US) — les comparables arrivent des le 1er book FR.
-    priority_jobs: list[tuple[str, Callable[[], dict[str, Any] | None]]] = []
-    if fanduel_event:
-        priority_jobs.append(
-            (
-                "fanduel",
-                lambda event=fanduel_event: _safe_call(
-                    "FanDuel",
-                    lambda: build_fd_payload(event),
-                    None,
-                ),
-            )
-        )
-    if betclic_link:
-        priority_jobs.append(
-            (
-                "betclic",
-                lambda link=betclic_link: _safe_call(
-                    "Betclic",
-                    lambda: betclic.build_event_payload(link),
-                    None,
-                ),
-            )
-        )
-
-    if priority_jobs:
-        with ThreadPoolExecutor(max_workers=min(2, len(priority_jobs))) as pool:
-            futures = {pool.submit(job[1]): job[0] for job in priority_jobs}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        if betclic_link:
+            futures[
+                pool.submit(
+                    lambda link=betclic_link: _safe_call(
+                        "Betclic",
+                        lambda: betclic.build_event_payload(link),
+                        None,
+                    )
+                )
+            ] = "betclic"
+        if fanduel_event:
+            futures[
+                pool.submit(
+                    lambda event=fanduel_event: _safe_call(
+                        "FanDuel",
+                        lambda: build_fd_payload(event),
+                        None,
+                    )
+                )
+            ] = "fanduel"
+        if futures:
             for future in as_completed(futures):
                 book = futures[future]
                 try:
@@ -878,6 +1008,10 @@ def compare_anchor(
             ),
         )
 
+    # Ensure RotoWire overlay applies even without FanDuel payload.
+    with book_lock:
+        fd_map = rebuild_us_map()
+
     return assemble_anchor_result(
         anchor,
         book_events=book_events,
@@ -885,7 +1019,7 @@ def compare_anchor(
         fr_map=fr_map,
         fd_map=fd_map,
         fr_scraped_at=fr_scraped_at,
-        fd_scraped_at=fd_scraped_at,
+        fd_scraped_at=fd_scraped_at or rotowire_scraped_at,
         compare_normalized_props=compare_normalized_props,
         enrich_fr_only_row=enrich_fr_only_row,
         enrich_fd_only_row=enrich_fd_only_row,
@@ -898,6 +1032,7 @@ def run_compare(*, match_filter: str = "", league: str = "wnba") -> dict[str, An
     betclic = BetclicBasketballClient()
     winamax = WinamaxBasketballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBasketballClient()
+    rotowire = RotoWireBasketballPropsClient(league=league)
 
     fetch_listings = fetch_live_nba_listings if league == "nba" else fetch_live_wnba_listings
     unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_listings(
@@ -906,6 +1041,18 @@ def run_compare(*, match_filter: str = "", league: str = "wnba") -> dict[str, An
         winamax=winamax,
         fanduel=fanduel,
     )
+    rotowire_rows, rotowire_scraped_at = _safe_call(
+        "RotoWire",
+        rotowire.fetch_draftkings_prop_rows,
+        ([], None),
+    )
+    if not rotowire_rows:
+        book_warnings.append(
+            f"RotoWire · DraftKings: aucun prop {league.upper()} (hors saison ou scrape vide)."
+        )
+    else:
+        log.info("RotoWire %s — %d ligne(s) DraftKings", league.upper(), len(rotowire_rows))
+
     anchors = discover_anchors(
         unibet_events=unibet_events,
         betclic_links=betclic_links,
@@ -927,6 +1074,8 @@ def run_compare(*, match_filter: str = "", league: str = "wnba") -> dict[str, An
             betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
+            rotowire_rows=rotowire_rows,
+            rotowire_scraped_at=rotowire_scraped_at,
             league=league,
         )
         for anchor in anchors
@@ -953,6 +1102,7 @@ def run_live_compare(
     betclic = BetclicBasketballClient()
     winamax = WinamaxBasketballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBasketballClient()
+    rotowire = RotoWireBasketballPropsClient(league=league)
     anchors_total = 0
     results: list[dict[str, Any]] = []
     book_warnings: list[str] = []
@@ -983,6 +1133,19 @@ def run_live_compare(
         fanduel=fanduel,
         on_status=on_listing_status,
     )
+    rotowire_rows, rotowire_scraped_at = _safe_call(
+        "RotoWire",
+        rotowire.fetch_draftkings_prop_rows,
+        ([], None),
+    )
+    if not rotowire_rows:
+        book_warnings.append(
+            f"RotoWire · DraftKings: aucun prop {league_label} (hors saison ou scrape vide)."
+        )
+    else:
+        log.info("RotoWire %s — %d ligne(s) DraftKings", league_label, len(rotowire_rows))
+        on_listing_status(f"RotoWire · DraftKings: {len(rotowire_rows)} ligne(s) {league_label}")
+
     anchors = discover_anchors(
         unibet_events=unibet_events,
         betclic_links=betclic_links,
@@ -1056,6 +1219,8 @@ def run_live_compare(
             betclic=betclic,
             winamax=winamax,
             fanduel=fanduel,
+            rotowire_rows=rotowire_rows,
+            rotowire_scraped_at=rotowire_scraped_at,
             league=league,
             on_partial=on_anchor_partial,
         )

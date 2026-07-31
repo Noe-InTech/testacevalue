@@ -518,9 +518,20 @@ def align_fr_outcome_to_fanduel(
 ) -> str:
     family = compare_key.split("|", 1)[0]
     if family in {"h2h", "set1_winner", "set2_winner", "first_break"}:
-        if players_match(outcome, home_player):
+        raw = str(outcome or "").strip()
+        lower = raw.lower()
+        if lower in {"home", "1", "domicile"}:
             return home_player
-        if players_match(outcome, away_player):
+        if lower in {"away", "2", "exterieur", "extérieur"}:
+            return away_player
+        # Strict surname key first (évite Daria Snigur ↔ Daria Egorova).
+        if same_tennis_player(raw, home_player):
+            return home_player
+        if same_tennis_player(raw, away_player):
+            return away_player
+        if players_match(raw, home_player):
+            return home_player
+        if players_match(raw, away_player):
             return away_player
     if family in {"games_total", "totals", "total_sets", "breaks_total", "aces_total", "tie_break_match"}:
         lower = outcome.lower()

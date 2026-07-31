@@ -71,7 +71,6 @@ COMPARABLE_FAMILIES = frozenset(
         "runs_team",
         "f5_h2h",
         "f5_runs_total",
-        "inning1_result",
         "inning1_runs_total",
         "hr_player",
         "runs_player",

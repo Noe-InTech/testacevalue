@@ -566,13 +566,13 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     const fdEvents = payload?.fd_event_count ?? 0;
     const frEvents = payload?.fr_event_count ?? 0;
     if (fdEvents === 0 && (payload?.fr_only_count ?? 0) > 0) {
-      return "Des props joueuses existent cote FR, mais FanDuel ne les propose pas sur ces matchs.";
+      return "Des props joueuses existent cote FR, mais la référence US ne les propose pas sur ces matchs.";
     }
     if (fdEvents > 0 && frEvents === 0) {
-      return `FanDuel propose des props ${cfg.label}, mais les books FR n'ont pas de lignes comparables.`;
+      return `La référence US propose des props ${cfg.label}, mais les books FR n'ont pas de lignes comparables.`;
     }
     if (fdEvents > 0 && frEvents > 0) {
-      return "FR et FanDuel ont des props, mais pas sur les memes matchs ou pas aux memes seuils.";
+      return "FR et la référence US ont des props, mais pas sur les memes matchs ou pas aux memes seuils.";
     }
     return "";
   }, [payload]);
@@ -612,19 +612,20 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         <h1>
           {cfg.label === "Baseball"
             ? "Marchés baseball — books FR vs référence US"
-            : "Props joueurs — books FR vs FanDuel"}
+            : "Props joueurs — books FR vs référence US"}
         </h1>
         <p className="lead">
           {cfg.label === "Baseball" ? (
             <>
-              Compare <strong>vainqueur, totaux, F5, 1ère manche, marqueurs HR / runs</strong> (MLB / KBO / NPB —
+              Compare <strong>vainqueur, totaux, F5, runs 1re manche, marqueurs HR / runs</strong> (MLB / KBO / NPB —
               Unibet, Betclic, Winamax) avec la référence US réelle par ligne: FanDuel, ou RotoWire · DraftKings
               pour certains runs joueur.
             </>
           ) : (
             <>
               Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
-              ({cfg.label} — Unibet, Betclic, Winamax) avec FanDuel.
+              ({cfg.label} — Unibet, Betclic, Winamax) avec la référence US réelle: FanDuel, ou RotoWire · DraftKings
+              pour pts/reb/ast/3pts si la paire O/U FanDuel est incomplete.
             </>
           )}
         </p>
@@ -868,7 +869,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={cfg.label === "Baseball" ? "Lignes ou le book FR paie mieux que la référence US" : "Lignes ou le book FR paie mieux que FanDuel"}
+        title="Lignes ou le book FR paie mieux que la référence US"
         badge={frHigherRows.length}
         open={openSections.frHigher}
         onOpenChange={(open) => setSectionOpen("frHigher", open)}
@@ -886,16 +887,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage={
-            cfg.label === "Baseball"
-              ? "Aucune ligne ou la cote FR bat la référence US pour ces filtres."
-              : "Aucune ligne ou la cote FR bat FanDuel pour ces filtres."
-          }
+          emptyMessage="Aucune ligne ou la cote FR bat la référence US pour ces filtres."
         />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={cfg.label === "Baseball" ? "Values MPTO — book FR vs référence US" : "Values MPTO — book FR vs FanDuel"}
+        title="Values MPTO — book FR vs référence US"
         badge={valueRows.length}
         open={openSections.values}
         onOpenChange={(open) => setSectionOpen("values", open)}
@@ -912,12 +909,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           searchQuery={valuesSearch}
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
+          emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que la référence US."
         />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={cfg.label === "Baseball" ? "Props FR sans equivalent US (meme seuil)" : "Props FR sans equivalent FanDuel (meme seuil)"}
+        title="Props FR sans equivalent US (meme seuil)"
         badge={frOnlyRows.length}
         open={openSections.frOnly}
         onOpenChange={(open) => setSectionOpen("frOnly", open)}
@@ -935,23 +932,19 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage={
-            cfg.label === "Baseball"
-              ? "Toutes les lignes FR ont un equivalent US, ou pas de prop FR."
-              : "Toutes les lignes FR ont un equivalent FanDuel, ou pas de prop FR."
-          }
+          emptyMessage="Toutes les lignes FR ont un equivalent US, ou pas de prop FR."
         />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title={cfg.label === "Baseball" ? "Props US sans equivalent FR (meme seuil)" : "Props FanDuel sans equivalent FR (meme seuil)"}
+        title="Props US sans equivalent FR (meme seuil)"
         badge={fdOnlyRows.length}
         open={openSections.fdOnly}
         onOpenChange={(open) => setSectionOpen("fdOnly", open)}
         search={{
           value: fdOnlySearch,
           onChange: setFdOnlySearch,
-          placeholder: cfg.label === "Baseball" ? "Joueur, match, marche US..." : "Joueur, match, marche FanDuel...",
+          placeholder: "Joueur, match, marche US...",
         }}
       >
         <ResultsTable
@@ -962,11 +955,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
-          emptyMessage={
-            cfg.label === "Baseball"
-              ? "Toutes les lignes US ont un equivalent FR, ou pas de prop US."
-              : "Toutes les lignes FanDuel ont un equivalent FR, ou pas de prop FanDuel."
-          }
+          emptyMessage="Toutes les lignes US ont un equivalent FR, ou pas de prop US."
         />
       </CollapsibleSection>
     </>

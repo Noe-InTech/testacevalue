@@ -21,7 +21,6 @@ export const BASEBALL_STAT_FILTERS: BaseballStatFilter[] = [
   { id: "runs_team", label: "Total equipe", families: ["runs_team"] },
   { id: "f5_h2h", label: "F5 vainqueur", families: ["f5_h2h"] },
   { id: "f5_total", label: "F5 total runs", families: ["f5_runs_total"] },
-  { id: "inning1_result", label: "1re manche vainqueur", families: ["inning1_result"] },
   { id: "inning1_total", label: "1re manche total", families: ["inning1_runs_total"] },
   { id: "hr", label: "Home run", families: ["hr_player"] },
   { id: "runs_player", label: "Runs joueur", families: ["runs_player"] },

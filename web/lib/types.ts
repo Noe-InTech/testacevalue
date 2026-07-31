@@ -253,7 +253,7 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "us_source_label" as const,
       label: "Book US",
       hint:
-        marketKind === "baseball"
+        marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba"
           ? "Source US reelle retenue sur la ligne (FanDuel ou RotoWire · DraftKings)"
           : "Source US reelle retenue sur la ligne",
     },
@@ -293,10 +293,10 @@ export function getTableColumns(marketKind: MarketKind) {
   }
 
   if (marketKind === "wnba" || marketKind === "nba") {
-    return coreColumns.filter((column) => column.key !== "us_source_label");
+    return coreColumns;
   }
 
-  return coreColumns;
+  return coreColumns.filter((column) => column.key !== "us_source_label");
 }
 
 export const TABLE_COLUMNS = getTableColumns("aces");
