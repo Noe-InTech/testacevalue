@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+from book_urls import attach_fr_book_urls
 from fanduel_client import (
     format_american_moneyline,
     format_french_decimal,
@@ -463,6 +464,16 @@ def attach_breaks_to_anchor_result(
     match_name = compared.get("match", "")
     for row in comparable + fr_only + fd_only:
         row["match"] = match_name
+    attach_fr_book_urls(
+        comparable,
+        urls=compared.get("urls") or {},
+        book_events=book_events,
+    )
+    attach_fr_book_urls(
+        fr_only,
+        urls=compared.get("urls") or {},
+        book_events=book_events,
+    )
     compared["comparable_break_count"] = len(comparable)
     compared["comparable_breaks"] = comparable
     compared["fr_only_break_count"] = len(fr_only)

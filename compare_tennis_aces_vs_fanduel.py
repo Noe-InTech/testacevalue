@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Callable
 import time
 
+from book_urls import attach_fr_book_urls
 from fanduel_client import (
     FANDUEL_PROPS_TABS,
     DEFAULT_TENNIS_PAGE_CANDIDATES,
@@ -1027,6 +1028,8 @@ def compare_match_to_fanduel(
         row["match"] = match_meta["match"]
     for row in fd_only:
         row["match"] = match_meta["match"]
+    attach_fr_book_urls(comparable, urls=match_meta.get("urls") or {})
+    attach_fr_book_urls(fr_only, urls=match_meta.get("urls") or {})
     fr_higher = [row for row in comparable if row["best_side"] == "fr"]
 
     raw_delta = None

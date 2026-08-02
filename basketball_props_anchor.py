@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 
+from book_urls import attach_fr_book_urls
 from fanduel_client import format_american_moneyline, format_french_decimal
 
 PartialCallback = Callable[[Dict[str, Any], str], None]
@@ -72,6 +73,16 @@ def assemble_anchor_result(
     attach_capture_times(comparable, fr_scraped_at=fr_scraped_at, fd_scraped_at=fd_scraped_at)
     attach_capture_times(fr_only, fr_scraped_at=fr_scraped_at)
     attach_capture_times(fd_only, fd_scraped_at=fd_scraped_at)
+    attach_fr_book_urls(
+        comparable,
+        urls=anchor.get("urls") or {},
+        book_events=book_events,
+    )
+    attach_fr_book_urls(
+        fr_only,
+        urls=anchor.get("urls") or {},
+        book_events=book_events,
+    )
 
     return {
         "match": anchor["match"],

@@ -10,6 +10,8 @@ export interface ComparableRow {
   marche_fanduel: string;
   cote_fr: string;
   bookmaker_fr: string;
+  /** URL page match du book FR retenu (Unibet / Betclic / Winamax). */
+  url_fr?: string;
   cote_fr_contraire?: string;
   bookmaker_fr_contraire?: string;
   cote_us_fanduel_ml: string;
