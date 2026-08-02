@@ -10,8 +10,12 @@ export interface ComparableRow {
   marche_fanduel: string;
   cote_fr: string;
   bookmaker_fr: string;
-  /** URL page match du book FR retenu (Unibet / Betclic / Winamax). */
+  /** URL page match / sélection du book FR retenu (Unibet / Betclic / Winamax). */
   url_fr?: string;
+  /** "selection" si deep-link pari précis (Unibet outcomeIds), sinon "match". */
+  url_fr_kind?: "selection" | "match";
+  /** ID sélection Unibet (si disponible) pour deep-link betslip. */
+  selection_id?: string;
   cote_fr_contraire?: string;
   bookmaker_fr_contraire?: string;
   cote_us_fanduel_ml: string;

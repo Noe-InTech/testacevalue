@@ -20,6 +20,7 @@ from basketball_books_mapping import (
     normalized_market_to_dict,
 )
 from basketball_constants import BOOK_LABELS
+from book_urls import selection_id_for_normalized_outcome
 from basketball_market_mapping import (
     align_fr_outcome_to_fanduel,
     build_double_double_key,
@@ -86,6 +87,7 @@ def build_best_fr_player_props_map(
             if not is_wnba_player_prop_label(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(label, outcomes, roster):
                 payload = normalized_market_to_dict(item, roster)
                 for outcome, odds in payload["outcomes"].items():
@@ -108,6 +110,13 @@ def build_best_fr_player_props_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                            )
+                            if bookmaker == "unibet"
+                            else "",
                         }
     return best
 
@@ -466,6 +475,7 @@ def compare_normalized_props(
                     "fanduel_market_label": fd_market.get("market_label", ""),
                     "best_fr_odds": fr_payload["odds"],
                     "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                    "selection_id": fr_payload.get("selection_id", ""),
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                     "us_source": fd_market.get("source", "fanduel"),

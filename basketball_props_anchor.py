@@ -41,6 +41,7 @@ def assemble_anchor_result(
                         "outcome": outcome,
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fr_market_label": fr_market["market_label_raw"],
                     }
                 )

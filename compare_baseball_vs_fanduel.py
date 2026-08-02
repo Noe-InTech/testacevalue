@@ -23,6 +23,7 @@ from typing import Any, Callable
 
 from baseball_books_mapping import BOOK_NORMALIZERS, is_baseball_comparable_label, normalized_market_to_dict
 from baseball_constants import BOOK_LABELS, COMPARABLE_FAMILIES
+from book_urls import selection_id_for_normalized_outcome
 from baseball_market_mapping import (
     build_runs_player_key,
     is_comparable_key,
@@ -141,6 +142,7 @@ def build_best_fr_map(
             if not is_baseball_comparable_label(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(
                 label,
                 outcomes,
@@ -170,6 +172,15 @@ def build_best_fr_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                home=home_team,
+                                away=away_team,
+                            )
+                            if bookmaker == "unibet"
+                            else "",
                         }
     return best
 
@@ -546,6 +557,7 @@ def compare_normalized_markets(
                         "us_captured_at": fd_market.get("captured_at", ""),
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         **compute_paired_fields(
