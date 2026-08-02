@@ -219,10 +219,12 @@ class UnibetClient:
             return markets
         # Fallback when labels were rewritten (ex. "Plus" -> "Plus 22.5"): unique price in market.
         by_market_price: dict[tuple[str, float], list[str]] = {}
-        for (market_desc, _desc), (selection_id, odds) in catalog.items():
+        by_outcome_label: dict[str, list[tuple[str, str]]] = {}
+        for (market_desc, desc), (selection_id, odds) in catalog.items():
             by_market_price.setdefault((market_desc, round(float(odds), 3)), []).append(
                 selection_id
             )
+            by_outcome_label.setdefault(desc, []).append((market_desc, selection_id))
         enriched: list[UnibetMarket] = []
         for market in markets:
             outcomes: list[UnibetOutcome] = []
@@ -238,6 +240,16 @@ class UnibetClient:
                     )
                     if len(price_hits) == 1:
                         selection_id = price_hits[0]
+                # Baseball SSR often merges lines into "Plus / Moins Points - Match"
+                # while the catalog keeps "Plus / Moins Point(s) 7,5 - Match".
+                if not selection_id:
+                    selection_id = self._match_catalog_selection(
+                        market_label=market.label,
+                        outcome_label=outcome.label,
+                        outcome_odds=outcome.odds,
+                        catalog=catalog,
+                        by_outcome_label=by_outcome_label,
+                    )
                 outcomes.append(
                     UnibetOutcome(
                         label=outcome.label,
@@ -247,6 +259,66 @@ class UnibetClient:
                 )
             enriched.append(UnibetMarket(label=market.label, outcomes=tuple(outcomes)))
         return enriched
+
+    @staticmethod
+    def _match_catalog_selection(
+        *,
+        market_label: str,
+        outcome_label: str,
+        outcome_odds: float | None,
+        catalog: dict[tuple[str, str], tuple[str, float]],
+        by_outcome_label: dict[str, list[tuple[str, str]]],
+    ) -> str:
+        label = str(outcome_label or "").strip()
+        if not label:
+            return ""
+        candidates = by_outcome_label.get(label) or []
+        if not candidates:
+            return ""
+        market_l = str(market_label or "").strip().lower()
+        # Prefer catalog markets that share distinctive tokens with the SSR card.
+        tokens = [
+            token
+            for token in ("plus / moins", "face à face", "handicap", "inning", "point")
+            if token in market_l
+        ]
+
+        def related(market_desc: str) -> bool:
+            desc_l = market_desc.lower()
+            if not tokens:
+                return True
+            return any(token in desc_l for token in tokens)
+
+        related_hits = [
+            (market_desc, selection_id)
+            for market_desc, selection_id in candidates
+            if related(market_desc)
+        ]
+        pool = related_hits or candidates
+        if len(pool) == 1:
+            return pool[0][1]
+        # Disambiguate via line embedded in outcome ("Plus 7,5") or unique odds.
+        line_match = re.search(r"(\d+[.,]\d+|\d+)", label)
+        if line_match:
+            line_token = line_match.group(1).replace(".", ",")
+            line_token_alt = line_match.group(1).replace(",", ".")
+            lined = [
+                selection_id
+                for market_desc, selection_id in pool
+                if line_token in market_desc or line_token_alt in market_desc
+            ]
+            if len(lined) == 1:
+                return lined[0]
+        if outcome_odds is not None:
+            priced = [
+                selection_id
+                for market_desc, selection_id in pool
+                if (market_desc, label) in catalog
+                and abs(float(catalog[(market_desc, label)][1]) - float(outcome_odds)) < 0.02
+            ]
+            if len(priced) == 1:
+                return priced[0]
+        return ""
 
     @staticmethod
     def markets_to_payload(markets: list[UnibetMarket]) -> list[dict[str, Any]]:

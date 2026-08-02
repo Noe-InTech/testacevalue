@@ -97,6 +97,7 @@ def build_best_fr_map(
                                 home=home,
                                 away=away,
                                 player_name=item.player_name,
+                                line=str(getattr(item, "line", "") or ""),
                             ),
                         }
     return best
