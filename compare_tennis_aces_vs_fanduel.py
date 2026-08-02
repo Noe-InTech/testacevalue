@@ -319,8 +319,13 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
         best_side = "fanduel"
     else:
         best_side = "tie"
+    us_label = str(row.get("us_source_label") or "FanDuel")
     enriched = {
         **row,
+        "us_source": row.get("us_source", "fanduel"),
+        "us_source_label": us_label,
+        "us_bookmaker": row.get("us_bookmaker", us_label),
+        "us_captured_at": row.get("us_captured_at", ""),
         "outcome_fr": aces_outcome_label_fr(str(row.get("outcome", ""))),
         "best_fr_odds": fr_odds_fr,
         "best_fr_odds_fr": format_french_decimal(fr_odds_fr),
@@ -335,7 +340,7 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
         "cote_us_fanduel_ml": format_american_moneyline(fd_american),
         "cote_fr_fanduel": format_french_decimal(fd_decimal_fr),
         "ecart_fr_moins_fd": f"{price_delta:+.2f}".replace(".", ","),
-        "meilleur_cote": "FR" if best_side == "fr" else "FanDuel" if best_side == "fanduel" else "Egalite",
+        "meilleur_cote": "FR" if best_side == "fr" else us_label if best_side == "fanduel" else "Egalite",
         "issue_fr": aces_outcome_label_fr(str(row.get("outcome", ""))),
         "marche_fr": row.get("fr_market_label", ""),
         "marche_fanduel": row.get("fanduel_market_label", ""),
@@ -868,6 +873,8 @@ def compare_normalized_aces(
     fr_map: dict[str, dict[str, Any]],
     fd_map: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    from us_odds_merge import outcome_us_source_fields
+
     rows: list[dict[str, Any]] = []
     for compare_key, fr_market in fr_map.items():
         if not compare_key.startswith(COMPARABLE_ACE_PREFIXES):
@@ -900,6 +907,7 @@ def compare_normalized_aces(
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_decimal_fr": float(fd_bundle["decimal_fr"]),
+                        **outcome_us_source_fields(fd_market, outcome),
                         **compute_paired_value_fields(
                             outcome=outcome,
                             fr_payload=fr_payload,
@@ -1018,6 +1026,18 @@ def compare_match_to_fanduel(
     if fr_map is None:
         fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
     fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event else {}
+    try:
+        from us_runner_client import merge_us_map_with_bet365
+
+        fd_map, _bet365_meta = merge_us_map_with_bet365(
+            fd_map,
+            sport="tennis",
+            home=home,
+            away=away,
+            families=["aces"],
+        )
+    except Exception:
+        pass
     comparable = compare_normalized_aces(fr_map, fd_map)
     fr_only = collect_fr_only_aces(fr_map, fd_map)
     fd_only = collect_fd_only_aces(fr_map, fd_map)
@@ -1500,6 +1520,19 @@ def _compare_anchor_live(
             label=f"FanDuel {match_key}",
         )
     fd_map = build_fanduel_normalized_map(fanduel_event) if fanduel_event and need_aces else {}
+    if need_aces and fd_map is not None:
+        try:
+            from us_runner_client import merge_us_map_with_bet365
+
+            fd_map, _bet365_meta = merge_us_map_with_bet365(
+                fd_map,
+                sport="tennis",
+                home=home,
+                away=away,
+                families=["aces", "breaks"] if need_breaks else ["aces"],
+            )
+        except Exception:
+            pass
     if need_aces and not fr_map and book_events:
         fr_map = build_best_fr_normalized_map(book_events, home=home, away=away)
     if fanduel_event:

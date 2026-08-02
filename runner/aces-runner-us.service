@@ -1,5 +1,5 @@
 [Unit]
-Description=Aces live compare runner (EU)
+Description=Aces Bet365 US runner
 After=network.target
 
 [Service]
@@ -8,10 +8,9 @@ WorkingDirectory=/opt/testacevalue
 Environment=RUNNER_SECRET=CHANGE_ME
 Environment=RUNNER_HOST=0.0.0.0
 Environment=RUNNER_PORT=8787
-Environment=RUNNER_ROLE=eu
-# Apres provisionnement VM US (voir runner/ORACLE_US_SETUP.md) :
-# Environment=US_RUNNER_URL=https://xxxxx.trycloudflare.com
-# Environment=US_RUNNER_SECRET=CHANGE_ME
+Environment=RUNNER_ROLE=us
+# Optionnel : BET365_LIVE_SCRAPE=1 une fois le parseur live pret
+# Environment=BET365_LIVE_SCRAPE=0
 ExecStart=/opt/testacevalue/.venv/bin/python /opt/testacevalue/runner/server.py
 Restart=always
 RestartSec=5

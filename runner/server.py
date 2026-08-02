@@ -1,4 +1,9 @@
-"""Serveur EU pour lancer les comparaisons live (tennis + WNBA)."""
+"""Serveur runner live.
+
+Roles (RUNNER_ROLE):
+- eu (defaut) : compare FR vs FanDuel/RotoWire ; appelle le runner US pour Bet365
+- us : expose /api/us/bet365 uniquement (egress US requis)
+"""
 
 from __future__ import annotations
 
@@ -26,6 +31,9 @@ RUNNING = False
 CURRENT_SPORT = ""
 CURRENT_PROC: subprocess.Popen[str] | None = None
 CANCEL_REQUESTED = False
+RUNNER_ROLE = (os.environ.get("RUNNER_ROLE") or "eu").strip().lower()
+if RUNNER_ROLE not in {"eu", "us"}:
+    RUNNER_ROLE = "eu"
 
 from atomic_json import write_json_atomic  # noqa: E402
 from soccer_competitions import list_soccer_competitions  # noqa: E402
@@ -651,11 +659,13 @@ class Handler(BaseHTTPRequestHandler):
                 200,
                 {
                     "ok": True,
+                    "role": RUNNER_ROLE,
                     "running": busy,
                     "sport": sport or "",
                     "public_url": resolve_public_url(),
-                    "sports": list(SPORTS.keys()),
-                    "sports_status": sports_status,
+                    "sports": list(SPORTS.keys()) if RUNNER_ROLE == "eu" else [],
+                    "sports_status": sports_status if RUNNER_ROLE == "eu" else {},
+                    "us_endpoints": ["/api/us/bet365"] if RUNNER_ROLE == "us" else [],
                     "git_head": _git_head_short(),
                     "last_update": read_last_update(),
                     "fetched_at": utc_now(),
@@ -720,8 +730,67 @@ class Handler(BaseHTTPRequestHandler):
             },
         )
 
+    def _handle_us_bet365(self) -> None:
+        """Endpoint synchrone Bet365 US (role=us uniquement)."""
+        if RUNNER_ROLE != "us":
+            self._json_response(
+                404,
+                {
+                    "error": "Endpoint reserve au runner US (RUNNER_ROLE=us).",
+                    "role": RUNNER_ROLE,
+                },
+            )
+            return
+        if not self._authorized():
+            self._json_response(401, {"error": "Secret incorrect."})
+            return
+
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError:
+            self._json_response(400, {"error": "JSON invalide."})
+            return
+
+        sport = str(body.get("sport", "tennis")).strip().lower() or "tennis"
+        home = str(body.get("home", "")).strip()
+        away = str(body.get("away", "")).strip()
+        families_raw = body.get("families") or []
+        if isinstance(families_raw, str):
+            families = {part.strip() for part in families_raw.split(",") if part.strip()}
+        else:
+            families = {str(item).strip() for item in families_raw if str(item).strip()}
+
+        try:
+            from bet365_us_client import fetch_bet365_us_normalized_map
+
+            result = fetch_bet365_us_normalized_map(
+                sport=sport,
+                home=home,
+                away=away,
+                families=families or None,
+            )
+        except Exception as exc:
+            self._json_response(
+                200,
+                {
+                    "ok": False,
+                    "soft_fail": True,
+                    "message": f"Bet365 US erreur: {exc}",
+                    "map": {},
+                    "source": "bet365",
+                },
+            )
+            return
+
+        self._json_response(200, result)
+
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path == "/api/us/bet365":
+            self._handle_us_bet365()
+            return
         if path == "/api/cancel":
             self._handle_cancel()
             return
@@ -730,6 +799,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path != "/api/trigger":
             self._json_response(404, {"error": "Not found"})
+            return
+        if RUNNER_ROLE == "us":
+            self._json_response(
+                400,
+                {
+                    "error": (
+                        "Runner US: utilise POST /api/us/bet365. "
+                        "Les compares FR tournent sur le runner EU."
+                    ),
+                    "role": "us",
+                },
+            )
             return
         if not self._authorized():
             self._json_response(401, {"error": "Secret incorrect."})
@@ -854,17 +935,24 @@ def main() -> None:
     port = int(os.environ.get("RUNNER_PORT", "8787"))
     if not os.environ.get("RUNNER_SECRET", "").strip():
         raise SystemExit("RUNNER_SECRET manquant.")
-    for sport in SPORTS.values():
-        if not (ROOT / sport.script).is_file():
-            raise SystemExit(f"Script introuvable: {sport.script}")
-    clear_running_lock(reason="startup")
-    ensure_status_files()
-    for sport in SPORTS.values():
-        current = read_json(sport.status_json, {})
-        if current.get("status") != "idle":
-            write_status(sport, "idle", "Runner pret.")
+    if RUNNER_ROLE == "eu":
+        for sport in SPORTS.values():
+            if not (ROOT / sport.script).is_file():
+                raise SystemExit(f"Script introuvable: {sport.script}")
+        clear_running_lock(reason="startup")
+        ensure_status_files()
+        for sport in SPORTS.values():
+            current = read_json(sport.status_json, {})
+            if current.get("status") != "idle":
+                write_status(sport, "idle", "Runner pret.")
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Props runner live sur http://{host}:{port} (tennis + wnba + nba + baseball + soccer)")
+    if RUNNER_ROLE == "us":
+        print(f"Bet365 US runner sur http://{host}:{port} (role=us)")
+    else:
+        print(
+            f"Props runner live sur http://{host}:{port} "
+            f"(role=eu, tennis + wnba + nba + baseball + soccer)"
+        )
     server.serve_forever()
 
 

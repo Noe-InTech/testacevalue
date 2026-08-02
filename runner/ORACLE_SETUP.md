@@ -255,8 +255,24 @@ sudo systemctl restart aces-runner
 
 ---
 
+## Multi-runner (Bet365 US)
+
+Le scrape Bet365 US tourne sur une **2e VM Oracle en region US**.
+
+Voir le guide dedie : [`ORACLE_US_SETUP.md`](ORACLE_US_SETUP.md).
+
+Sur le runner **EU**, apres install US :
+
+```ini
+Environment=US_RUNNER_URL=https://xxxxx.trycloudflare.com
+Environment=US_RUNNER_SECRET=TON_SECRET
+```
+
+---
+
 ## Cout
 
 - VM **Always Free** Oracle : 0 EUR/mois si tu restes dans les limites free tier
 - Vercel Hobby : 0 EUR
 - Carte : verification Oracle uniquement (selon region)
+- 2e VM US (Bet365) : aussi Always Free si capacite disponible dans une region US

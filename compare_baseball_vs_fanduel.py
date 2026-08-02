@@ -263,9 +263,12 @@ def overlay_us_reference_map(
     away_team: str,
     roster: list[str],
     rotowire_captured_at: str | None = None,
+    bet365_map: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """FanDuel d'abord; RotoWire seulement si la ligne est absente cote FanDuel."""
-    merged = dict(base_map)
+    """Meilleure cote US gagne (FanDuel / RotoWire / Bet365) par issue."""
+    from us_odds_merge import merge_best_us_odds_maps, tag_us_market_map
+
+    fanduel_tagged = tag_us_market_map(base_map, source="fanduel") if base_map else {}
     rotowire_map = build_rotowire_runs_map(
         rotowire_rows,
         home_team=home_team,
@@ -273,12 +276,8 @@ def overlay_us_reference_map(
         roster=roster,
         captured_at=rotowire_captured_at,
     )
-    for compare_key, rotowire_market in rotowire_map.items():
-        fanduel_market = merged.get(compare_key)
-        fanduel_outcomes = (fanduel_market or {}).get("outcomes") or {}
-        if not fanduel_outcomes:
-            merged[compare_key] = rotowire_market
-    return merged
+    rotowire_tagged = tag_us_market_map(rotowire_map, source="rotowire") if rotowire_map else {}
+    return merge_best_us_odds_maps(fanduel_tagged, rotowire_tagged, bet365_map or {})
 
 
 def outcome_label_fr(outcome: str) -> str:
@@ -531,6 +530,8 @@ def compare_normalized_markets(
             fd_bundle = fd_market["outcomes"].get(outcome)
             if not fd_bundle or fd_bundle.get("decimal_fr") is None:
                 continue
+            from us_odds_merge import outcome_us_source_fields
+
             rows.append(
                 enrich_comparable_row(
                     {
@@ -540,10 +541,7 @@ def compare_normalized_markets(
                         "outcome": outcome,
                         "fr_market_label": fr_market["market_label_raw"],
                         "fanduel_market_label": fd_market.get("market_label", ""),
-                        "us_source": fd_market.get("source", "fanduel"),
-                        "us_source_label": fd_market.get("source_label", "FanDuel"),
-                        "us_bookmaker": fd_market.get("source_bookmaker", "FanDuel"),
-                        "us_captured_at": fd_market.get("captured_at", ""),
+                        **outcome_us_source_fields(fd_market, outcome),
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
                         "fanduel_american": fd_bundle.get("american"),
@@ -913,12 +911,19 @@ def compare_anchor(
     book_lock = threading.Lock()
 
     def rebuild_us_map() -> dict[str, dict[str, Any]]:
+        from us_runner_client import fetch_bet365_us_map
+
         base_map = build_fanduel_map(
             fanduel_payload,
             home_team=home_team,
             away_team=away_team,
             roster=roster,
             captured_at=fd_scraped_at,
+        )
+        bet365_meta = fetch_bet365_us_map(
+            sport="baseball",
+            home=home_team,
+            away=away_team,
         )
         return overlay_us_reference_map(
             base_map,
@@ -927,6 +932,7 @@ def compare_anchor(
             away_team=away_team,
             roster=roster,
             rotowire_captured_at=rotowire_scraped_at,
+            bet365_map=bet365_meta.get("map") or {},
         )
 
     def ingest_fr_book(book: str, payload: dict[str, Any] | None) -> None:

@@ -258,8 +258,8 @@ export function getTableColumns(marketKind: MarketKind) {
       label: "Book US",
       hint:
         marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba" || marketKind === "soccer"
-          ? "Source US reelle: FanDuel en priorite, sinon RotoWire · DraftKings"
-          : "Source US reelle retenue sur la ligne",
+          ? "Source US retenue: meilleure cote entre FanDuel, RotoWire · DraftKings et Bet365 US"
+          : "Source US retenue: meilleure cote entre FanDuel et Bet365 US",
     },
     {
       key: "cote_us_fanduel_ml" as const,
@@ -292,15 +292,7 @@ export function getTableColumns(marketKind: MarketKind) {
     },
   ];
 
-  if (marketKind === "baseball" || marketKind === "soccer") {
-    return coreColumns;
-  }
-
-  if (marketKind === "wnba" || marketKind === "nba") {
-    return coreColumns;
-  }
-
-  return coreColumns.filter((column) => column.key !== "us_source_label");
+  return coreColumns;
 }
 
 export const TABLE_COLUMNS = getTableColumns("aces");

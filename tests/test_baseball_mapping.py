@@ -611,10 +611,13 @@ class BaseballCompareHelpersTests(unittest.TestCase):
             roster=["CJ Abrams"],
             rotowire_captured_at="2026-07-30T08:00:00+00:00",
         )
-        self.assertEqual(merged[key]["source"], "fanduel")
-        self.assertEqual(merged[key]["outcomes"]["No"]["american"], -150)
+        # Meilleure cote par issue: Yes FD (2.2) > RW (~1.99); No RW (~1.74) > FD (1.67).
+        self.assertEqual(merged[key]["outcomes"]["Yes"]["american"], 120)
+        self.assertEqual(merged[key]["outcomes"]["Yes"]["us_source"], "fanduel")
+        self.assertEqual(merged[key]["outcomes"]["No"]["american"], -135)
+        self.assertEqual(merged[key]["outcomes"]["No"]["us_source"], "rotowire")
 
-    def test_overlay_us_reference_keeps_partial_fanduel(self) -> None:
+    def test_overlay_us_reference_fills_missing_side_from_rotowire(self) -> None:
         from compare_baseball_vs_fanduel import overlay_us_reference_map
 
         key = build_runs_player_key("CJ Abrams", 1)
@@ -647,9 +650,9 @@ class BaseballCompareHelpersTests(unittest.TestCase):
             roster=["CJ Abrams"],
             rotowire_captured_at="2026-07-30T08:00:00+00:00",
         )
-        self.assertEqual(merged[key]["source"], "fanduel")
-        self.assertIn("Yes", merged[key]["outcomes"])
-        self.assertNotIn("No", merged[key]["outcomes"])
+        self.assertEqual(merged[key]["outcomes"]["Yes"]["us_source"], "fanduel")
+        self.assertIn("No", merged[key]["outcomes"])
+        self.assertEqual(merged[key]["outcomes"]["No"]["us_source"], "rotowire")
 
     def test_overlay_us_reference_uses_rotowire_when_fanduel_missing(self) -> None:
         from compare_baseball_vs_fanduel import overlay_us_reference_map

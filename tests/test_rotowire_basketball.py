@@ -86,9 +86,11 @@ class RotoWireBasketballTests(unittest.TestCase):
             away_team="Indiana Fever",
             roster=["Caitlin Clark"],
         )
-        self.assertEqual(merged["points_player|clark|18.5"]["source"], "fanduel")
+        # FD Under 1.91 > RW Under (~1.83); Over equal → FD keep Over
+        self.assertEqual(merged["points_player|clark|18.5"]["outcomes"]["Over"]["us_source"], "fanduel")
+        self.assertEqual(merged["points_player|clark|18.5"]["outcomes"]["Under"]["us_source"], "fanduel")
 
-    def test_overlay_keeps_partial_fanduel(self) -> None:
+    def test_overlay_fills_missing_under_from_rotowire(self) -> None:
         row = RotoWireBasketballPropRow(
             player_name="Caitlin Clark",
             home_team="Portland Fire",
@@ -117,8 +119,9 @@ class RotoWireBasketballTests(unittest.TestCase):
             roster=["Caitlin Clark"],
         )
         market = merged["points_player|clark|18.5"]
-        self.assertEqual(market["source"], "fanduel")
-        self.assertNotIn("Under", market["outcomes"])
+        self.assertEqual(market["outcomes"]["Over"]["us_source"], "fanduel")
+        self.assertIn("Under", market["outcomes"])
+        self.assertEqual(market["outcomes"]["Under"]["us_source"], "rotowire")
 
     def test_overlay_uses_rotowire_when_fanduel_missing(self) -> None:
         row = RotoWireBasketballPropRow(

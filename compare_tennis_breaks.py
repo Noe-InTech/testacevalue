@@ -328,6 +328,8 @@ def compare_normalized_breaks(
     fr_map: dict[str, dict[str, Any]],
     fd_map: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    from us_odds_merge import outcome_us_source_fields
+
     rows: list[dict[str, Any]] = []
     for compare_key, fr_market in fr_map.items():
         if not is_comparable_break_key(compare_key):
@@ -356,6 +358,7 @@ def compare_normalized_breaks(
                         ),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_decimal_fr": float(fd_bundle["decimal_fr"]),
+                        **outcome_us_source_fields(fd_market, outcome),
                         **compute_paired_value_fields(
                             outcome=outcome,
                             fr_payload=fr_payload,
@@ -457,6 +460,18 @@ def attach_breaks_to_anchor_result(
 ) -> dict[str, Any]:
     fr_map = build_best_fr_breaks_map(book_events, home=home, away=away) if book_events else {}
     fd_map = build_fanduel_breaks_normalized_map(fanduel_event) if fanduel_event else {}
+    try:
+        from us_runner_client import merge_us_map_with_bet365
+
+        fd_map, _bet365_meta = merge_us_map_with_bet365(
+            fd_map,
+            sport="tennis",
+            home=home,
+            away=away,
+            families=["breaks"],
+        )
+    except Exception:
+        pass
     comparable = compare_normalized_breaks(fr_map, fd_map)
     fr_only = collect_fr_only_breaks(fr_map, fd_map)
     fd_only = collect_fd_only_breaks(fr_map, fd_map)
