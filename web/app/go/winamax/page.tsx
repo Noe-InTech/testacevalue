@@ -26,8 +26,10 @@ export default async function GoWinamaxPage({
     ? `https://www.winamax.fr/paris-sportifs/match/${match}#b=${bet}&o=${odd}`
     : "https://www.winamax.fr/paris-sportifs";
 
+  // replace() avoids leaving this bridge in history (Back was re-opening Winamax).
+  // sessionStorage one-shot skips a second wam:// handoff if the tab is revisited.
   const bootScript = valid
-    ? `window.location.href=${JSON.stringify(wam)};setTimeout(function(){window.location.href=${JSON.stringify(web)};},900);`
+    ? `(function(){var k=${JSON.stringify(`wam-go:${match}:${bet}:${odd}`)};var wam=${JSON.stringify(wam)};var web=${JSON.stringify(web)};try{if(sessionStorage.getItem(k)){location.replace(web);return;}sessionStorage.setItem(k,"1");}catch(e){}location.replace(wam);setTimeout(function(){location.replace(web);},900);})();`
     : "";
 
   return (

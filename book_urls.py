@@ -113,12 +113,9 @@ def build_fr_book_url(
         return base
 
     if key == "unibet":
-        parts = urlsplit(base)
-        query = dict(parse_qsl(parts.query, keep_blank_values=True))
-        query["outcomeIds"] = sid
-        return urlunsplit(
-            (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
-        )
+        # Bridge: /sport?outcomeIds= stays in the mobile browser (match paths are
+        # Universal Links and often open the app without applying outcomeIds).
+        return f"/go/unibet?{urlencode({'o': sid, 'u': base})}"
 
     if key == "winamax":
         bet_id, odd_id = split_compound_selection_id(sid)
@@ -131,15 +128,25 @@ def build_fr_book_url(
     if key == "betclic":
         sel_id, market_id = split_compound_selection_id(sid)
         event_id = str(match_id or "").strip() or match_id_from_book_url(key, base)
-        if not sel_id or not market_id or not event_id or resolve_betclic_share is None:
+        if not sel_id or not market_id or not event_id:
             return base
-        try:
-            share_url = str(
-                resolve_betclic_share(sel_id, event_id, market_id) or ""
-            ).strip()
-        except Exception:
-            return base
-        return share_url or base
+        params: dict[str, str] = {
+            "s": sel_id,
+            "m": event_id,
+            "k": market_id,
+            "u": base,
+        }
+        if resolve_betclic_share is not None:
+            try:
+                share_url = str(
+                    resolve_betclic_share(sel_id, event_id, market_id) or ""
+                ).strip()
+            except Exception:
+                share_url = ""
+            if share_url and "/bet/" in share_url:
+                params["url"] = share_url
+        # Bridge resolves /bet/{token} (compare-time or click-time via EU runner).
+        return f"/go/betclic?{urlencode(params)}"
 
     return base
 
@@ -232,13 +239,17 @@ def _selection_url_kind(bookmaker: str | None, deep_url: str, selection_id: str)
     key = bookmaker_to_key(bookmaker)
     if not selection_id or not deep_url:
         return "match"
-    if key == "unibet" and "outcomeIds=" in deep_url:
+    if key == "unibet" and (
+        deep_url.startswith("/go/unibet?") or "outcomeIds=" in deep_url
+    ):
         return "selection"
     if key == "winamax" and deep_url.startswith("/go/winamax?"):
         return "selection"
     if key == "winamax" and deep_url.startswith("wam://betting?") and "b=" in deep_url and "o=" in deep_url:
         return "selection"
-    if key == "betclic" and "/bet/" in deep_url:
+    if key == "betclic" and (
+        deep_url.startswith("/go/betclic?") or "/bet/" in deep_url
+    ):
         return "selection"
     return "match"
 
@@ -287,4 +298,13 @@ def attach_fr_book_urls(
             )
             if web:
                 row["url_fr_web"] = web
+        if key == "unibet" and selection_id and row["url_fr_kind"] == "selection":
+            parts = urlsplit(match_url)
+            query = dict(parse_qsl(parts.query, keep_blank_values=True))
+            query["outcomeIds"] = selection_id
+            row["url_fr_web"] = urlunsplit(
+                (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+            )
+        if key == "betclic" and selection_id and row["url_fr_kind"] == "selection":
+            row["url_fr_web"] = match_url
     return rows

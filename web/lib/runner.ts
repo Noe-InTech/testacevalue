@@ -184,6 +184,52 @@ export interface RunnerHealth {
   runner_host?: string;
 }
 
+export async function requestBetclicShare(options: {
+  selectionId: string;
+  matchId: string;
+  marketId: string;
+  matchUrl?: string;
+}): Promise<Response> {
+  const { baseUrl, secret } = runnerConfig();
+  if (!baseUrl || !secret) {
+    return new Response(
+      JSON.stringify({ error: "RUNNER_URL / RUNNER_SECRET manquants sur Vercel." }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/api/betclic-share`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Runner-Secret": secret,
+      },
+      body: JSON.stringify({
+        selection_id: options.selectionId,
+        match_id: options.matchId,
+        market_id: options.marketId,
+        match_url: options.matchUrl || "",
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(45_000),
+    });
+    const data = await response.json().catch(() => ({}));
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "connexion impossible";
+    return new Response(
+      JSON.stringify({
+        error: `Runner EU injoignable (${detail}).`,
+      }),
+      { status: 502, headers: { "Content-Type": "application/json" } },
+    );
+  }
+}
+
 export async function requestRunnerSelfUpdate(options?: {
   restartTunnel?: boolean;
 }): Promise<Response> {

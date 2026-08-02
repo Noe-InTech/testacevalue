@@ -37,7 +37,7 @@ class BookUrlTests(unittest.TestCase):
         )
         self.assertEqual(
             url,
-            "https://www.unibet.fr/paris-tennis/atp/1/match?outcomeIds=123456789",
+            "/go/unibet?o=123456789&u=https%3A%2F%2Fwww.unibet.fr%2Fparis-tennis%2Fatp%2F1%2Fmatch",
         )
 
     def test_build_winamax_selection_deep_link(self) -> None:
@@ -74,16 +74,22 @@ class BookUrlTests(unittest.TestCase):
             match_id="222",
             resolve_betclic_share=fake_share,
         )
-        self.assertEqual(url, "https://www.betclic.fr/bet/token-abc")
+        self.assertIn("/go/betclic?", url)
+        self.assertIn("s=111", url)
+        self.assertIn("m=222", url)
+        self.assertIn("k=333", url)
+        self.assertIn("url=https%3A%2F%2Fwww.betclic.fr%2Fbet%2Ftoken-abc", url)
 
-    def test_build_betclic_without_share_resolver_keeps_match_url(self) -> None:
+    def test_build_betclic_without_share_resolver_keeps_bridge(self) -> None:
         url = build_fr_book_url(
             "Betclic",
             "https://www.betclic.fr/tennis-stennis/foo-m222",
             selection_id="111:333",
             match_id="222",
         )
-        self.assertEqual(url, "https://www.betclic.fr/tennis-stennis/foo-m222")
+        self.assertIn("/go/betclic?", url)
+        self.assertIn("s=111", url)
+        self.assertNotIn("url=", url)
 
     def test_split_compound_selection_id(self) -> None:
         self.assertEqual(split_compound_selection_id("a:b"), ("a", "b"))
@@ -151,10 +157,15 @@ class BookUrlTests(unittest.TestCase):
         self.assertEqual(rows[1]["url_fr_kind"], "match")
         self.assertEqual(
             rows[2]["url_fr"],
-            "https://www.unibet.fr/paris/tennis/x?outcomeIds=555",
+            "/go/unibet?o=555&u=https%3A%2F%2Fwww.unibet.fr%2Fparis%2Ftennis%2Fx",
         )
         self.assertEqual(rows[2]["url_fr_kind"], "selection")
-        self.assertEqual(rows[3]["url_fr"], "https://www.betclic.fr/bet/tok")
+        self.assertEqual(
+            rows[2]["url_fr_web"],
+            "https://www.unibet.fr/paris/tennis/x?outcomeIds=555",
+        )
+        self.assertIn("/go/betclic?", rows[3]["url_fr"])
+        self.assertIn("url=https%3A%2F%2Fwww.betclic.fr%2Fbet%2Ftok", rows[3]["url_fr"])
         self.assertEqual(rows[3]["url_fr_kind"], "selection")
         self.assertEqual(rows[4]["url_fr"], "")
 
@@ -259,7 +270,9 @@ class BetclicSelectionIdTests(unittest.TestCase):
 
             text = ""
 
-        with patch.object(client.session, "post", return_value=FakeResponse()) as post:
+        with patch.object(client.session, "get", return_value=FakeResponse()), patch.object(
+            client.session, "post", return_value=FakeResponse()
+        ) as post:
             url = client.create_share_url(
                 selection_id="111",
                 match_id="222",
