@@ -150,9 +150,7 @@ def build_best_fr_victoires_map(
                             selection_ids=selection_ids,
                             home=home,
                             away=away,
-                        )
-                        if bookmaker == "unibet"
-                        else "",
+                        ),
                     }
             # Un cote orphelin (1 seul joueur aligne) = mauvais match scrape → ignorer.
             if home not in pair or away not in pair:

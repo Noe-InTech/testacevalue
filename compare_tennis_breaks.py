@@ -191,9 +191,7 @@ def build_best_fr_breaks_map(
                                 selection_ids=selection_ids,
                                 home=home,
                                 away=away,
-                            )
-                            if bookmaker == "unibet"
-                            else "",
+                            ),
                         }
     return best
 

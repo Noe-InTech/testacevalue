@@ -231,10 +231,7 @@ class BetclicBaseballClient(BetclicClient):
             "competition": competition,
             "roster": roster,
             "market_count": len(markets),
-            "markets": [
-                {"label": market.label, "outcomes": [(o.label, o.odds) for o in market.outcomes]}
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }
 
     @staticmethod

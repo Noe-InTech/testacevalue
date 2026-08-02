@@ -126,8 +126,5 @@ class BetclicSoccerClient(BetclicClient):
             "away_team": away,
             "start_date": match.get("matchDateUtc", ""),
             "competition": ((match.get("competition") or {}).get("name", "")),
-            "markets": [
-                {"label": market.label, "outcomes": [(o.label, o.odds) for o in market.outcomes]}
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }
