@@ -352,6 +352,8 @@ def discover_anchors(
     def anchor_key(home: str, away: str) -> str:
         return f"{home.lower()}|{away.lower()}"
 
+    from match_live import event_is_live, mark_anchor_live
+
     def ensure_anchor(home: str, away: str) -> dict[str, Any]:
         key = anchor_key(home, away)
         if key not in anchors:
@@ -365,10 +367,19 @@ def discover_anchors(
                 "unibet_event_id": None,
                 "winamax_match_id": None,
                 "fanduel_event_id": None,
+                "is_live": False,
             }
         return anchors[key]
 
-    def attach_fr(source: str, home: str, away: str, url: str, **ids: Any) -> None:
+    def attach_fr(
+        source: str,
+        home: str,
+        away: str,
+        url: str,
+        *,
+        is_live: bool = False,
+        **ids: Any,
+    ) -> None:
         matched = None
         for key, anchor in anchors.items():
             if teams_match(anchor["home_team"], anchor["away_team"], home, away):
@@ -383,6 +394,7 @@ def discover_anchors(
         for field, value in ids.items():
             if value is not None:
                 anchor[field] = value
+        mark_anchor_live(anchor, is_live)
 
     for link in betclic_links:
         attach_fr(
@@ -399,6 +411,7 @@ def discover_anchors(
             event.home_team,
             event.away_team,
             event.url,
+            is_live=event_is_live(url=getattr(event, "url", "")),
             unibet_event_id=event.event_id,
         )
 
@@ -408,6 +421,7 @@ def discover_anchors(
             link.home_team,
             link.away_team,
             link.url,
+            is_live=event_is_live(status=getattr(link, "status", "")),
             winamax_match_id=link.match_id,
             winamax_home=link.home_team,
             winamax_away=link.away_team,
@@ -447,15 +461,23 @@ def build_results_payload(results: list[dict[str, Any]], *, partial: bool = Fals
     progress: list[dict[str, Any]] = []
     for result in results:
         match = result["match"]
+        is_live = bool(result.get("is_live"))
         for row in result.get("comparables", []):
-            comparables.append({"match": match, **row})
+            comparables.append(
+                {"match": match, "is_live": bool(row.get("is_live", is_live)), **row}
+            )
         for row in result.get("fr_only", []):
-            fr_only.append({"match": match, **row})
+            fr_only.append(
+                {"match": match, "is_live": bool(row.get("is_live", is_live)), **row}
+            )
         for row in result.get("fd_only", []):
-            fd_only.append({"match": match, **row})
+            fd_only.append(
+                {"match": match, "is_live": bool(row.get("is_live", is_live)), **row}
+            )
         progress.append(
             {
                 "match": match,
+                "is_live": is_live,
                 "comparable_count": result.get("comparable_count", 0),
                 "fr_only_count": len(result.get("fr_only", [])),
                 "fd_only_count": len(result.get("fd_only", [])),

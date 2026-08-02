@@ -472,8 +472,10 @@ def attach_breaks_to_anchor_result(
     fr_only = collect_fr_only_breaks(fr_map, fd_map)
     fd_only = collect_fd_only_breaks(fr_map, fd_map)
     match_name = compared.get("match", "")
+    is_live = bool(compared.get("is_live"))
     for row in comparable + fr_only + fd_only:
         row["match"] = match_name
+        row["is_live"] = is_live
     attach_fr_book_urls(
         comparable,
         urls=compared.get("urls") or {},
@@ -513,6 +515,7 @@ def build_breaks_section_payload(
         match_progress.append(
             {
                 "match": result.get("match", ""),
+                "is_live": bool(result.get("is_live")),
                 "comparable_count": int(result.get("comparable_break_count", 0)),
                 "fr_only_count": int(result.get("fr_only_break_count", 0)),
                 "fd_only_count": int(result.get("fd_only_break_count", 0)),

@@ -1,5 +1,7 @@
 export interface ComparableRow {
   match: string;
+  /** True si le match est en cours (live) au moment du scrape. */
+  is_live?: boolean;
   ligne_aces_fr?: string;
   ligne_breaks_fr?: string;
   ligne_victoires_fr?: string;
@@ -46,6 +48,7 @@ export interface ComparableRow {
 
 export interface MatchProgressRow {
   match: string;
+  is_live?: boolean;
   comparable_count: number;
   fr_only_count: number;
   fd_only_count?: number;

@@ -1032,12 +1032,16 @@ def compare_match_to_fanduel(
     comparable = compare_normalized_aces(fr_map, fd_map)
     fr_only = collect_fr_only_aces(fr_map, fd_map)
     fd_only = collect_fd_only_aces(fr_map, fd_map)
+    is_live = bool(match_meta.get("is_live"))
     for row in comparable:
         row["match"] = match_meta["match"]
+        row["is_live"] = is_live
     for row in fr_only:
         row["match"] = match_meta["match"]
+        row["is_live"] = is_live
     for row in fd_only:
         row["match"] = match_meta["match"]
+        row["is_live"] = is_live
     attach_fr_book_urls(
         comparable,
         urls=match_meta.get("urls") or {},
@@ -1058,6 +1062,7 @@ def compare_match_to_fanduel(
 
     return {
         "match": match_meta["match"],
+        "is_live": is_live,
         "home_player": home,
         "away_player": away,
         "competition": match_meta.get("competition", ""),
@@ -1132,6 +1137,7 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "match": result.get("match", ""),
+                "is_live": bool(result.get("is_live")),
                 "comparable_count": int(result.get("comparable_ace_count", 0)),
                 "fr_only_count": int(result.get("fr_only_ace_count", 0)),
                 "fd_only_count": int(result.get("fd_only_ace_count", 0)),
@@ -1405,6 +1411,7 @@ def _compare_anchor_live(
         "competition": anchor.get("competition", ""),
         "sources": anchor.get("sources", []),
         "urls": anchor.get("urls", {}),
+        "is_live": bool(anchor.get("is_live")),
         "best_overall": None,
     }
     book_events: dict[str, dict[str, Any]] = {}
@@ -1415,6 +1422,7 @@ def _compare_anchor_live(
         return {
             **match_meta,
             "match": match_key,
+            "is_live": bool(match_meta.get("is_live")),
             "comparables": [],
             "comparable_ace_count": 0,
             "fr_only_aces": [],

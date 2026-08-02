@@ -1,3 +1,4 @@
+import { FrBookBadge } from "@/lib/bookBadges";
 import type { ComparableRow } from "@/lib/types";
 
 export function formatCaptureTime(value?: string): string {
@@ -53,7 +54,15 @@ export function RowCaptureDetail({
       <p className="row-capture-title">Detail des cotes (clique pour fermer)</p>
 
       <div className="row-book-link-block">
-        <p className="row-capture-subtitle">Lien {bookName}</p>
+        <p className="row-capture-subtitle">
+          Lien <FrBookBadge bookmaker={bookName} />
+          {row.is_live ? (
+            <>
+              {" "}
+              <span className="live-badge">LIVE</span>
+            </>
+          ) : null}
+        </p>
         {bookUrl ? (
           <a className="row-book-link" href={bookUrl} target={linkTarget} rel={linkRel}>
             {bookLinkLabel}
@@ -107,7 +116,9 @@ export function RowCaptureDetail({
 
       <p className="row-capture-subtitle">Horodatage du scrape</p>
       <dl className="row-capture-list">
-        <dt>Cote FR ({row.bookmaker_fr || "book FR"})</dt>
+        <dt>
+          Cote FR (<FrBookBadge bookmaker={row.bookmaker_fr || "book FR"} />)
+        </dt>
         <dd>{formatCaptureTime(row.fr_captured_at || row.captured_at || runGeneratedAt)}</dd>
 
         <dt>Cote US ({usLabel})</dt>

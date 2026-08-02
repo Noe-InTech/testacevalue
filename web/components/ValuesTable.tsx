@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 
 import { RowCaptureDetail } from "@/components/RowCaptureDetail";
+import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
 import type { ValueBetRow } from "@/lib/mptoValue";
 
 interface ValuesTableProps {
@@ -87,7 +88,9 @@ export function ValuesTable({
                         : undefined
                     }
                   >
-                    <td data-label="Match">{row.match}</td>
+                    <td data-label="Match">
+                      <MatchLabel match={row.match} isLive={row.source.is_live} />
+                    </td>
                     <td data-label="Pari">{row.bet}</td>
                     <td data-label="Contraire">{row.opposite}</td>
                     <td data-label="Book US">
@@ -105,7 +108,9 @@ export function ValuesTable({
                     </td>
                     <td data-label="Cote US">{row.coteFd}</td>
                     <td data-label="Cote FR">{row.coteFr}</td>
-                    <td data-label="Book">{row.bookmaker}</td>
+                    <td data-label="Book">
+                      <FrBookBadge bookmaker={row.bookmaker} />
+                    </td>
                     <td data-label="Edge" className="value-edge">
                       {row.edgeLabel}
                     </td>

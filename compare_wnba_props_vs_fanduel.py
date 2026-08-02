@@ -519,6 +519,8 @@ def discover_anchors(
     def anchor_key(home: str, away: str) -> str:
         return f"{home.lower()}|{away.lower()}"
 
+    from match_live import event_is_live, mark_anchor_live
+
     def ensure_anchor(home: str, away: str) -> dict[str, Any]:
         key = anchor_key(home, away)
         if key not in anchors:
@@ -532,6 +534,7 @@ def discover_anchors(
                 "betclic_match_id": None,
                 "winamax_match_id": None,
                 "fanduel_event_id": None,
+                "is_live": False,
             }
         return anchors[key]
 
@@ -540,6 +543,7 @@ def discover_anchors(
         anchor["sources"].add("unibet")
         anchor["urls"]["unibet"] = event.url
         anchor["unibet_event_id"] = event.event_id
+        mark_anchor_live(anchor, event_is_live(url=getattr(event, "url", "")))
 
     for link in betclic_links:
         anchor = ensure_anchor(link.home_team, link.away_team)
@@ -552,6 +556,7 @@ def discover_anchors(
         anchor["sources"].add("winamax")
         anchor["urls"]["winamax"] = link.url
         anchor["winamax_match_id"] = link.match_id
+        mark_anchor_live(anchor, event_is_live(status=getattr(link, "status", "")))
 
     for event in fanduel_events:
         matched_key = None
@@ -578,7 +583,13 @@ def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any
     rows: list[dict[str, Any]] = []
     for result in results:
         for row in result.get("comparables", []):
-            rows.append({"match": result["match"], **row})
+            rows.append(
+                {
+                    "match": result["match"],
+                    "is_live": bool(row.get("is_live", result.get("is_live", False))),
+                    **row,
+                }
+            )
     return rows
 
 
@@ -608,6 +619,7 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "match": result.get("match", ""),
+                "is_live": bool(result.get("is_live")),
                 "comparable_count": int(result.get("comparable_count", 0)),
                 "fr_only_count": int(result.get("fr_only_count", 0)),
                 "fd_only_count": int(result.get("fd_only_count", 0)),

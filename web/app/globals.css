@@ -191,7 +191,9 @@ button:disabled {
   color: var(--success);
 }
 
-.us-source-badge {
+.us-source-badge,
+.book-badge,
+.live-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -212,6 +214,57 @@ button:disabled {
   background: rgba(251, 191, 36, 0.16);
   color: #fcd34d;
   border: 1px solid rgba(251, 191, 36, 0.32);
+}
+
+.book-badge {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.book-badge-winamax {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.book-badge-unibet {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.book-badge-betclic {
+  background: rgba(244, 114, 182, 0.16);
+  color: #f9a8d4;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+
+.match-label {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.live-badge {
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+button.book-filter-chip {
+  cursor: pointer;
+  font: inherit;
+  opacity: 0.72;
+}
+
+button.book-filter-chip.active {
+  opacity: 1;
+  box-shadow: 0 0 0 1px currentColor;
 }
 
 .values-panel .panel-header h2 {
