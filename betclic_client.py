@@ -406,33 +406,46 @@ class BetclicClient:
         market = str(market_id or "").strip()
         if not sel or not mid or not market:
             return ""
-        body = {
-            "selection_identifiers": [
-                {
-                    "selection_id": sel,
-                    "match_id": int(mid) if mid.isdigit() else mid,
-                    "market_id": int(market) if market.isdigit() else market,
-                }
-            ]
+        # Warm cookies / anti-bot session before calling the share API.
+        try:
+            self.session.get(self._url("/"), timeout=20)
+        except Exception:
+            pass
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Origin": self.base_url,
+            "Referer": f"{self.base_url}/",
         }
-        response = self.session.post(
-            self._url("/sports-betting/api/v3/bets/share"),
-            json=body,
-            timeout=30,
-            headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
+        candidates: list[dict[str, Any]] = [
+            {
+                "selection_id": sel,
+                "match_id": int(mid) if mid.isdigit() else mid,
+                "market_id": int(market) if market.isdigit() else market,
             },
-        )
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"Betclic share {response.status_code}: {response.text[:200]}"
+            {
+                "selection_id": sel,
+                "match_id": mid,
+                "market_id": market,
+            },
+        ]
+        last_error = ""
+        for identifier in candidates:
+            response = self.session.post(
+                self._url("/sports-betting/api/v3/bets/share"),
+                json={"selection_identifiers": [identifier]},
+                timeout=30,
+                headers=headers,
             )
-        payload = response.json()
-        token = str(payload.get("token") or "").strip()
-        if not token:
-            raise RuntimeError("Betclic share: token manquant")
-        return f"{self.base_url}/bet/{token}"
+            if response.status_code == 200:
+                payload = response.json()
+                token = str(payload.get("token") or "").strip()
+                if token:
+                    return f"{self.base_url}/bet/{token}"
+                last_error = "token manquant"
+                continue
+            last_error = f"{response.status_code}: {response.text[:200]}"
+        raise RuntimeError(f"Betclic share failed ({last_error})")
 
     def extract_markets_from_match_payload(self, payload: dict[str, Any]) -> list[BetclicMarket]:
         match = payload.get("match") or {}

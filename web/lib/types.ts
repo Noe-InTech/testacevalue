@@ -12,6 +12,8 @@ export interface ComparableRow {
   bookmaker_fr: string;
   /** URL page match / sélection du book FR retenu (Unibet / Betclic / Winamax). */
   url_fr?: string;
+  /** Fallback HTTPS Winamax (highlight) si le deeplink wam:// n'ouvre pas l'app. */
+  url_fr_web?: string;
   /** "selection" si deep-link pari précis, sinon "match". */
   url_fr_kind?: "selection" | "match";
   /** ID sélection book FR (Unibet outcomeId, Winamax betId:oddId, Betclic sel:market). */

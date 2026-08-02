@@ -73,6 +73,28 @@ def match_id_from_book_url(bookmaker: str | None, match_url: str) -> str:
     return ""
 
 
+def build_winamax_wam_url(*, match_id: str, bet_id: str, odd_id: str) -> str:
+    """Deeplink officiel qui ajoute la sélection au panier (app / navigateBetting)."""
+    mid = str(match_id or "").strip()
+    bid = str(bet_id or "").strip()
+    oid = str(odd_id or "").strip()
+    if not mid or not bid or not oid:
+        return ""
+    return f"wam://betting?target=match-{mid}&b={bid}&o={oid}"
+
+
+def build_winamax_web_fallback_url(match_url: str, *, bet_id: str, odd_id: str) -> str:
+    """Page match HTTPS avec hash #b/#o (highlight marché — pas d'ajout panier seul)."""
+    base = str(match_url or "").strip()
+    bid = str(bet_id or "").strip()
+    oid = str(odd_id or "").strip()
+    if not base or not bid or not oid:
+        return base
+    parts = urlsplit(base)
+    fragment = f"b={bid}&o={oid}"
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, fragment))
+
+
 def build_fr_book_url(
     bookmaker: str | None,
     match_url: str,
@@ -100,15 +122,11 @@ def build_fr_book_url(
 
     if key == "winamax":
         bet_id, odd_id = split_compound_selection_id(sid)
-        if not bet_id or not odd_id:
+        event_id = str(match_id or "").strip() or match_id_from_book_url(key, base)
+        if not event_id or not bet_id or not odd_id:
             return base
-        parts = urlsplit(base)
-        query = dict(parse_qsl(parts.query, keep_blank_values=True))
-        query["b"] = bet_id
-        query["o"] = odd_id
-        return urlunsplit(
-            (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
-        )
+        # Bridge page: tries wam:// (adds to betslip) then HTTPS match fallback.
+        return f"/go/winamax?{urlencode({'match': event_id, 'b': bet_id, 'o': odd_id})}"
 
     if key == "betclic":
         sel_id, market_id = split_compound_selection_id(sid)
@@ -216,7 +234,9 @@ def _selection_url_kind(bookmaker: str | None, deep_url: str, selection_id: str)
         return "match"
     if key == "unibet" and "outcomeIds=" in deep_url:
         return "selection"
-    if key == "winamax" and re.search(r"[?&]b=", deep_url) and re.search(r"[?&]o=", deep_url):
+    if key == "winamax" and deep_url.startswith("/go/winamax?"):
+        return "selection"
+    if key == "winamax" and deep_url.startswith("wam://betting?") and "b=" in deep_url and "o=" in deep_url:
         return "selection"
     if key == "betclic" and "/bet/" in deep_url:
         return "selection"
@@ -259,4 +279,12 @@ def attach_fr_book_urls(
         )
         row["url_fr"] = deep_url
         row["url_fr_kind"] = _selection_url_kind(str(bookmaker), deep_url, selection_id)
+        row.pop("url_fr_web", None)
+        if key == "winamax" and selection_id and row["url_fr_kind"] == "selection":
+            bet_id, odd_id = split_compound_selection_id(selection_id)
+            web = build_winamax_web_fallback_url(
+                match_url, bet_id=bet_id, odd_id=odd_id
+            )
+            if web:
+                row["url_fr_web"] = web
     return rows
