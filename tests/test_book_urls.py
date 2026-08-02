@@ -45,10 +45,11 @@ class BookUrlTests(unittest.TestCase):
             "Winamax",
             "https://www.winamax.fr/paris-sportifs/match/73062274",
             selection_id="672502908:2090722078",
+            match_id="73062274",
         )
         self.assertEqual(
             url,
-            "https://www.winamax.fr/paris-sportifs/match/73062274?b=672502908&o=2090722078",
+            "/go/winamax?match=73062274&b=672502908&o=2090722078",
         )
 
     def test_build_winamax_without_compound_id_keeps_match_url(self) -> None:
@@ -139,9 +140,13 @@ class BookUrlTests(unittest.TestCase):
         )
         self.assertEqual(
             rows[0]["url_fr"],
-            "https://www.winamax.fr/paris-sportifs/match/1?b=10&o=20",
+            "/go/winamax?match=1&b=10&o=20",
         )
         self.assertEqual(rows[0]["url_fr_kind"], "selection")
+        self.assertEqual(
+            rows[0]["url_fr_web"],
+            "https://www.winamax.fr/paris-sportifs/match/1#b=10&o=20",
+        )
         self.assertEqual(rows[1]["url_fr"], "https://www.unibet.fr/paris/tennis/x")
         self.assertEqual(rows[1]["url_fr_kind"], "match")
         self.assertEqual(

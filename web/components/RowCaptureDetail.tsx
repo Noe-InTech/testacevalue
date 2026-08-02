@@ -37,11 +37,16 @@ export function RowCaptureDetail({
     row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
 
   const bookUrl = row.url_fr?.trim() || "";
+  const bookWebFallback = row.url_fr_web?.trim() || "";
   const bookName = row.bookmaker_fr?.trim() || "book FR";
   const isSelectionLink = row.url_fr_kind === "selection";
+  const isWinamaxBridge = bookUrl.startsWith("/go/winamax?");
   const bookLinkLabel = isSelectionLink
     ? `Ouvrir le pari sur ${bookName}`
     : `Ouvrir le match sur ${bookName}`;
+  // Bridge Winamax stays same-tab so wam:// can hand off to the app before HTTPS fallback.
+  const linkTarget = isWinamaxBridge ? undefined : "_blank";
+  const linkRel = isWinamaxBridge ? undefined : "noopener noreferrer";
 
   return (
     <div className="row-capture-detail">
@@ -50,7 +55,7 @@ export function RowCaptureDetail({
       <div className="row-book-link-block">
         <p className="row-capture-subtitle">Lien {bookName}</p>
         {bookUrl ? (
-          <a className="row-book-link" href={bookUrl} target="_blank" rel="noopener noreferrer">
+          <a className="row-book-link" href={bookUrl} target={linkTarget} rel={linkRel}>
             {bookLinkLabel}
           </a>
         ) : (
@@ -61,6 +66,20 @@ export function RowCaptureDetail({
         {bookUrl && !isSelectionLink ? (
           <p className="row-capture-hint">
             Pari precis indisponible pour ce book — ouverture de la page match.
+          </p>
+        ) : null}
+        {isSelectionLink && isWinamaxBridge ? (
+          <p className="row-capture-hint">
+            Sur mobile avec l&apos;app Winamax : le pari est ajouté au panier. Sur navigateur desktop,
+            ouverture de la page match (highlight).
+            {bookWebFallback ? (
+              <>
+                {" "}
+                <a href={bookWebFallback} target="_blank" rel="noopener noreferrer">
+                  Ouvrir la page match
+                </a>
+              </>
+            ) : null}
           </p>
         ) : null}
       </div>
