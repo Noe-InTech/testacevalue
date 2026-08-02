@@ -114,9 +114,7 @@ def build_best_fr_player_props_map(
                                 normalized_outcome=str(outcome),
                                 raw_outcomes=outcomes,
                                 selection_ids=selection_ids,
-                            )
-                            if bookmaker == "unibet"
-                            else "",
+                            ),
                         }
     return best
 

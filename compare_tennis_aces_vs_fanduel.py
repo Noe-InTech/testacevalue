@@ -690,9 +690,7 @@ def build_best_fr_normalized_map(
                                 selection_ids=selection_ids,
                                 home=home,
                                 away=away,
-                            )
-                            if bookmaker == "unibet"
-                            else "",
+                            ),
                         }
     return best
 
@@ -1040,8 +1038,16 @@ def compare_match_to_fanduel(
         row["match"] = match_meta["match"]
     for row in fd_only:
         row["match"] = match_meta["match"]
-    attach_fr_book_urls(comparable, urls=match_meta.get("urls") or {})
-    attach_fr_book_urls(fr_only, urls=match_meta.get("urls") or {})
+    attach_fr_book_urls(
+        comparable,
+        urls=match_meta.get("urls") or {},
+        book_events=book_events,
+    )
+    attach_fr_book_urls(
+        fr_only,
+        urls=match_meta.get("urls") or {},
+        book_events=book_events,
+    )
     fr_higher = [row for row in comparable if row["best_side"] == "fr"]
 
     raw_delta = None
