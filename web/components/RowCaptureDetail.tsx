@@ -40,13 +40,13 @@ export function RowCaptureDetail({
   const bookWebFallback = row.url_fr_web?.trim() || "";
   const bookName = row.bookmaker_fr?.trim() || "book FR";
   const isSelectionLink = row.url_fr_kind === "selection";
-  const isWinamaxBridge = bookUrl.startsWith("/go/winamax?");
+  const isBookBridge = /^\/go\/(winamax|unibet|betclic)\?/.test(bookUrl);
   const bookLinkLabel = isSelectionLink
     ? `Ouvrir le pari sur ${bookName}`
     : `Ouvrir le match sur ${bookName}`;
-  // Bridge Winamax stays same-tab so wam:// can hand off to the app before HTTPS fallback.
-  const linkTarget = isWinamaxBridge ? undefined : "_blank";
-  const linkRel = isWinamaxBridge ? undefined : "noopener noreferrer";
+  // Open bridges in a new tab so Back / return stays on our app (no re-handoff loop).
+  const linkTarget = "_blank";
+  const linkRel = "noopener noreferrer";
 
   return (
     <div className="row-capture-detail">
@@ -68,15 +68,14 @@ export function RowCaptureDetail({
             Pari precis indisponible pour ce book — ouverture de la page match.
           </p>
         ) : null}
-        {isSelectionLink && isWinamaxBridge ? (
+        {isSelectionLink && isBookBridge ? (
           <p className="row-capture-hint">
-            Sur mobile avec l&apos;app Winamax : le pari est ajouté au panier. Sur navigateur desktop,
-            ouverture de la page match (highlight).
+            Ouverture dans un nouvel onglet pour pouvoir revenir ici sans relancer le book.
             {bookWebFallback ? (
               <>
                 {" "}
                 <a href={bookWebFallback} target="_blank" rel="noopener noreferrer">
-                  Ouvrir la page match
+                  Page match
                 </a>
               </>
             ) : null}

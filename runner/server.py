@@ -720,6 +720,47 @@ class Handler(BaseHTTPRequestHandler):
             },
         )
 
+    def _handle_betclic_share(self) -> None:
+        if not self._authorized():
+            self._json_response(401, {"error": "Secret incorrect."})
+            return
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            self._json_response(400, {"error": "JSON invalide."})
+            return
+        selection_id = str(body.get("selection_id") or "").strip()
+        match_id = str(body.get("match_id") or "").strip()
+        market_id = str(body.get("market_id") or "").strip()
+        match_url = str(body.get("match_url") or "").strip()
+        if not selection_id or not match_id or not market_id:
+            self._json_response(
+                400,
+                {"error": "selection_id, match_id et market_id sont requis."},
+            )
+            return
+        try:
+            from betclic_client import BetclicClient
+
+            url = BetclicClient().create_share_url(
+                selection_id=selection_id,
+                match_id=match_id,
+                market_id=market_id,
+                match_url=match_url,
+            )
+        except Exception as exc:
+            self._json_response(
+                502,
+                {"error": f"Betclic share impossible: {exc}"},
+            )
+            return
+        if not url:
+            self._json_response(502, {"error": "Betclic share: URL vide."})
+            return
+        self._json_response(200, {"ok": True, "url": url})
+
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/cancel":
@@ -727,6 +768,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/self-update":
             self._handle_self_update()
+            return
+        if path == "/api/betclic-share":
+            self._handle_betclic_share()
             return
         if path != "/api/trigger":
             self._json_response(404, {"error": "Not found"})

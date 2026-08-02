@@ -399,6 +399,7 @@ class BetclicClient:
         selection_id: str,
         match_id: str,
         market_id: str,
+        match_url: str = "",
     ) -> str:
         """Crée une URL publique /bet/{token} préremplie avec la sélection."""
         sel = str(selection_id or "").strip()
@@ -406,27 +407,39 @@ class BetclicClient:
         market = str(market_id or "").strip()
         if not sel or not mid or not market:
             return ""
+        referer = str(match_url or "").strip() or f"{self.base_url}/"
         # Warm cookies / anti-bot session before calling the share API.
-        try:
-            self.session.get(self._url("/"), timeout=20)
-        except Exception:
-            pass
+        for warm_url in (self._url("/"), referer):
+            try:
+                self.session.get(warm_url, timeout=20)
+            except Exception:
+                pass
         headers = {
             "Accept": "application/json, text/plain, */*",
             "Content-Type": "application/json",
             "Origin": self.base_url,
-            "Referer": f"{self.base_url}/",
+            "Referer": referer,
+            "X-Requested-With": "XMLHttpRequest",
         }
+        mid_num: Any = int(mid) if mid.isdigit() else mid
+        market_num: Any = int(market) if market.isdigit() else market
+        sel_num: Any = int(sel) if sel.isdigit() else sel
         candidates: list[dict[str, Any]] = [
+            # Shape used by the Betclic web app (string selection_id, numeric ids).
             {
                 "selection_id": sel,
-                "match_id": int(mid) if mid.isdigit() else mid,
-                "market_id": int(market) if market.isdigit() else market,
+                "match_id": mid_num,
+                "market_id": market_num,
             },
             {
                 "selection_id": sel,
                 "match_id": mid,
                 "market_id": market,
+            },
+            {
+                "selection_id": sel_num,
+                "match_id": mid_num,
+                "market_id": market_num,
             },
         ]
         last_error = ""
