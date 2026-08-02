@@ -163,6 +163,46 @@ def _labels_match(left: str, right: str) -> bool:
     return players_match(left, right)
 
 
+def _tier_suffix(label: str) -> str:
+    match = re.search(r"(\d+)\s*\+\s*$", str(label or "").strip())
+    return match.group(1) if match else ""
+
+
+def _pick_player_selection_id(
+    *,
+    player: str,
+    ids: Mapping[str, str],
+    raw_outcomes: list[tuple[str, float | None]],
+    line: str = "",
+) -> str:
+    """Resolve player-prop selection ids, disambiguating 1+/2+ tiers when needed."""
+    matches: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for raw, _odds in raw_outcomes:
+        if raw in ids and _labels_match(raw, player) and raw not in seen:
+            matches.append((raw, ids[raw]))
+            seen.add(raw)
+    for raw, sid in ids.items():
+        if raw not in seen and _labels_match(raw, player):
+            matches.append((raw, sid))
+            seen.add(raw)
+    if not matches:
+        return ""
+    if len(matches) == 1:
+        return matches[0][1]
+
+    tiered = [(raw, sid, _tier_suffix(raw)) for raw, sid in matches]
+    has_tiers = any(tier for _raw, _sid, tier in tiered)
+    if has_tiers:
+        # Empty line means the base threshold (1+) on Unibet HR boards.
+        wanted = str(line or "").strip() or "1"
+        for _raw, sid, tier in tiered:
+            if tier == wanted:
+                return sid
+    # No tier markers (Winamax "Marque 1 runs ou plus" player list) — first match.
+    return matches[0][1]
+
+
 def selection_id_for_normalized_outcome(
     *,
     normalized_outcome: str,
@@ -171,6 +211,7 @@ def selection_id_for_normalized_outcome(
     home: str = "",
     away: str = "",
     player_name: str = "",
+    line: str = "",
 ) -> str:
     """Retrouve l'ID sélection d'une issue normalisée (Over/Under/home/away/Yes…)."""
     ids = {
@@ -189,12 +230,14 @@ def selection_id_for_normalized_outcome(
     #    and the normalized issue is Yes/Oui for that player.
     player = str(player_name or "").strip()
     if player:
-        for raw, _odds in raw_outcomes:
-            if raw in ids and _labels_match(raw, player):
-                return ids[raw]
-        for raw, sid in ids.items():
-            if _labels_match(raw, player):
-                return sid
+        sid = _pick_player_selection_id(
+            player=player,
+            ids=ids,
+            raw_outcomes=raw_outcomes,
+            line=line,
+        )
+        if sid:
+            return sid
 
     # 1) Match O/U
     if target in {"Over", "Under"}:
@@ -229,7 +272,25 @@ def selection_id_for_normalized_outcome(
             if strip_accents(raw) in no_aliases:
                 return sid
 
-    # 3) Team / player side — exact then fuzzy token
+    # 3) Team / player side — exact, home/away aliases, then fuzzy token
+    wanted_team = ""
+    if target in {"home", "1"} and home:
+        wanted_team = home
+    elif target in {"away", "2"} and away:
+        wanted_team = away
+    elif home and _labels_match(target, home):
+        wanted_team = home
+    elif away and _labels_match(target, away):
+        wanted_team = away
+
+    if wanted_team:
+        for raw, _odds in raw_outcomes:
+            if raw in ids and _labels_match(raw, wanted_team):
+                return ids[raw]
+        for raw, sid in ids.items():
+            if _labels_match(raw, wanted_team):
+                return sid
+
     target_lower = strip_accents(target)
     for raw, _odds in raw_outcomes:
         if raw not in ids:
@@ -237,12 +298,6 @@ def selection_id_for_normalized_outcome(
         raw_lower = strip_accents(raw)
         if raw_lower == target_lower or target_lower in raw_lower or raw_lower in target_lower:
             return ids[raw]
-        if home and target in {"home", home}:
-            if strip_accents(home) in raw_lower or raw_lower in strip_accents(home):
-                return ids[raw]
-        if away and target in {"away", away}:
-            if strip_accents(away) in raw_lower or raw_lower in strip_accents(away):
-                return ids[raw]
 
     # 4) Fallback: unique odds match
     for raw, odds in raw_outcomes:

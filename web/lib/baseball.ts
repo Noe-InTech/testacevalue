@@ -1,6 +1,6 @@
 import type { ComparableRow, MarketPayload, RunStatus } from "@/lib/types";
 
-export const BASEBALL_CACHE_KEY = "baseball_last_results_v1";
+export const BASEBALL_CACHE_KEY = "baseball_last_results_v2";
 
 export interface BaseballCachedResults {
   payload: MarketPayload;

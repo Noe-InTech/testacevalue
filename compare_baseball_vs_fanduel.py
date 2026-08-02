@@ -179,6 +179,7 @@ def build_best_fr_map(
                                 home=home_team,
                                 away=away_team,
                                 player_name=item.player_name,
+                                line=str(item.line or ""),
                             ),
                         }
     return best

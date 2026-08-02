@@ -145,6 +145,39 @@ class BookUrlTests(unittest.TestCase):
         )
         self.assertEqual(sid, "3:4")
 
+    def test_selection_id_disambiguates_player_tiers(self) -> None:
+        raw = [("Yelich, Christian 2+", 40.0), ("Yelich, Christian 1+", 7.0)]
+        ids = {
+            "Yelich, Christian 2+": "702504346",
+            "Yelich, Christian 1+": "702504347",
+        }
+        sid_1 = selection_id_for_normalized_outcome(
+            normalized_outcome="Yes",
+            raw_outcomes=raw,
+            selection_ids=ids,
+            player_name="Christian Yelich",
+            line="",
+        )
+        sid_2 = selection_id_for_normalized_outcome(
+            normalized_outcome="Yes",
+            raw_outcomes=raw,
+            selection_ids=ids,
+            player_name="Christian Yelich",
+            line="2",
+        )
+        self.assertEqual(sid_1, "702504347")
+        self.assertEqual(sid_2, "702504346")
+
+    def test_selection_id_for_home_away_team_alias(self) -> None:
+        sid = selection_id_for_normalized_outcome(
+            normalized_outcome="home",
+            raw_outcomes=[("LA Angels", 2.9), ("MIL Brewers", 1.42)],
+            selection_ids={"LA Angels": "111", "MIL Brewers": "222"},
+            home="Los Angeles Angels",
+            away="Milwaukee Brewers",
+        )
+        self.assertEqual(sid, "111")
+
     def test_attach_fr_book_urls(self) -> None:
         rows = [
             {

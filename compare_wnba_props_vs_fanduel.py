@@ -115,6 +115,7 @@ def build_best_fr_player_props_map(
                                 raw_outcomes=outcomes,
                                 selection_ids=selection_ids,
                                 player_name=item.player_name,
+                                line=str(getattr(item, "line", "") or ""),
                             ),
                         }
     return best
