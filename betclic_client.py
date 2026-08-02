@@ -43,6 +43,7 @@ class BetclicMatchLink:
 class BetclicOutcome:
     label: str
     odds: float | None
+    selection_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -333,6 +334,18 @@ class BetclicClient:
                 yield from BetclicClient._iter_selection_nodes(item)
 
     @staticmethod
+    def _encode_selection_id(selection: dict[str, Any], market: dict[str, Any]) -> str:
+        selection_id = str(selection.get("id") or "").strip()
+        market_id = str(
+            selection.get("betslipMarketId") or market.get("id") or ""
+        ).strip()
+        if not selection_id or not market_id:
+            return ""
+        if market_id.startswith("grpc-"):
+            return ""
+        return f"{selection_id}:{market_id}"
+
+    @staticmethod
     def _collect_market_outcomes(market: dict[str, Any]) -> list[BetclicOutcome]:
         outcomes: list[BetclicOutcome] = []
         seen: set[str] = set()
@@ -348,8 +361,78 @@ class BetclicClient:
             except (TypeError, ValueError):
                 parsed_odds = None
             seen.add(label)
-            outcomes.append(BetclicOutcome(label=label, odds=parsed_odds))
+            outcomes.append(
+                BetclicOutcome(
+                    label=label,
+                    odds=parsed_odds,
+                    selection_id=BetclicClient._encode_selection_id(selection, market),
+                )
+            )
         return outcomes
+
+    @staticmethod
+    def markets_to_payload(markets: list[BetclicMarket]) -> list[dict[str, Any]]:
+        payload: list[dict[str, Any]] = []
+        for market in markets:
+            selection_ids = {
+                outcome.label: outcome.selection_id
+                for outcome in market.outcomes
+                if outcome.selection_id
+            }
+            item: dict[str, Any] = {
+                "label": market.label,
+                "outcomes": [(outcome.label, outcome.odds) for outcome in market.outcomes],
+            }
+            if selection_ids:
+                item["selection_ids"] = selection_ids
+            payload.append(item)
+        return payload
+
+    @staticmethod
+    def match_id_from_url(match_url: str) -> str:
+        match = re.search(r"-m(\d+)/?(?:[?#]|$)", str(match_url or ""))
+        return match.group(1) if match else ""
+
+    def create_share_url(
+        self,
+        *,
+        selection_id: str,
+        match_id: str,
+        market_id: str,
+    ) -> str:
+        """Crée une URL publique /bet/{token} préremplie avec la sélection."""
+        sel = str(selection_id or "").strip()
+        mid = str(match_id or "").strip()
+        market = str(market_id or "").strip()
+        if not sel or not mid or not market:
+            return ""
+        body = {
+            "selection_identifiers": [
+                {
+                    "selection_id": sel,
+                    "match_id": int(mid) if mid.isdigit() else mid,
+                    "market_id": int(market) if market.isdigit() else market,
+                }
+            ]
+        }
+        response = self.session.post(
+            self._url("/sports-betting/api/v3/bets/share"),
+            json=body,
+            timeout=30,
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+        )
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Betclic share {response.status_code}: {response.text[:200]}"
+            )
+        payload = response.json()
+        token = str(payload.get("token") or "").strip()
+        if not token:
+            raise RuntimeError("Betclic share: token manquant")
+        return f"{self.base_url}/bet/{token}"
 
     def extract_markets_from_match_payload(self, payload: dict[str, Any]) -> list[BetclicMarket]:
         match = payload.get("match") or {}
@@ -433,8 +516,5 @@ class BetclicClient:
                 {"id": str(category.get("id", "")), "name": str(category.get("name", ""))}
                 for category in (match.get("categories") or [])
             ],
-            "markets": [
-                {"label": market.label, "outcomes": [(o.label, o.odds) for o in market.outcomes]}
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }

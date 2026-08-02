@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+import re
+from typing import Any, Callable, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from tennis_books_mapping import normalize_ou_label, strip_accents
@@ -13,6 +14,8 @@ BOOK_LABEL_TO_KEY = {
     "betclic": "betclic",
     "winamax": "winamax",
 }
+
+BetclicShareResolver = Callable[[str, str, str], str]
 
 
 def bookmaker_to_key(bookmaker: str | None) -> str:
@@ -47,25 +50,79 @@ def resolve_fr_book_url(
     return ""
 
 
+def split_compound_selection_id(selection_id: str | None) -> tuple[str, str]:
+    """Decode `left:right` (Winamax betId:oddId, Betclic selection:market)."""
+    text = str(selection_id or "").strip()
+    if not text or ":" not in text:
+        return "", ""
+    left, right = text.split(":", 1)
+    return left.strip(), right.strip()
+
+
+def match_id_from_book_url(bookmaker: str | None, match_url: str) -> str:
+    key = bookmaker_to_key(bookmaker)
+    url = str(match_url or "").strip()
+    if not url:
+        return ""
+    if key == "betclic":
+        match = re.search(r"-m(\d+)/?(?:[?#]|$)", url)
+        return match.group(1) if match else ""
+    if key == "winamax":
+        match = re.search(r"/match/(\d+)", url)
+        return match.group(1) if match else ""
+    return ""
+
+
 def build_fr_book_url(
     bookmaker: str | None,
     match_url: str,
     *,
     selection_id: str | None = None,
+    match_id: str | None = None,
+    resolve_betclic_share: BetclicShareResolver | None = None,
 ) -> str:
-    """URL match, enrichie en deep-link sélection quand possible (Unibet)."""
+    """URL match, enrichie en deep-link sélection quand possible."""
     base = str(match_url or "").strip()
     if not base:
         return ""
     key = bookmaker_to_key(bookmaker)
     sid = str(selection_id or "").strip()
-    if key == "unibet" and sid:
+    if not sid:
+        return base
+
+    if key == "unibet":
         parts = urlsplit(base)
         query = dict(parse_qsl(parts.query, keep_blank_values=True))
         query["outcomeIds"] = sid
         return urlunsplit(
             (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
         )
+
+    if key == "winamax":
+        bet_id, odd_id = split_compound_selection_id(sid)
+        if not bet_id or not odd_id:
+            return base
+        parts = urlsplit(base)
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        query["b"] = bet_id
+        query["o"] = odd_id
+        return urlunsplit(
+            (parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment)
+        )
+
+    if key == "betclic":
+        sel_id, market_id = split_compound_selection_id(sid)
+        event_id = str(match_id or "").strip() or match_id_from_book_url(key, base)
+        if not sel_id or not market_id or not event_id or resolve_betclic_share is None:
+            return base
+        try:
+            share_url = str(
+                resolve_betclic_share(sel_id, event_id, market_id) or ""
+            ).strip()
+        except Exception:
+            return base
+        return share_url or base
+
     return base
 
 
@@ -77,7 +134,7 @@ def selection_id_for_normalized_outcome(
     home: str = "",
     away: str = "",
 ) -> str:
-    """Retrouve l'ID Unibet d'une issue normalisée (Over/Under/home/away/Yes…)."""
+    """Retrouve l'ID sélection d'une issue normalisée (Over/Under/home/away/Yes…)."""
     ids = {
         str(label): str(selection_id)
         for label, selection_id in (selection_ids or {}).items()
@@ -129,27 +186,77 @@ def selection_id_for_normalized_outcome(
     return ""
 
 
+def _default_betclic_share_resolver() -> BetclicShareResolver | None:
+    try:
+        from betclic_client import BetclicClient
+    except Exception:
+        return None
+    client = BetclicClient()
+    cache: dict[tuple[str, str, str], str] = {}
+
+    def resolve(selection_id: str, match_id: str, market_id: str) -> str:
+        key = (selection_id, match_id, market_id)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+        url = client.create_share_url(
+            selection_id=selection_id,
+            match_id=match_id,
+            market_id=market_id,
+        )
+        cache[key] = url
+        return url
+
+    return resolve
+
+
+def _selection_url_kind(bookmaker: str | None, deep_url: str, selection_id: str) -> str:
+    key = bookmaker_to_key(bookmaker)
+    if not selection_id or not deep_url:
+        return "match"
+    if key == "unibet" and "outcomeIds=" in deep_url:
+        return "selection"
+    if key == "winamax" and re.search(r"[?&]b=", deep_url) and re.search(r"[?&]o=", deep_url):
+        return "selection"
+    if key == "betclic" and "/bet/" in deep_url:
+        return "selection"
+    return "match"
+
+
 def attach_fr_book_urls(
     rows: list[dict[str, Any]],
     *,
     urls: Mapping[str, Any] | None = None,
     book_events: Mapping[str, Any] | None = None,
+    resolve_betclic_share: BetclicShareResolver | None | bool = True,
 ) -> list[dict[str, Any]]:
+    share_resolver: BetclicShareResolver | None
+    if resolve_betclic_share is True:
+        share_resolver = _default_betclic_share_resolver()
+    elif resolve_betclic_share is False or resolve_betclic_share is None:
+        share_resolver = None
+    else:
+        share_resolver = resolve_betclic_share
+
     for row in rows:
         bookmaker = row.get("bookmaker_fr") or row.get("best_fr_bookmaker") or ""
+        key = bookmaker_to_key(str(bookmaker))
         match_url = resolve_fr_book_url(str(bookmaker), urls=urls, book_events=book_events)
         selection_id = str(row.get("selection_id") or "").strip()
+        match_id = ""
+        if book_events and key:
+            event = book_events.get(key) or {}
+            if isinstance(event, dict):
+                match_id = str(event.get("match_id") or "").strip()
+        if not match_id:
+            match_id = match_id_from_book_url(str(bookmaker), match_url)
         deep_url = build_fr_book_url(
             str(bookmaker),
             match_url,
             selection_id=selection_id,
+            match_id=match_id,
+            resolve_betclic_share=share_resolver if key == "betclic" else None,
         )
         row["url_fr"] = deep_url
-        row["url_fr_kind"] = (
-            "selection"
-            if selection_id
-            and bookmaker_to_key(str(bookmaker)) == "unibet"
-            and "outcomeIds=" in deep_url
-            else "match"
-        )
+        row["url_fr_kind"] = _selection_url_kind(str(bookmaker), deep_url, selection_id)
     return rows

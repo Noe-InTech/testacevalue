@@ -12,9 +12,9 @@ export interface ComparableRow {
   bookmaker_fr: string;
   /** URL page match / sélection du book FR retenu (Unibet / Betclic / Winamax). */
   url_fr?: string;
-  /** "selection" si deep-link pari précis (Unibet outcomeIds), sinon "match". */
+  /** "selection" si deep-link pari précis, sinon "match". */
   url_fr_kind?: "selection" | "match";
-  /** ID sélection Unibet (si disponible) pour deep-link betslip. */
+  /** ID sélection book FR (Unibet outcomeId, Winamax betId:oddId, Betclic sel:market). */
   selection_id?: string;
   cote_fr_contraire?: string;
   bookmaker_fr_contraire?: string;
