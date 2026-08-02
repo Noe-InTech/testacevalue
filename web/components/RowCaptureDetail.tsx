@@ -38,6 +38,10 @@ export function RowCaptureDetail({
 
   const bookUrl = row.url_fr?.trim() || "";
   const bookName = row.bookmaker_fr?.trim() || "book FR";
+  const isSelectionLink = row.url_fr_kind === "selection";
+  const bookLinkLabel = isSelectionLink
+    ? `Ouvrir le pari sur ${bookName}`
+    : `Ouvrir le match sur ${bookName}`;
 
   return (
     <div className="row-capture-detail">
@@ -47,13 +51,18 @@ export function RowCaptureDetail({
         <p className="row-capture-subtitle">Lien {bookName}</p>
         {bookUrl ? (
           <a className="row-book-link" href={bookUrl} target="_blank" rel="noopener noreferrer">
-            Ouvrir le match sur {bookName}
+            {bookLinkLabel}
           </a>
         ) : (
           <p className="row-capture-hint">
             Lien indisponible pour cette ligne — relance une comparaison apres update du runner.
           </p>
         )}
+        {bookUrl && !isSelectionLink ? (
+          <p className="row-capture-hint">
+            Pari precis indisponible pour ce book — ouverture de la page match.
+          </p>
+        ) : null}
       </div>
 
       <dl className="row-capture-list">

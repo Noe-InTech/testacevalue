@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Callable
 import time
 
-from book_urls import attach_fr_book_urls
+from book_urls import attach_fr_book_urls, selection_id_for_normalized_outcome
 from fanduel_client import (
     FANDUEL_PROPS_TABS,
     DEFAULT_TENNIS_PAGE_CANDIDATES,
@@ -646,6 +646,7 @@ def build_best_fr_normalized_map(
             if not is_aces_market(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(label, outcomes, home, away):
                 if item.market_family not in ACE_FAMILIES:
                     continue
@@ -683,6 +684,15 @@ def build_best_fr_normalized_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                home=home,
+                                away=away,
+                            )
+                            if bookmaker == "unibet"
+                            else "",
                         }
     return best
 
@@ -898,6 +908,7 @@ def compare_normalized_aces(
                         "line_delta": line_delta,
                         "best_fr_odds": fr_odds,
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_decimal_fr": float(fd_bundle["decimal_fr"]),
@@ -936,6 +947,7 @@ def collect_fr_only_aces(
                 "fanduel_market_label": "",
                 "best_fr_odds": float(fr_payload["odds"]),
                 "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                "selection_id": fr_payload.get("selection_id", ""),
                 "cote_fr": format_french_decimal(float(fr_payload["odds"])),
                 "bookmaker_fr": fr_payload["bookmaker_label"],
                 "cote_us_fanduel_ml": "",

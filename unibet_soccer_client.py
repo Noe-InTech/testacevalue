@@ -76,8 +76,5 @@ class UnibetSoccerClient(UnibetClient):
         markets = self.extract_all_event_markets_from_html(html)
         return {
             "url": event_url,
-            "markets": [
-                {"label": m.label, "outcomes": [(o.label, o.odds) for o in m.outcomes]}
-                for m in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }
