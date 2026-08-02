@@ -7,6 +7,7 @@ from typing import Any, Callable, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from tennis_books_mapping import normalize_ou_label, strip_accents
+from tennis_market_mapping import players_match
 
 
 BOOK_LABEL_TO_KEY = {
@@ -151,6 +152,17 @@ def build_fr_book_url(
     return base
 
 
+def _labels_match(left: str, right: str) -> bool:
+    a = strip_accents(left)
+    b = strip_accents(right)
+    if not a or not b:
+        return False
+    if a == b or a in b or b in a:
+        return True
+    # "Contreras, Willson 1+" ↔ "Willson Contreras"
+    return players_match(left, right)
+
+
 def selection_id_for_normalized_outcome(
     *,
     normalized_outcome: str,
@@ -158,6 +170,7 @@ def selection_id_for_normalized_outcome(
     selection_ids: Mapping[str, Any] | None,
     home: str = "",
     away: str = "",
+    player_name: str = "",
 ) -> str:
     """Retrouve l'ID sélection d'une issue normalisée (Over/Under/home/away/Yes…)."""
     ids = {
@@ -172,6 +185,17 @@ def selection_id_for_normalized_outcome(
     if not target:
         return ""
 
+    # 0) Player-prop markets where raw outcomes are player names (baseball runs/HR, soccer…)
+    #    and the normalized issue is Yes/Oui for that player.
+    player = str(player_name or "").strip()
+    if player:
+        for raw, _odds in raw_outcomes:
+            if raw in ids and _labels_match(raw, player):
+                return ids[raw]
+        for raw, sid in ids.items():
+            if _labels_match(raw, player):
+                return sid
+
     # 1) Match O/U
     if target in {"Over", "Under"}:
         for raw, _odds in raw_outcomes:
@@ -183,9 +207,27 @@ def selection_id_for_normalized_outcome(
             if target == "Under" and ("moins" in lower or lower.startswith("-")) and raw in ids:
                 return ids[raw]
 
-    # 2) Yes / single-selection markets
-    if target in {"Yes", "Oui"} and len(ids) == 1:
-        return next(iter(ids.values()))
+    # 2) Yes/No ↔ Oui/Non (+ single-selection markets)
+    yes_aliases = {"yes", "oui", "o", "y"}
+    no_aliases = {"no", "non", "n"}
+    if target in {"Yes", "Oui"}:
+        if len(ids) == 1:
+            return next(iter(ids.values()))
+        for raw, _odds in raw_outcomes:
+            if raw in ids and strip_accents(raw) in yes_aliases:
+                return ids[raw]
+        for raw, sid in ids.items():
+            if strip_accents(raw) in yes_aliases:
+                return sid
+    if target in {"No", "Non"}:
+        if len(ids) == 1:
+            return next(iter(ids.values()))
+        for raw, _odds in raw_outcomes:
+            if raw in ids and strip_accents(raw) in no_aliases:
+                return ids[raw]
+        for raw, sid in ids.items():
+            if strip_accents(raw) in no_aliases:
+                return sid
 
     # 3) Team / player side — exact then fuzzy token
     target_lower = strip_accents(target)

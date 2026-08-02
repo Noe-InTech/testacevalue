@@ -715,11 +715,22 @@ td.side {
     padding: 6px 0;
   }
 
-  td::before {
+  td[data-label]::before {
     content: attr(data-label) " : ";
     color: var(--muted);
     font-size: 0.78rem;
     text-transform: uppercase;
+  }
+
+  tr.row-detail,
+  tr.row-detail td {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  tr.row-detail td::before {
+    content: none;
   }
 }
 

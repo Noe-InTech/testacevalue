@@ -109,6 +109,42 @@ class BookUrlTests(unittest.TestCase):
         )
         self.assertEqual(sid_under, "222")
 
+    def test_selection_id_for_yes_player_prop(self) -> None:
+        """Baseball/soccer: raw outcomes are player names, normalized issue is Yes."""
+        sid = selection_id_for_normalized_outcome(
+            normalized_outcome="Yes",
+            raw_outcomes=[
+                ("Christian Yelich", 2.15),
+                ("William Contreras", 1.90),
+            ],
+            selection_ids={
+                "Christian Yelich": "10:20",
+                "William Contreras": "11:21",
+            },
+            player_name="Christian Yelich",
+        )
+        self.assertEqual(sid, "10:20")
+
+    def test_selection_id_for_yes_oui_alias(self) -> None:
+        sid = selection_id_for_normalized_outcome(
+            normalized_outcome="Yes",
+            raw_outcomes=[("Oui", 1.80), ("Non", 1.95)],
+            selection_ids={"Oui": "aaa:bbb", "Non": "ccc:ddd"},
+        )
+        self.assertEqual(sid, "aaa:bbb")
+
+    def test_selection_id_for_yes_player_with_tier_suffix(self) -> None:
+        sid = selection_id_for_normalized_outcome(
+            normalized_outcome="Yes",
+            raw_outcomes=[("Contreras, Willson 1+", 1.75), ("Yelich, Christian 1+", 2.10)],
+            selection_ids={
+                "Contreras, Willson 1+": "1:2",
+                "Yelich, Christian 1+": "3:4",
+            },
+            player_name="Christian Yelich",
+        )
+        self.assertEqual(sid, "3:4")
+
     def test_attach_fr_book_urls(self) -> None:
         rows = [
             {

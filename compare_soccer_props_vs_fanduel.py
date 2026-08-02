@@ -96,6 +96,7 @@ def build_best_fr_map(
                                 selection_ids=selection_ids,
                                 home=home,
                                 away=away,
+                                player_name=item.player_name,
                             ),
                         }
     return best
