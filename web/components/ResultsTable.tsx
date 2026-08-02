@@ -100,7 +100,7 @@ export function ResultsTable({
       <div className="table-wrap">
         {showCaptureDetails ? (
           <p className="table-hint">
-            Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire) et
+            Clique sur une ligne pour voir le lien du match chez le book FR, le detail des cotes et
             l&apos;heure de capture.
           </p>
         ) : null}

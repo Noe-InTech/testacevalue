@@ -607,6 +607,27 @@ td.side {
   font-size: 0.82rem;
 }
 
+.row-book-link-block {
+  margin: 0 0 12px;
+}
+
+.row-book-link-block .row-capture-subtitle {
+  margin-top: 0;
+}
+
+.row-book-link {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.row-book-link:hover {
+  opacity: 0.85;
+}
+
 @media (max-width: 720px) {
   .meta {
     grid-template-columns: 1fr;

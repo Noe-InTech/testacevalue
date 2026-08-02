@@ -36,9 +36,26 @@ export function RowCaptureDetail({
   const usBadgeClass =
     row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
 
+  const bookUrl = row.url_fr?.trim() || "";
+  const bookName = row.bookmaker_fr?.trim() || "book FR";
+
   return (
     <div className="row-capture-detail">
       <p className="row-capture-title">Detail des cotes (clique pour fermer)</p>
+
+      <div className="row-book-link-block">
+        <p className="row-capture-subtitle">Lien {bookName}</p>
+        {bookUrl ? (
+          <a className="row-book-link" href={bookUrl} target="_blank" rel="noopener noreferrer">
+            Ouvrir le match sur {bookName}
+          </a>
+        ) : (
+          <p className="row-capture-hint">
+            Lien indisponible pour cette ligne — relance une comparaison apres update du runner.
+          </p>
+        )}
+      </div>
+
       <dl className="row-capture-list">
         <dt>Source US</dt>
         <dd>
