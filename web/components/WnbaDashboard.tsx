@@ -6,6 +6,7 @@ import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
 import { ValuesTable } from "@/components/ValuesTable";
+import { frBookBadgeClass } from "@/lib/bookBadges";
 import { buildValueRows } from "@/lib/mptoValue";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
@@ -854,16 +855,22 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           />
         </label>
 
-        <label>
-          Book FR
-          <select value={bookFilter} onChange={(event) => setBookFilter(event.target.value as WnbaBookFilter)}>
-            {cfg.bookFilters.map((book) => (
-              <option key={book} value={book}>
+        <div className="filter-chips" role="group" aria-label="Filtrer par book FR">
+          {cfg.bookFilters.map((book) => {
+            const active = bookFilter === book;
+            const badgeClass = book === "Tous" ? "book-badge" : frBookBadgeClass(book);
+            return (
+              <button
+                key={book}
+                type="button"
+                className={`${badgeClass} book-filter-chip${active ? " active" : ""}`}
+                onClick={() => setBookFilter(book as BookFilter)}
+              >
                 {book}
-              </option>
-            ))}
-          </select>
-        </label>
+              </button>
+            );
+          })}
+        </div>
 
         <div className="filter-chips" role="group" aria-label="Filtrer par stat">
           {cfg.statFilters.map((stat) => {
@@ -975,7 +982,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
               <tbody>
                 {filteredProgress.map((row) => (
                   <tr key={row.match}>
-                    <td data-label="Match">{row.match}</td>
+                    <td data-label="Match">
+                      <span className="match-label">
+                        <span>{row.match}</span>
+                        {row.is_live ? <span className="live-badge">LIVE</span> : null}
+                      </span>
+                    </td>
                     <td data-label="Comparees">{row.comparable_count}</td>
                     <td data-label="Lignes FR">
                       {row.fr_market_count ?? row.fr_ace_market_count ?? 0}

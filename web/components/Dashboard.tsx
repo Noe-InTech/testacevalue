@@ -724,7 +724,12 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
               <tbody>
                 {filteredProgress.map((row) => (
                   <tr key={row.match}>
-                    <td data-label="Match">{row.match}</td>
+                    <td data-label="Match">
+                      <span className="match-label">
+                        <span>{row.match}</span>
+                        {row.is_live ? <span className="live-badge">LIVE</span> : null}
+                      </span>
+                    </td>
                     <td data-label="Comparees">{row.comparable_count}</td>
                     <td data-label="Lignes FR">
                       {row.fr_market_count ?? row.fr_ace_market_count ?? 0}
