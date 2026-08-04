@@ -360,8 +360,10 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
             away_team=AWAY,
             roster=ROSTER,
         )
-        self.assertEqual(us_map["points_player|clark|20.5"]["source"], "fanduel")
-        self.assertNotIn("Under", us_map["points_player|clark|20.5"]["outcomes"])
+        market = us_map["points_player|clark|20.5"]
+        self.assertEqual(market["outcomes"]["Over"]["us_source"], "fanduel")
+        self.assertIn("Under", market["outcomes"])
+        self.assertEqual(market["outcomes"]["Under"]["us_source"], "rotowire")
 
     def test_keeps_fanduel_when_pair_complete(self) -> None:
         complete_fd = {
@@ -379,12 +381,18 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
         }
         merged = overlay_us_reference_map(
             complete_fd,
-            rotowire_rows=[_rw_row("Caitlin Clark", "points_player", 20.5)],
+            # RW slightly worse on both sides → FanDuel wins both outcomes.
+            rotowire_rows=[
+                _rw_row("Caitlin Clark", "points_player", 20.5, over=-130, under=-120)
+            ],
             home_team=HOME,
             away_team=AWAY,
             roster=ROSTER,
         )
-        self.assertEqual(merged["points_player|clark|20.5"]["source"], "fanduel")
+        market = merged["points_player|clark|20.5"]
+        self.assertEqual(market["outcomes"]["Over"]["us_source"], "fanduel")
+        self.assertEqual(market["outcomes"]["Under"]["us_source"], "fanduel")
+        self.assertEqual(market["source"], "fanduel")
 
     def test_rotowire_fills_missing_key_entirely(self) -> None:
         fr_map = {

@@ -173,8 +173,15 @@ def build_fanduel_player_props_map(
                 if bundle.get("decimal_fr") is None:
                     continue
                 player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-                store_outcome(build_double_double_key(player_name), market_label, "Yes", bundle)
-                variant_map[build_double_double_key(player_name)]["player_name"] = player_name
+                store_outcome(
+                    build_double_double_key(player_name, roster=roster),
+                    market_label,
+                    "Yes",
+                    bundle,
+                )
+                variant_map[build_double_double_key(player_name, roster=roster)]["player_name"] = (
+                    player_name
+                )
             continue
 
         for _family, pattern in FD_TIER_MARKET_SPECS:
@@ -189,7 +196,7 @@ def build_fanduel_player_props_map(
                 if bundle.get("decimal_fr") is None:
                     continue
                 player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-                key = build_player_prop_key(_family, player_name, line)
+                key = build_player_prop_key(_family, player_name, line, roster=roster)
                 store_outcome(key, market_label, "Over", bundle)
                 variant_map[key]["player_name"] = player_name
             break
@@ -210,7 +217,7 @@ def build_rotowire_player_props_map(
         if not teams_match(home_team, away_team, row.home_team, row.away_team):
             continue
         player = resolve_roster_player(row.player_name, roster)
-        compare_key = build_player_prop_key(row.market_family, player, row.line)
+        compare_key = build_player_prop_key(row.market_family, player, row.line, roster=roster)
         over_decimal = american_to_decimal_fr(row.over_american)
         under_decimal = american_to_decimal_fr(row.under_american)
         if over_decimal is None or under_decimal is None:

@@ -19,6 +19,7 @@ def strip_accents(value: str) -> str:
 
 
 def player_token(name: str) -> str:
+    """Nom de famille seul (legacy). Preferer player_compare_token avec roster."""
     parts = re.split(r"[\s.]+", strip_accents(name))
     parts = [part for part in parts if part]
     if not parts:
@@ -26,6 +27,53 @@ def player_token(name: str) -> str:
     if len(parts) >= 2 and all(len(part) == 1 for part in parts[:-1]):
         return parts[-1]
     return parts[-1]
+
+
+def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
+    """Tokens stables ; si plusieurs joueuses partagent un nom de famille → initiale+nom."""
+    grouped: dict[str, list[str]] = {}
+    for raw_name in roster:
+        canonical = str(raw_name or "").strip()
+        if not canonical:
+            continue
+        last = player_token(canonical)
+        grouped.setdefault(last, []).append(canonical)
+
+    tokens: dict[str, str] = {}
+    for last, names in grouped.items():
+        unique_names = sorted(set(names), key=lambda item: strip_accents(item))
+        if len(unique_names) == 1:
+            tokens[unique_names[0]] = last
+            continue
+        for name in unique_names:
+            parts = re.split(r"[\s.]+", strip_accents(name))
+            parts = [part for part in parts if part]
+            prefix = parts[0][0] if parts else "x"
+            tokens[name] = f"{prefix}{last}"
+    return tokens
+
+
+def player_compare_token(name: str, roster: list[str] | None = None) -> str:
+    text = str(name or "").strip()
+    if not text:
+        return "player"
+    if not roster:
+        return player_token(text)
+    token_map = build_player_compare_tokens(roster)
+    resolved = resolve_roster_player(text, roster)
+    if resolved in token_map:
+        return token_map[resolved]
+    for roster_name, token in token_map.items():
+        if strip_accents(resolved) == strip_accents(roster_name):
+            return token
+        if players_match(resolved, roster_name) and _unique_roster_match(resolved, roster):
+            return token
+    return player_token(resolved)
+
+
+def _unique_roster_match(name: str, roster: list[str]) -> bool:
+    matches = [candidate for candidate in roster if players_match(name, candidate)]
+    return len(matches) == 1
 
 
 def is_player_prop_family(family: str) -> bool:
@@ -63,12 +111,22 @@ def parse_player_prop_key(compare_key: str) -> tuple[str, str, float | None]:
     return family, token, line
 
 
-def build_player_prop_key(family: str, player_name: str, line: str | float) -> str:
-    return f"{family}|{player_token(player_name)}|{format_numeric_line(line)}"
+def build_player_prop_key(
+    family: str,
+    player_name: str,
+    line: str | float,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    return f"{family}|{player_compare_token(player_name, roster)}|{format_numeric_line(line)}"
 
 
-def build_double_double_key(player_name: str) -> str:
-    return f"double_double_player|{player_token(player_name)}|0"
+def build_double_double_key(
+    player_name: str,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    return f"double_double_player|{player_compare_token(player_name, roster)}|0"
 
 
 def tier_threshold_to_ou_line(threshold: int | str) -> str:
@@ -143,12 +201,53 @@ def extract_fanduel_player_prop_line(market: dict[str, Any]) -> str | None:
 
 
 def resolve_roster_player(player_name: str, roster: list[str] | None) -> str:
-    if not roster:
-        return player_name.strip()
-    for candidate in roster:
-        if players_match(player_name, candidate):
-            return candidate
-    return player_name.strip()
+    """Resout un libelle vers un nom roster. Ne choisit pas au hasard si homonymes."""
+    text = str(player_name or "").strip()
+    if not text or not roster:
+        return text
+    exact = [
+        candidate
+        for candidate in roster
+        if strip_accents(text) == strip_accents(str(candidate).strip())
+    ]
+    if len(exact) == 1:
+        return exact[0]
+    fuzzy_matches = [
+        str(candidate).strip()
+        for candidate in roster
+        if players_match(text, candidate)
+    ]
+    # Dedup accents
+    seen: set[str] = set()
+    unique_fuzzy: list[str] = []
+    for candidate in fuzzy_matches:
+        key = strip_accents(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_fuzzy.append(candidate)
+    if len(unique_fuzzy) == 1:
+        return unique_fuzzy[0]
+    if len(unique_fuzzy) > 1:
+        text_parts = [part for part in re.split(r"[\s.]+", strip_accents(text)) if part]
+        if text_parts:
+            first = text_parts[0]
+            hinted = [
+                candidate
+                for candidate in unique_fuzzy
+                if first == strip_accents(candidate).split()[0]
+                or (
+                    len(first) == 1
+                    and strip_accents(candidate).split()
+                    and strip_accents(candidate).split()[0].startswith(first)
+                )
+                or first in strip_accents(candidate).split()
+            ]
+            if len(hinted) == 1:
+                return hinted[0]
+        # Ambigu : ne pas coller la premiere joueuse trouvee.
+        return text
+    return text
 
 
 def map_fanduel_market_to_compare_key(
@@ -167,7 +266,7 @@ def map_fanduel_market_to_compare_key(
         if not match:
             continue
         player_name = resolve_roster_player(match.group(1).strip(), roster)
-        return build_player_prop_key(family, player_name, line)
+        return build_player_prop_key(family, player_name, line, roster=roster)
     return None
 
 
@@ -203,7 +302,7 @@ def iter_fanduel_player_prop_slots(
             if runner.get("runnerStatus") not in (None, "ACTIVE"):
                 continue
             player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-            yield build_double_double_key(player_name), "Yes"
+            yield build_double_double_key(player_name, roster=roster), "Yes"
         return
 
     for family, pattern in FD_TIER_MARKET_SPECS:
@@ -215,5 +314,5 @@ def iter_fanduel_player_prop_slots(
             if runner.get("runnerStatus") not in (None, "ACTIVE"):
                 continue
             player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-            yield build_player_prop_key(family, player_name, line), "Over"
+            yield build_player_prop_key(family, player_name, line, roster=roster), "Over"
         return

@@ -139,16 +139,49 @@ def resolve_roster_player(name: str, roster: list[str]) -> str:
     text = normalize_player_display(name)
     if not text:
         return ""
-    for candidate in roster:
-        if players_match(text, candidate) or player_token(text) == player_token(candidate):
-            return candidate
-    from tennis_market_mapping import player_tokens
+    exact = [
+        candidate
+        for candidate in roster
+        if strip_accents(text).lower() == strip_accents(normalize_player_display(candidate)).lower()
+    ]
+    if len(exact) == 1:
+        return exact[0]
 
-    tokens = player_tokens(text)
+    fuzzy_matches: list[str] = []
+    seen: set[str] = set()
     for candidate in roster:
-        other = player_tokens(candidate)
-        if tokens & other:
-            return candidate
+        canon = normalize_player_display(candidate)
+        key = strip_accents(canon).lower()
+        if key in seen:
+            continue
+        if players_match(text, candidate) or (
+            player_token(text) and player_token(text) == player_token(candidate)
+        ):
+            seen.add(key)
+            fuzzy_matches.append(canon)
+    if len(fuzzy_matches) == 1:
+        return fuzzy_matches[0]
+    if len(fuzzy_matches) > 1:
+        text_parts = [
+            p
+            for p in re.split(r"[\s.]+", strip_accents(text).lower())
+            if p
+        ]
+        if text_parts:
+            first = text_parts[0]
+            hinted = [
+                candidate
+                for candidate in fuzzy_matches
+                if first == strip_accents(candidate).lower().split()[0]
+                or (
+                    len(first) == 1
+                    and strip_accents(candidate).lower().split()
+                    and strip_accents(candidate).lower().split()[0].startswith(first)
+                )
+            ]
+            if len(hinted) == 1:
+                return hinted[0]
+        return text
     return text
 
 

@@ -9,6 +9,7 @@ from typing import Iterable
 from basketball_market_mapping import (
     build_double_double_key,
     build_player_prop_key,
+    resolve_roster_player,
     strip_accents,
     tier_threshold_to_ou_line,
 )
@@ -19,7 +20,6 @@ from tennis_books_mapping import (
     normalize_ou_label,
     parse_french_number,
 )
-from tennis_market_mapping import players_match
 
 
 @dataclass(frozen=True)
@@ -326,10 +326,7 @@ is_basketball_player_prop_label = is_wnba_player_prop_label
 
 
 def match_player_name(label: str, roster: list[str]) -> str:
-    for name in roster:
-        if players_match(label, name):
-            return name
-    return label.strip()
+    return resolve_roster_player(label, roster)
 
 
 def normalized_market_to_dict(
@@ -380,7 +377,7 @@ def _normalize_winamax_double_double(
             continue
         player_name = match_player_name(str(raw).strip(), roster)
         market = build_market(
-            build_double_double_key(player_name),
+            build_double_double_key(player_name, roster=roster),
             "double_double_player",
             label.strip(),
             {"Yes": float(odds)},
@@ -418,7 +415,7 @@ def _normalize_label_pattern_market(
         if not outcome_map:
             return []
         market = build_market(
-            build_player_prop_key(pattern.family, player_name, line),
+            build_player_prop_key(pattern.family, player_name, line, roster=roster),
             pattern.family,
             raw_label,
             outcome_map,
@@ -456,7 +453,7 @@ def _normalize_outcome_player_ou_market(
     markets: list[NormalizedMarket] = []
     for (player_name, line), outcome_map in grouped.items():
         market = build_market(
-            build_player_prop_key(family, player_name, line),
+            build_player_prop_key(family, player_name, line, roster=roster),
             family,
             label,
             outcome_map,
@@ -499,7 +496,7 @@ def _normalize_outcome_player_tier_market(
         if not player_name:
             continue
         market = build_market(
-            build_player_prop_key(family, player_name, line),
+            build_player_prop_key(family, player_name, line, roster=roster),
             family,
             label,
             {"Over": float(odds)},
@@ -529,7 +526,7 @@ def _normalize_unibet_performance_market(
         player_name = match_player_name(match.group(1).strip(), roster)
         line = tier_threshold_to_ou_line(int(match.group(2)))
         market = build_market(
-            build_player_prop_key(family, player_name, line),
+            build_player_prop_key(family, player_name, line, roster=roster),
             family,
             label,
             {"Over": float(odds)},
@@ -596,7 +593,7 @@ def normalize_unibet_market(
         if not line_value:
             return []
         market = build_market(
-            build_player_prop_key(family, player_name, line_value),
+            build_player_prop_key(family, player_name, line_value, roster=roster),
             family,
             raw_label,
             outcome_map,
