@@ -23,6 +23,8 @@ from basketball_constants import BOOK_LABELS
 from basketball_schedule import (
     filter_nba_anchors_by_hours,
     filter_nba_listings_by_hours,
+    listing_matches_text_filter,
+    nba_schedule_empty_hint,
     normalize_nba_hours,
 )
 from book_urls import selection_id_for_normalized_outcome
@@ -865,6 +867,7 @@ def fetch_live_nba_listings(
     if not fanduel_events:
         warnings.append("FanDuel: aucun evenement NBA ou scrape indisponible.")
 
+    fanduel_before_schedule = list(fanduel_events)
     if schedule_hours is not None:
         window = normalize_nba_hours(schedule_hours)
         (
@@ -884,6 +887,14 @@ def fetch_live_nba_listings(
         if schedule_note:
             warnings.append(schedule_note)
             status(schedule_note)
+        if not fanduel_events:
+            empty_hint = nba_schedule_empty_hint(
+                fanduel_before_schedule,
+                hours=window,
+            )
+            if empty_hint:
+                warnings.append(empty_hint)
+                status(empty_hint)
 
     status(
         "Calendriers NBA — "
@@ -891,6 +902,64 @@ def fetch_live_nba_listings(
         f"Winamax {len(winamax_links)}, FanDuel {len(fanduel_events)}"
     )
     return unibet_events, betclic_links, winamax_links, fanduel_events, warnings
+
+
+def _anchor_matches_text_filter(anchor: dict[str, Any], needle: str) -> bool:
+    return listing_matches_text_filter(
+        str(anchor.get("home_team") or ""),
+        str(anchor.get("away_team") or ""),
+        needle,
+        extra=str(anchor.get("match") or ""),
+    )
+
+
+def _apply_match_filter_to_nba_listings(
+    match_filter: str,
+    *,
+    unibet_events: list[Any],
+    betclic_links: list[Any],
+    winamax_links: list[Any],
+    fanduel_events: list[Any],
+) -> tuple[list[Any], list[Any], list[Any], list[Any]]:
+    needle = match_filter.strip()
+    if not needle:
+        return unibet_events, betclic_links, winamax_links, fanduel_events
+    uni = [
+        event
+        for event in unibet_events
+        if listing_matches_text_filter(
+            event.home_team,
+            event.away_team,
+            needle,
+            extra=getattr(event, "name", ""),
+        )
+    ]
+    bet = [
+        link
+        for link in betclic_links
+        if listing_matches_text_filter(link.home_team, link.away_team, needle, extra=link.slug)
+    ]
+    wx = [
+        link
+        for link in winamax_links
+        if listing_matches_text_filter(
+            link.home_team,
+            link.away_team,
+            needle,
+            extra=getattr(link, "title", ""),
+        )
+    ]
+    fd = [
+        event
+        for event in fanduel_events
+        if listing_matches_text_filter(
+            event.home_team,
+            event.away_team,
+            needle,
+            extra=getattr(event, "name", ""),
+        )
+    ]
+    return uni, bet, wx, fd
 
 
 def attach_capture_times(
@@ -1137,6 +1206,14 @@ def run_compare(
     unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_listings(
         **listing_kwargs,
     )
+    if league == "nba" and match_filter.strip():
+        unibet_events, betclic_links, winamax_links, fanduel_events = _apply_match_filter_to_nba_listings(
+            match_filter,
+            unibet_events=unibet_events,
+            betclic_links=betclic_links,
+            winamax_links=winamax_links,
+            fanduel_events=fanduel_events,
+        )
     rotowire_rows, rotowire_scraped_at = _safe_call(
         "RotoWire",
         rotowire.fetch_draftkings_prop_rows,
@@ -1164,8 +1241,7 @@ def run_compare(
             teams_match=teams_match,
         )
     if match_filter:
-        needle = match_filter.strip().lower()
-        anchors = [anchor for anchor in anchors if needle in anchor["match"].lower()]
+        anchors = [anchor for anchor in anchors if _anchor_matches_text_filter(anchor, match_filter)]
 
     results = [
         compare_anchor(
@@ -1244,6 +1320,14 @@ def run_live_compare(
     unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_listings(
         **listing_kwargs,
     )
+    if league == "nba" and match_filter.strip():
+        unibet_events, betclic_links, winamax_links, fanduel_events = _apply_match_filter_to_nba_listings(
+            match_filter,
+            unibet_events=unibet_events,
+            betclic_links=betclic_links,
+            winamax_links=winamax_links,
+            fanduel_events=fanduel_events,
+        )
     rotowire_rows, rotowire_scraped_at = _safe_call(
         "RotoWire",
         rotowire.fetch_draftkings_prop_rows,
@@ -1272,14 +1356,16 @@ def run_live_compare(
             teams_match=teams_match,
         )
     if match_filter:
-        needle = match_filter.strip().lower()
-        anchors = [anchor for anchor in anchors if needle in anchor["match"].lower()]
+        anchors = [anchor for anchor in anchors if _anchor_matches_text_filter(anchor, match_filter)]
 
     anchors_total = len(anchors)
+    listing_message = f"{anchors_total} match(s) {league_label} — resultats au fil de l'eau..."
+    if anchors_total == 0 and book_warnings:
+        listing_message = book_warnings[-1]
     write_run_status_file(
         status_json,
         "running",
-        f"{anchors_total} match(s) {league_label} — resultats au fil de l'eau...",
+        listing_message,
         match_filter=match_filter,
         anchors_total=anchors_total,
         sport=league,

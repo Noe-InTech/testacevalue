@@ -20,6 +20,7 @@ def _teams_match(home_a: str, away_a: str, home_b: str, away_b: str) -> bool:
 class BasketballScheduleTests(unittest.TestCase):
     def test_normalize_nba_hours(self) -> None:
         self.assertEqual(normalize_nba_hours(None), 12)
+        self.assertEqual(normalize_nba_hours(8), 8)
         self.assertEqual(normalize_nba_hours(24), 24)
         self.assertEqual(normalize_nba_hours(99), 12)
 

@@ -155,8 +155,11 @@ export function filterWnbaRows(
     if (book !== "Tous" && row.bookmaker_fr && row.bookmaker_fr !== book) {
       return false;
     }
-    if (matchNeedle && !row.match.toLowerCase().includes(matchNeedle)) {
-      return false;
+    if (matchNeedle) {
+      const matchHaystack = [row.match, row.player_name].filter(Boolean).join(" ").toLowerCase();
+      if (!matchHaystack.includes(matchNeedle)) {
+        return false;
+      }
     }
     if (!needle) {
       return true;

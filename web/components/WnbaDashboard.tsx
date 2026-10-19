@@ -170,7 +170,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const cfg = leagueConfig(league);
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
-  const [nbaScheduleHours, setNbaScheduleHours] = useState<12 | 24 | 48>(12);
+  const [nbaScheduleHours, setNbaScheduleHours] = useState<8 | 12 | 24 | 48>(24);
   const [competitions, setCompetitions] = useState<
     Array<{ id: string; name: string; event_count?: number }>
   >([]);
@@ -747,7 +747,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           <fieldset className="nba-schedule-fieldset">
             <legend>Fenêtre horaire — matchs à inclure</legend>
             <div className="nba-schedule-options" role="radiogroup" aria-label="Fenêtre horaire NBA">
-              {([12, 24, 48] as const).map((hours) => (
+              {([8, 12, 24, 48] as const).map((hours) => (
                 <label key={hours} className="nba-schedule-option">
                   <input
                     type="radio"
@@ -761,7 +761,10 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                 </label>
               ))}
             </div>
-            <p className="hint">Par défaut 12 h — coche 24 h ou 48 h pour élargir le calendrier scrapé.</p>
+            <p className="hint">
+              Recommandé 24 h en semaine NBA. 8 h / 12 h seulement si un match commence très bientôt
+              (sinon 0 match).
+            </p>
           </fieldset>
         ) : null}
         <label>
@@ -776,7 +779,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                   ? "équipe ou ligue (MLS, Ligue 1, Eliteserien...)"
                   : league === "baseball"
                     ? "équipe ou ligue (MLB, KBO, NPB...)"
-                    : "dream, lynx, gray..."
+                    : league === "nba"
+                      ? "pistons, celtics, lakers, knicks..."
+                      : "dream, lynx, gray..."
               }
             />
             {supportsCompetitionPicker ? (
@@ -878,7 +883,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
             type="search"
             value={displayMatchFilter}
             onChange={(event) => setDisplayMatchFilter(event.target.value)}
-            placeholder="dream, sparks, gray..."
+            placeholder={
+              league === "nba" ? "pistons, celtics, tatum..." : "dream, sparks, gray..."
+            }
           />
         </label>
 

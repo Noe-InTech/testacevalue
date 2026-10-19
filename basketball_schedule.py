@@ -1,9 +1,11 @@
-"""Fenêtre horaire NBA (12 / 24 / 48 h) — filtre calendriers et ancres."""
+"""Fenêtre horaire NBA (8 / 12 / 24 / 48 h) — filtre calendriers et ancres."""
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
+
+NBA_SCHEDULE_HOUR_OPTIONS = (8, 12, 24, 48)
 
 
 def normalize_nba_hours(raw: Any) -> int:
@@ -13,7 +15,74 @@ def normalize_nba_hours(raw: Any) -> int:
         hours = int(raw)
     except (TypeError, ValueError):
         return 12
-    return hours if hours in (12, 24, 48) else 12
+    return hours if hours in NBA_SCHEDULE_HOUR_OPTIONS else 12
+
+
+def listing_matches_text_filter(
+    home: str,
+    away: str,
+    needle: str,
+    *,
+    extra: str = "",
+) -> bool:
+    text = str(needle or "").strip().lower()
+    if not text:
+        return True
+    blob = f"{home} {away} {extra}".lower()
+    return text in blob
+
+
+def nba_schedule_empty_hint(
+    fanduel_events: list[Any],
+    *,
+    hours: int,
+    now: datetime | None = None,
+) -> str | None:
+    """Message utile quand la fenêtre horaire ne retient aucun match FanDuel."""
+    if not fanduel_events:
+        return "FanDuel: aucun match NBA listé (hors saison ou scrape vide)."
+    window = normalize_nba_hours(hours)
+    now_dt = now or datetime.now(timezone.utc)
+    in_window = [
+        event
+        for event in fanduel_events
+        if _within_window(
+            parse_basketball_start(getattr(event, "open_date", "")),
+            now=now_dt,
+            end=now_dt + timedelta(hours=window),
+        )
+    ]
+    if in_window:
+        return None
+    in_48 = [
+        event
+        for event in fanduel_events
+        if _within_window(
+            parse_basketball_start(getattr(event, "open_date", "")),
+            now=now_dt,
+            end=now_dt + timedelta(hours=48),
+        )
+    ]
+    dated: list[tuple[datetime, Any]] = []
+    for event in fanduel_events:
+        start = parse_basketball_start(getattr(event, "open_date", ""))
+        if start and start >= now_dt:
+            dated.append((start, event))
+    dated.sort(key=lambda item: item[0])
+    next_line = ""
+    if dated:
+        start, event = dated[0]
+        delta_h = (start - now_dt).total_seconds() / 3600.0
+        next_line = (
+            f" Prochain: {getattr(event, 'name', '')} dans ~{delta_h:.0f}h "
+            f"({start.strftime('%Y-%m-%d %H:%M')} UTC)."
+        )
+    if in_48:
+        return (
+            f"Aucun match NBA dans les {window}h.{next_line} "
+            f"{len(in_48)} match(s) FanDuel dans les 48h — choisis 24h ou 48h."
+        )
+    return f"Aucun match NBA à venir dans les 48h.{next_line}"
 
 
 def parse_basketball_start(raw: Any) -> datetime | None:
