@@ -743,6 +743,27 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
             autoComplete="current-password"
           />
         </label>
+        {league === "nba" ? (
+          <fieldset className="nba-schedule-fieldset">
+            <legend>Fenêtre horaire — matchs à inclure</legend>
+            <div className="nba-schedule-options" role="radiogroup" aria-label="Fenêtre horaire NBA">
+              {([12, 24, 48] as const).map((hours) => (
+                <label key={hours} className="nba-schedule-option">
+                  <input
+                    type="radio"
+                    name="nba-schedule-hours"
+                    value={hours}
+                    checked={nbaScheduleHours === hours}
+                    onChange={() => setNbaScheduleHours(hours)}
+                    disabled={busy}
+                  />
+                  <span>{hours} prochaines heures</span>
+                </label>
+              ))}
+            </div>
+            <p className="hint">Par défaut 12 h — coche 24 h ou 48 h pour élargir le calendrier scrapé.</p>
+          </fieldset>
+        ) : null}
         <label>
           Filtre match / ligue au lancement (optionnel)
           <div className={supportsCompetitionPicker ? "launch-filter-row" : undefined}>
@@ -806,24 +827,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                 </div>
               </>
             ) : null}
-          </div>
-        ) : null}
-        {league === "nba" ? (
-          <div className="schedule-window" role="group" aria-label="Fenetre horaire NBA">
-            <span className="schedule-window-label">Matchs dans les</span>
-            <div className="filter-chips">
-              {([12, 24, 48] as const).map((hours) => (
-                <button
-                  key={hours}
-                  type="button"
-                  className={`filter-chip${nbaScheduleHours === hours ? " active" : ""}`}
-                  onClick={() => setNbaScheduleHours(hours)}
-                  disabled={busy}
-                >
-                  {hours} h
-                </button>
-              ))}
-            </div>
           </div>
         ) : null}
         <button type="button" onClick={onSubmit} disabled={busy}>
