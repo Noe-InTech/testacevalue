@@ -9,6 +9,7 @@ from typing import Iterable
 from basketball_market_mapping import (
     build_double_double_key,
     build_player_prop_key,
+    build_player_tier_prop_key,
     resolve_roster_player,
     strip_accents,
     tier_threshold_to_ou_line,
@@ -307,6 +308,13 @@ UNIBET_OU_SPECS: tuple[tuple[str, re.Pattern[str]], ...] = (
 
 UNIBET_PERFORMANCE_LABELS: dict[str, str] = {
     "performance joueur-point(s) - match": "points_player",
+    "performance joueur points - match": "points_player",
+    "performance joueur - rebonds - match": "rebounds_player",
+    "performance joueur - passes decisives - match": "assists_player",
+    "performance joueur - panier a 3pts - match": "threes_made_player",
+    "performance joueur - paniers a 3pts - match": "threes_made_player",
+    "performance joueur - contres - match": "blocks_player",
+    "performance joueur - interceptions - match": "steals_player",
     "nbre de rebonds - joueur - match": "rebounds_player",
     "nbre de passes decisives - joueur - match": "assists_player",
     "paniers a 3 pts reussis - joueur - match": "threes_made_player",
@@ -546,11 +554,17 @@ def _normalize_outcome_player_tier_market(
                 line = format_line(parse_french_number(line_match.group(1)) or line_match.group(1))
             else:
                 player_name = match_player_name(tier_match.group(1).strip(), roster)
-                line = tier_threshold_to_ou_line(int(tier_match.group(2)))
+                threshold = int(tier_match.group(2))
+                line = f"+{threshold}"
         if not player_name:
             continue
+        compare_key = (
+            build_player_tier_prop_key(family, player_name, line[1:], roster=roster)
+            if str(line).startswith("+")
+            else build_player_prop_key(family, player_name, line, roster=roster)
+        )
         market = build_market(
-            build_player_prop_key(family, player_name, line, roster=roster),
+            compare_key,
             family,
             label,
             {"Over": float(odds)},
@@ -578,9 +592,10 @@ def _normalize_unibet_performance_market(
         if not match:
             continue
         player_name = match_player_name(match.group(1).strip(), roster)
-        line = tier_threshold_to_ou_line(int(match.group(2)))
+        threshold = int(match.group(2))
+        line = f"+{threshold}"
         market = build_market(
-            build_player_prop_key(family, player_name, line, roster=roster),
+            build_player_tier_prop_key(family, player_name, threshold, roster=roster),
             family,
             label,
             {"Over": float(odds)},

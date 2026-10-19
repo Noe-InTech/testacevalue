@@ -172,6 +172,8 @@ export function filterWnbaRows(
       row.ligne_props_fr,
       row.issue_fr,
       row.meilleur_cote,
+      row.compare_key,
+      row.player_name,
     ]
       .filter(Boolean)
       .join(" ")

@@ -217,6 +217,9 @@ class UnibetBasketballClient(UnibetClient):
             "nbre de passes",
             "paniers a 3 pts reussis - joueur",
             "performance du joueur",
+            "nbre de contres - joueur",
+            "nbre d'interceptions - joueur",
+            "nbre d interceptions - joueur",
         )
         return any(marker in lower for marker in markers)
 

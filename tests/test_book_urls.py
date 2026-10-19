@@ -109,6 +109,48 @@ class BookUrlTests(unittest.TestCase):
         )
         self.assertEqual(sid_under, "222")
 
+    def test_selection_id_ou_before_player_tier(self) -> None:
+        sid = selection_id_for_normalized_outcome(
+            normalized_outcome="Over",
+            raw_outcomes=[
+                ("Plus de 2,5", 1.72),
+                ("Moins de 2,5", 1.72),
+                ("Duncan Robinson 3+", 1.64),
+            ],
+            selection_ids={
+                "Plus de 2,5": "bet:odd1",
+                "Moins de 2,5": "bet:odd2",
+                "Duncan Robinson 3+": "999",
+            },
+            player_name="Duncan Robinson",
+            line="2.5",
+        )
+        self.assertEqual(sid, "bet:odd1")
+
+    def test_selection_id_tier_from_ou_line(self) -> None:
+        sid = selection_id_for_normalized_outcome(
+            normalized_outcome="Over",
+            raw_outcomes=[("Duncan Robinson 3+", 1.64), ("Duncan Robinson 4+", 2.2)],
+            selection_ids={"Duncan Robinson 3+": "aaa", "Duncan Robinson 4+": "bbb"},
+            player_name="Duncan Robinson",
+            line="+3",
+        )
+        self.assertEqual(sid, "aaa")
+
+    def test_attach_fr_book_urls_row_fallback(self) -> None:
+        rows = [
+            {
+                "bookmaker_fr": "Winamax",
+                "selection_id": "10:20",
+                "fr_book_url": "https://www.winamax.fr/paris-sportifs/match/99",
+                "fr_book_match_id": "99",
+            }
+        ]
+        attach_fr_book_urls(rows, urls={}, book_events={}, resolve_betclic_share=False)
+        self.assertEqual(rows[0]["url_fr_kind"], "selection")
+        self.assertIn("/go/winamax?", rows[0]["url_fr"])
+        self.assertIn("match=99", rows[0]["url_fr"])
+
     def test_selection_id_for_yes_player_prop(self) -> None:
         """Baseball/soccer: raw outcomes are player names, normalized issue is Yes."""
         sid = selection_id_for_normalized_outcome(

@@ -168,6 +168,20 @@ def _tier_suffix(label: str) -> str:
     return match.group(1) if match else ""
 
 
+def _tier_threshold_from_ou_line(line: str) -> str:
+    """Inverse de tier_threshold_to_ou_line (ex. ligne 2.5 → palier 3+, ou +4 → 4)."""
+    text = str(line or "").strip()
+    if text.startswith("+"):
+        return text[1:].split(".")[0] or ""
+    text = text.replace(",", ".")
+    if not text:
+        return ""
+    try:
+        return str(int(float(text) + 0.5))
+    except ValueError:
+        return ""
+
+
 def _pick_player_selection_id(
     *,
     player: str,
@@ -196,6 +210,10 @@ def _pick_player_selection_id(
     if has_tiers:
         # Empty line means the base threshold (1+) on Unibet HR boards.
         wanted = str(line or "").strip() or "1"
+        tier_from_line = _tier_threshold_from_ou_line(line) if line else ""
+        for _raw, sid, tier in tiered:
+            if tier_from_line and tier == tier_from_line:
+                return sid
         for _raw, sid, tier in tiered:
             if tier == wanted:
                 return sid
@@ -226,8 +244,18 @@ def selection_id_for_normalized_outcome(
     if not target:
         return ""
 
-    # 0) Player-prop markets where raw outcomes are player names (baseball runs/HR, soccer…)
-    #    and the normalized issue is Yes/Oui for that player.
+    # 1) Match O/U (prioritaire sur les props joueur Plus/Moins et paliers Unibet)
+    if target in {"Over", "Under"}:
+        for raw, _odds in raw_outcomes:
+            if normalize_ou_label(raw) == target and raw in ids:
+                return ids[raw]
+            lower = strip_accents(raw)
+            if target == "Over" and ("plus" in lower or lower.startswith("+")) and raw in ids:
+                return ids[raw]
+            if target == "Under" and ("moins" in lower or lower.startswith("-")) and raw in ids:
+                return ids[raw]
+
+    # 0) Player-prop Yes / paliers (baseball HR, Unibet « Joueur 3+ », etc.)
     player = str(player_name or "").strip()
     if player:
         sid = _pick_player_selection_id(
@@ -238,17 +266,6 @@ def selection_id_for_normalized_outcome(
         )
         if sid:
             return sid
-
-    # 1) Match O/U
-    if target in {"Over", "Under"}:
-        for raw, _odds in raw_outcomes:
-            if normalize_ou_label(raw) == target and raw in ids:
-                return ids[raw]
-            lower = strip_accents(raw)
-            if target == "Over" and ("plus" in lower or lower.startswith("+")) and raw in ids:
-                return ids[raw]
-            if target == "Under" and ("moins" in lower or lower.startswith("-")) and raw in ids:
-                return ids[raw]
 
     # 2) Yes/No ↔ Oui/Non (+ single-selection markets)
     yes_aliases = {"yes", "oui", "o", "y"}
@@ -370,12 +387,19 @@ def attach_fr_book_urls(
         bookmaker = row.get("bookmaker_fr") or row.get("best_fr_bookmaker") or ""
         key = bookmaker_to_key(str(bookmaker))
         match_url = resolve_fr_book_url(str(bookmaker), urls=urls, book_events=book_events)
+        if not match_url and urls and key:
+            match_url = str(urls.get(key) or "").strip()
+        if not match_url:
+            match_url = str(row.get("fr_book_url") or row.get("book_url") or "").strip()
         selection_id = str(row.get("selection_id") or "").strip()
-        match_id = ""
+        match_id = str(row.get("fr_book_match_id") or row.get("book_match_id") or "").strip()
         if book_events and key:
             event = book_events.get(key) or {}
             if isinstance(event, dict):
-                match_id = str(event.get("match_id") or "").strip()
+                if not match_id:
+                    match_id = str(event.get("match_id") or event.get("event_id") or "").strip()
+                if not match_url:
+                    match_url = str(event.get("url") or "").strip()
         if not match_id:
             match_id = match_id_from_book_url(str(bookmaker), match_url)
         deep_url = build_fr_book_url(

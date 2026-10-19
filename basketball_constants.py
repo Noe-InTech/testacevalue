@@ -14,8 +14,17 @@ FANDUEL_NBA_COMPETITION_IDS = (
 )
 FANDUEL_NBA_COMPETITION_ID = FANDUEL_NBA_REGULAR_SEASON_COMPETITION_ID
 FANDUEL_NBA_CONTENT_PAGE = "nba"
+# FanDuel NBA/WNBA: les « Alt Points/Rebounds/… » par joueur sont sur player-* (pas player-props).
 FANDUEL_WNBA_EVENT_TABS = (
     "popular",
+    "player-points",
+    "player-rebounds",
+    "player-assists",
+    "player-threes",
+    "player-combos",
+    "player-blocks",
+    "player-steals",
+    "player-turnovers",
     "all-markets",
     "player-props",
     "same-game-parlay-",

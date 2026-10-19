@@ -32,7 +32,9 @@ from basketball_market_mapping import (
     align_fr_outcome_to_fanduel,
     build_double_double_key,
     build_player_prop_key,
+    build_player_tier_prop_key,
     fanduel_player_prop_runner_outcome,
+    is_full_game_fanduel_prop_market,
     is_comparable_player_prop_key,
     map_fanduel_market_to_compare_key,
     resolve_roster_player,
@@ -119,6 +121,10 @@ def build_best_fr_player_props_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "fr_book_url": str(event.get("url") or ""),
+                            "fr_book_match_id": str(
+                                event.get("match_id") or event.get("event_id") or ""
+                            ),
                             "selection_id": selection_id_for_normalized_outcome(
                                 normalized_outcome=str(outcome),
                                 raw_outcomes=outcomes,
@@ -206,7 +212,9 @@ def build_fanduel_player_props_map(
             match = pattern.search(market_label)
             if not match:
                 continue
-            line = tier_threshold_to_ou_line(match.group(1))
+            if not is_full_game_fanduel_prop_market(market_label):
+                continue
+            threshold = int(match.group(1))
             for runner in market.get("runners", []):
                 if runner.get("runnerStatus") not in (None, "ACTIVE"):
                     continue
@@ -214,7 +222,7 @@ def build_fanduel_player_props_map(
                 if bundle.get("decimal_fr") is None:
                     continue
                 player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-                key = build_player_prop_key(_family, player_name, line, roster=roster)
+                key = build_player_tier_prop_key(_family, player_name, threshold, roster=roster)
                 store_outcome(key, market_label, "Over", bundle)
                 variant_map[key]["player_name"] = player_name
             break
@@ -460,7 +468,8 @@ def format_ligne_props_fr(row: dict[str, Any]) -> str:
     parts = compare_key.split("|")
     family = parts[0] if parts else ""
     player = str(row.get("player_name") or (parts[1].replace("_", " ").title() if len(parts) >= 2 else ""))
-    line = parts[2].replace(".", ",") if len(parts) >= 3 else ""
+    line_raw = parts[2] if len(parts) >= 3 else ""
+    line = line_raw.replace(".", ",") if line_raw and not line_raw.startswith("+") else line_raw
     issue = str(row.get("outcome", ""))
     if issue in {"Over", "Under"}:
         issue = "Plus" if issue == "Over" else "Moins"
@@ -483,6 +492,8 @@ def format_ligne_props_fr(row: dict[str, Any]) -> str:
     stat = labels.get(family, family)
     if family == "double_double_player" and player:
         return f"{issue} double-double — {player}"
+    if player and line_raw.startswith("+"):
+        return f"{issue} {line_raw[1:]}+ {stat} — {player}"
     if player and line:
         return f"{issue} de {line} {stat} — {player}"
     return str(row.get("fr_market_label") or compare_key)
@@ -515,6 +526,8 @@ def compare_normalized_props(
                     "fanduel_market_label": fd_market.get("market_label", ""),
                     "best_fr_odds": fr_payload["odds"],
                     "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                    "fr_book_url": fr_payload.get("fr_book_url", ""),
+                    "fr_book_match_id": fr_payload.get("fr_book_match_id", ""),
                     "selection_id": fr_payload.get("selection_id", ""),
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
@@ -553,65 +566,41 @@ def discover_anchors(
     winamax_links: list[Any],
     fanduel_events: list[Any],
 ) -> list[dict[str, Any]]:
-    anchors: dict[str, dict[str, Any]] = {}
-
-    def anchor_key(home: str, away: str) -> str:
-        return f"{home.lower()}|{away.lower()}"
-
+    from basketball_anchor import attach_basketball_anchor
     from match_live import event_is_live, mark_anchor_live
 
-    def ensure_anchor(home: str, away: str) -> dict[str, Any]:
-        key = anchor_key(home, away)
-        if key not in anchors:
-            anchors[key] = {
-                "home_team": home,
-                "away_team": away,
-                "match": f"{home} vs {away}",
-                "sources": set(),
-                "urls": {},
-                "unibet_event_id": None,
-                "betclic_match_id": None,
-                "winamax_match_id": None,
-                "fanduel_event_id": None,
-                "is_live": False,
-            }
-        return anchors[key]
+    anchors: dict[str, dict[str, Any]] = {}
+
+    def attach(home: str, away: str) -> dict[str, Any]:
+        return attach_basketball_anchor(
+            anchors,
+            home,
+            away,
+            teams_match=teams_match,
+        )
 
     for event in unibet_events:
-        anchor = ensure_anchor(event.home_team, event.away_team)
+        anchor = attach(event.home_team, event.away_team)
         anchor["sources"].add("unibet")
         anchor["urls"]["unibet"] = event.url
         anchor["unibet_event_id"] = event.event_id
         mark_anchor_live(anchor, event_is_live(url=getattr(event, "url", "")))
 
     for link in betclic_links:
-        anchor = ensure_anchor(link.home_team, link.away_team)
+        anchor = attach(link.home_team, link.away_team)
         anchor["sources"].add("betclic")
         anchor["urls"]["betclic"] = link.url
         anchor["betclic_match_id"] = link.match_id
 
     for link in winamax_links:
-        anchor = ensure_anchor(link.home_team, link.away_team)
+        anchor = attach(link.home_team, link.away_team)
         anchor["sources"].add("winamax")
         anchor["urls"]["winamax"] = link.url
         anchor["winamax_match_id"] = link.match_id
         mark_anchor_live(anchor, event_is_live(status=getattr(link, "status", "")))
 
     for event in fanduel_events:
-        matched_key = None
-        for key, anchor in anchors.items():
-            if teams_match(
-                anchor["home_team"],
-                anchor["away_team"],
-                event.home_team,
-                event.away_team,
-            ):
-                matched_key = key
-                break
-        if matched_key is None:
-            anchor = ensure_anchor(event.home_team, event.away_team)
-            matched_key = anchor_key(event.home_team, event.away_team)
-        anchor = anchors[matched_key]
+        anchor = attach(event.home_team, event.away_team)
         anchor["sources"].add("fanduel")
         anchor["fanduel_event_id"] = event.event_id
 

@@ -106,7 +106,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Allisha Gray 25+", 2.55)],
             ["Allisha Gray"],
         )
-        self.assertEqual(markets[0].compare_key, "points_player|gray|24.5")
+        self.assertEqual(markets[0].compare_key, "points_player|gray|+25")
         self.assertEqual(markets[0].outcomes[0].label, "Over")
 
     def test_normalize_winamax_pra_shorthand(self) -> None:

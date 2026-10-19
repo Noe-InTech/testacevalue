@@ -169,6 +169,32 @@ def build_player_prop_key(
     return f"{family}|{player_compare_token(player_name, roster)}|{format_numeric_line(line)}"
 
 
+def build_player_tier_prop_key(
+    family: str,
+    player_name: str,
+    threshold: int | str,
+    *,
+    roster: list[str] | None = None,
+) -> str:
+    """Paliers type Unibet « 4+ » / FanDuel « To Record 4+ » (pas une ligne O/U 3,5)."""
+    tier = int(threshold)
+    return f"{family}|{player_compare_token(player_name, roster)}|+{tier}"
+
+
+def is_tier_prop_line(line: str | float | None) -> bool:
+    return str(line or "").strip().startswith("+")
+
+
+def tier_prop_line_threshold(line: str | float | None) -> int | None:
+    text = str(line or "").strip()
+    if not text.startswith("+"):
+        return None
+    try:
+        return int(text[1:])
+    except ValueError:
+        return None
+
+
 def build_double_double_key(
     player_name: str,
     *,
@@ -235,6 +261,24 @@ FD_TIER_MARKET_SPECS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("blocks_player", re.compile(r"^to record (\d+)\+ blocks$", re.I)),
     ("steals_player", re.compile(r"^to record (\d+)\+ steals$", re.I)),
 )
+
+
+def is_full_game_fanduel_prop_market(market_name: str) -> bool:
+    lower = strip_accents(str(market_name or ""))
+    if not lower:
+        return False
+    period_markers = (
+        "quarter",
+        "qtr",
+        "1st",
+        "2nd",
+        "3rd",
+        "4th",
+        "mi-temps",
+        "half",
+        "period",
+    )
+    return not any(marker in lower for marker in period_markers)
 
 
 def is_fanduel_ou_player_prop_market_name(market_name: str) -> bool:
@@ -382,10 +426,12 @@ def iter_fanduel_player_prop_slots(
         match = pattern.search(name)
         if not match:
             continue
-        line = tier_threshold_to_ou_line(match.group(1))
+        if not is_full_game_fanduel_prop_market(name):
+            continue
+        threshold = int(match.group(1))
         for runner in market.get("runners", []):
             if runner.get("runnerStatus") not in (None, "ACTIVE"):
                 continue
             player_name = resolve_roster_player(str(runner.get("runnerName", "")).strip(), roster)
-            yield build_player_prop_key(family, player_name, line, roster=roster), "Over"
+            yield build_player_tier_prop_key(family, player_name, threshold, roster=roster), "Over"
         return
