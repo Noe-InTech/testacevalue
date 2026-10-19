@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from book_urls import attach_fr_book_urls, selection_id_for_normalized_outcome
 from fanduel_client import (
     format_american_moneyline,
     format_french_decimal,
@@ -124,7 +125,9 @@ def build_best_fr_victoires_map(
             if not label or not is_victoire_market_label(label):
                 continue
             pair: dict[str, dict[str, Any]] = {}
-            for raw, odds in market.get("outcomes") or []:
+            outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes") or []]
+            selection_ids = market.get("selection_ids") or {}
+            for raw, odds in outcomes:
                 if odds is None:
                     continue
                 aligned = _align_h2h_outcome(str(raw), home, away)
@@ -141,6 +144,13 @@ def build_best_fr_victoires_map(
                         "bookmaker": bookmaker,
                         "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                         "raw_outcome": str(raw),
+                        "selection_id": selection_id_for_normalized_outcome(
+                            normalized_outcome=str(raw),
+                            raw_outcomes=outcomes,
+                            selection_ids=selection_ids,
+                            home=home,
+                            away=away,
+                        ),
                     }
             # Un cote orphelin (1 seul joueur aligne) = mauvais match scrape → ignorer.
             if home not in pair or away not in pair:
@@ -236,6 +246,7 @@ def compare_normalized_victoires(
                     "line_delta": 0.0,
                     "best_fr_odds": float(fr_payload["odds"]),
                     "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                    "selection_id": fr_payload.get("selection_id", ""),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_decimal_fr": float(fd_bundle["decimal_fr"]),
@@ -323,6 +334,7 @@ def collect_fr_only_victoires(
             "fanduel_market_label": "",
             "best_fr_odds": float(fr_payload["odds"]),
             "best_fr_bookmaker": fr_payload["bookmaker_label"],
+            "selection_id": fr_payload.get("selection_id", ""),
             "cote_fr": format_french_decimal(float(fr_payload["odds"])),
             "bookmaker_fr": fr_payload["bookmaker_label"],
             "cote_us_fanduel_ml": "",
@@ -394,8 +406,20 @@ def attach_victoires_to_anchor_result(
     fr_only = collect_fr_only_victoires(fr_map, fd_map)
     fd_only = collect_fd_only_victoires(fr_map, fd_map)
     match_name = compared.get("match", "")
+    is_live = bool(compared.get("is_live"))
     for row in comparable + fr_only + fd_only:
         row["match"] = match_name
+        row["is_live"] = is_live
+    attach_fr_book_urls(
+        comparable,
+        urls=compared.get("urls") or {},
+        book_events=book_events,
+    )
+    attach_fr_book_urls(
+        fr_only,
+        urls=compared.get("urls") or {},
+        book_events=book_events,
+    )
     compared["comparable_victoire_count"] = len(comparable)
     compared["comparable_victoires"] = comparable
     compared["fr_only_victoire_count"] = len(fr_only)
@@ -425,6 +449,7 @@ def build_victoires_section_payload(
         match_progress.append(
             {
                 "match": result.get("match", ""),
+                "is_live": bool(result.get("is_live")),
                 "comparable_count": int(result.get("comparable_victoire_count", 0)),
                 "fr_only_count": int(result.get("fr_only_victoire_count", 0)),
                 "fd_only_count": int(result.get("fd_only_victoire_count", 0)),

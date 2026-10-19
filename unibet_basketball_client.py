@@ -138,7 +138,9 @@ class UnibetBasketballClient(UnibetClient):
     def extract_basketball_player_markets_from_html(self, html: str) -> list[UnibetMarket]:
         grouped: dict[str, dict[str, UnibetOutcome]] = defaultdict(dict)
 
-        for market_desc, description, odds in self._iter_embedded_outcome_blocks(html):
+        for market_desc, description, odds, selection_id in self._iter_embedded_outcome_blocks(
+            html
+        ):
             lower = self._strip_html(market_desc).lower()
             if not self._is_player_market_desc(lower):
                 continue
@@ -146,18 +148,20 @@ class UnibetBasketballClient(UnibetClient):
                 continue
 
             label = description.strip()
+            outcome = UnibetOutcome(label=label, odds=odds, selection_id=selection_id)
             if re.search(r"\d+\+$", label):
-                grouped[market_desc][label] = UnibetOutcome(label=label, odds=odds)
+                grouped[market_desc][label] = outcome
                 continue
             if not re.search(r"[\d.,]", label):
                 continue
-            grouped[market_desc][label] = UnibetOutcome(label=label, odds=odds)
+            grouped[market_desc][label] = outcome
 
-        return [
+        markets = [
             UnibetMarket(label=market_desc, outcomes=tuple(outcome_map.values()))
             for market_desc, outcome_map in grouped.items()
             if outcome_map
         ]
+        return self._attach_selection_ids(markets, self.extract_selection_catalog(html))
 
     def _iter_embedded_outcome_blocks(
         self,
@@ -173,7 +177,13 @@ class UnibetBasketballClient(UnibetClient):
             spread_raw = self._extract_json_number(block, "spread")
             if spread_raw is not None and re.match(r"^(?:Plus|Moins)$", description.strip(), flags=re.I):
                 description = f"{description.strip()} {spread_raw}"
-            yield market_desc.strip(), description.strip(), odds
+            selection_id = self._extract_json_id(block)
+            yield market_desc.strip(), description.strip(), odds, selection_id
+
+    @staticmethod
+    def _extract_json_id(block: str) -> str:
+        field = re.search(r'"id":(\d+)', block)
+        return field.group(1) if field else ""
 
     @staticmethod
     def _extract_json_string(block: str, key: str) -> str | None:
@@ -299,10 +309,7 @@ class UnibetBasketballClient(UnibetClient):
             "competition": event.competition,
             "roster": roster,
             "market_count": len(markets),
-            "markets": [
-                {"label": market.label, "outcomes": [(o.label, o.odds) for o in market.outcomes]}
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }
 
     @staticmethod

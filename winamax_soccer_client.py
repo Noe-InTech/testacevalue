@@ -84,8 +84,5 @@ class WinamaxSoccerClient(WinamaxClient):
             "away_team": link.away_team,
             "start_date": link.start_date,
             "competition": link.competition,
-            "markets": [
-                {"label": market.label, "outcomes": [(o.label, o.odds) for o in market.outcomes]}
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }

@@ -25,6 +25,7 @@ from basketball_schedule import (
     filter_nba_listings_by_hours,
     normalize_nba_hours,
 )
+from book_urls import selection_id_for_normalized_outcome
 from basketball_market_mapping import (
     align_fr_outcome_to_fanduel,
     build_double_double_key,
@@ -93,6 +94,7 @@ def build_best_fr_player_props_map(
             if not is_wnba_player_prop_label(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(label, outcomes, roster):
                 payload = normalized_market_to_dict(item, roster)
                 for outcome, odds in payload["outcomes"].items():
@@ -115,6 +117,13 @@ def build_best_fr_player_props_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                player_name=item.player_name,
+                                line=str(getattr(item, "line", "") or ""),
+                            ),
                         }
     return best
 
@@ -504,6 +513,7 @@ def compare_normalized_props(
                     "fanduel_market_label": fd_market.get("market_label", ""),
                     "best_fr_odds": fr_payload["odds"],
                     "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                    "selection_id": fr_payload.get("selection_id", ""),
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                     **outcome_us_source_fields(fd_market, outcome),
@@ -546,6 +556,8 @@ def discover_anchors(
     def anchor_key(home: str, away: str) -> str:
         return f"{home.lower()}|{away.lower()}"
 
+    from match_live import event_is_live, mark_anchor_live
+
     def ensure_anchor(home: str, away: str) -> dict[str, Any]:
         key = anchor_key(home, away)
         if key not in anchors:
@@ -559,6 +571,7 @@ def discover_anchors(
                 "betclic_match_id": None,
                 "winamax_match_id": None,
                 "fanduel_event_id": None,
+                "is_live": False,
             }
         return anchors[key]
 
@@ -567,6 +580,7 @@ def discover_anchors(
         anchor["sources"].add("unibet")
         anchor["urls"]["unibet"] = event.url
         anchor["unibet_event_id"] = event.event_id
+        mark_anchor_live(anchor, event_is_live(url=getattr(event, "url", "")))
 
     for link in betclic_links:
         anchor = ensure_anchor(link.home_team, link.away_team)
@@ -579,6 +593,7 @@ def discover_anchors(
         anchor["sources"].add("winamax")
         anchor["urls"]["winamax"] = link.url
         anchor["winamax_match_id"] = link.match_id
+        mark_anchor_live(anchor, event_is_live(status=getattr(link, "status", "")))
 
     for event in fanduel_events:
         matched_key = None
@@ -605,7 +620,13 @@ def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any
     rows: list[dict[str, Any]] = []
     for result in results:
         for row in result.get("comparables", []):
-            rows.append({"match": result["match"], **row})
+            rows.append(
+                {
+                    "match": result["match"],
+                    "is_live": bool(row.get("is_live", result.get("is_live", False))),
+                    **row,
+                }
+            )
     return rows
 
 
@@ -635,6 +656,7 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "match": result.get("match", ""),
+                "is_live": bool(result.get("is_live")),
                 "comparable_count": int(result.get("comparable_count", 0)),
                 "fr_only_count": int(result.get("fr_only_count", 0)),
                 "fd_only_count": int(result.get("fd_only_count", 0)),

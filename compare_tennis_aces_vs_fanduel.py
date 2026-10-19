@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Callable
 import time
 
+from book_urls import attach_fr_book_urls, selection_id_for_normalized_outcome
 from fanduel_client import (
     FANDUEL_PROPS_TABS,
     DEFAULT_TENNIS_PAGE_CANDIDATES,
@@ -650,6 +651,7 @@ def build_best_fr_normalized_map(
             if not is_aces_market(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(label, outcomes, home, away):
                 if item.market_family not in ACE_FAMILIES:
                     continue
@@ -687,6 +689,13 @@ def build_best_fr_normalized_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                home=home,
+                                away=away,
+                            ),
                         }
     return best
 
@@ -904,6 +913,7 @@ def compare_normalized_aces(
                         "line_delta": line_delta,
                         "best_fr_odds": fr_odds,
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_decimal_fr": float(fd_bundle["decimal_fr"]),
@@ -943,6 +953,7 @@ def collect_fr_only_aces(
                 "fanduel_market_label": "",
                 "best_fr_odds": float(fr_payload["odds"]),
                 "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                "selection_id": fr_payload.get("selection_id", ""),
                 "cote_fr": format_french_decimal(float(fr_payload["odds"])),
                 "bookmaker_fr": fr_payload["bookmaker_label"],
                 "cote_us_fanduel_ml": "",
@@ -1041,12 +1052,26 @@ def compare_match_to_fanduel(
     comparable = compare_normalized_aces(fr_map, fd_map)
     fr_only = collect_fr_only_aces(fr_map, fd_map)
     fd_only = collect_fd_only_aces(fr_map, fd_map)
+    is_live = bool(match_meta.get("is_live"))
     for row in comparable:
         row["match"] = match_meta["match"]
+        row["is_live"] = is_live
     for row in fr_only:
         row["match"] = match_meta["match"]
+        row["is_live"] = is_live
     for row in fd_only:
         row["match"] = match_meta["match"]
+        row["is_live"] = is_live
+    attach_fr_book_urls(
+        comparable,
+        urls=match_meta.get("urls") or {},
+        book_events=book_events,
+    )
+    attach_fr_book_urls(
+        fr_only,
+        urls=match_meta.get("urls") or {},
+        book_events=book_events,
+    )
     fr_higher = [row for row in comparable if row["best_side"] == "fr"]
 
     raw_delta = None
@@ -1057,6 +1082,7 @@ def compare_match_to_fanduel(
 
     return {
         "match": match_meta["match"],
+        "is_live": is_live,
         "home_player": home,
         "away_player": away,
         "competition": match_meta.get("competition", ""),
@@ -1131,6 +1157,7 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rows.append(
             {
                 "match": result.get("match", ""),
+                "is_live": bool(result.get("is_live")),
                 "comparable_count": int(result.get("comparable_ace_count", 0)),
                 "fr_only_count": int(result.get("fr_only_ace_count", 0)),
                 "fd_only_count": int(result.get("fd_only_ace_count", 0)),
@@ -1404,6 +1431,7 @@ def _compare_anchor_live(
         "competition": anchor.get("competition", ""),
         "sources": anchor.get("sources", []),
         "urls": anchor.get("urls", {}),
+        "is_live": bool(anchor.get("is_live")),
         "best_overall": None,
     }
     book_events: dict[str, dict[str, Any]] = {}
@@ -1414,6 +1442,7 @@ def _compare_anchor_live(
         return {
             **match_meta,
             "match": match_key,
+            "is_live": bool(match_meta.get("is_live")),
             "comparables": [],
             "comparable_ace_count": 0,
             "fr_only_aces": [],

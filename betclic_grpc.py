@@ -300,12 +300,19 @@ def _normalize_grpc_selection(node: Any) -> dict[str, Any] | None:
     if odds is None:
         odds = decode_betclic_odds(selection.get("6"))
     status = selection.get("status", selection.get("14", 1))
+    betslip_market_id = selection.get("betslipMarketId", selection.get("15"))
+    selection_id = selection.get("id", selection.get("2"))
+    if betslip_market_id is None and selection.get("1") is not None and selection_id is not None:
+        betslip_market_id = selection.get("1")
+    elif betslip_market_id is None:
+        betslip_market_id = selection.get("1", "")
     return {
+        "id": str(selection_id or "").strip(),
         "name": label,
         "betslipName": label,
         "odds": odds,
         "status": status,
-        "betslipMarketId": str(selection.get("15", selection.get("1", ""))),
+        "betslipMarketId": str(betslip_market_id or "").strip(),
     }
 
 

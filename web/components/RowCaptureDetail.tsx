@@ -1,3 +1,4 @@
+import { FrBookBadge } from "@/lib/bookBadges";
 import type { ComparableRow } from "@/lib/types";
 
 export function formatCaptureTime(value?: string): string {
@@ -36,9 +37,61 @@ export function RowCaptureDetail({
   const usBadgeClass =
     row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
 
+  const bookUrl = row.url_fr?.trim() || "";
+  const bookWebFallback = row.url_fr_web?.trim() || "";
+  const bookName = row.bookmaker_fr?.trim() || "book FR";
+  const isSelectionLink = row.url_fr_kind === "selection";
+  const isBookBridge = /^\/go\/(winamax|unibet|betclic)\?/.test(bookUrl);
+  const bookLinkLabel = isSelectionLink
+    ? `Ouvrir le pari sur ${bookName}`
+    : `Ouvrir le match sur ${bookName}`;
+  // Open bridges in a new tab so Back / return stays on our app (no re-handoff loop).
+  const linkTarget = "_blank";
+  const linkRel = "noopener noreferrer";
+
   return (
     <div className="row-capture-detail">
       <p className="row-capture-title">Detail des cotes (clique pour fermer)</p>
+
+      <div className="row-book-link-block">
+        <p className="row-capture-subtitle">
+          Lien <FrBookBadge bookmaker={bookName} />
+          {row.is_live ? (
+            <>
+              {" "}
+              <span className="live-badge">LIVE</span>
+            </>
+          ) : null}
+        </p>
+        {bookUrl ? (
+          <a className="row-book-link" href={bookUrl} target={linkTarget} rel={linkRel}>
+            {bookLinkLabel}
+          </a>
+        ) : (
+          <p className="row-capture-hint">
+            Lien indisponible pour cette ligne — relance une comparaison apres update du runner.
+          </p>
+        )}
+        {bookUrl && !isSelectionLink ? (
+          <p className="row-capture-hint">
+            Pari precis indisponible pour ce book — ouverture de la page match.
+          </p>
+        ) : null}
+        {isSelectionLink && isBookBridge ? (
+          <p className="row-capture-hint">
+            Ouverture dans un nouvel onglet pour pouvoir revenir ici sans relancer le book.
+            {bookWebFallback ? (
+              <>
+                {" "}
+                <a href={bookWebFallback} target="_blank" rel="noopener noreferrer">
+                  Page match
+                </a>
+              </>
+            ) : null}
+          </p>
+        ) : null}
+      </div>
+
       <dl className="row-capture-list">
         <dt>Source US</dt>
         <dd>
@@ -63,7 +116,9 @@ export function RowCaptureDetail({
 
       <p className="row-capture-subtitle">Horodatage du scrape</p>
       <dl className="row-capture-list">
-        <dt>Cote FR ({row.bookmaker_fr || "book FR"})</dt>
+        <dt>
+          Cote FR (<FrBookBadge bookmaker={row.bookmaker_fr || "book FR"} />)
+        </dt>
         <dd>{formatCaptureTime(row.fr_captured_at || row.captured_at || runGeneratedAt)}</dd>
 
         <dt>Cote US ({usLabel})</dt>

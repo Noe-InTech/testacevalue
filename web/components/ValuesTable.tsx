@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 
 import { RowCaptureDetail } from "@/components/RowCaptureDetail";
+import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
 import type { ValueBetRow } from "@/lib/mptoValue";
 
 interface ValuesTableProps {
@@ -54,7 +55,7 @@ export function ValuesTable({
         <p className="table-hint">
           Edge MPTO (ref. US) · Kelly fractionne a 0,25 · FanDuel en priorite, RotoWire · DraftKings si ligne absente cote FanDuel.
           {showCaptureDetails
-            ? " Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire)."
+            ? " Clique sur une ligne pour voir le lien du match chez le book FR et le detail des cotes."
             : ""}
         </p>
         <table className="values-table">
@@ -87,7 +88,9 @@ export function ValuesTable({
                         : undefined
                     }
                   >
-                    <td data-label="Match">{row.match}</td>
+                    <td data-label="Match">
+                      <MatchLabel match={row.match} isLive={row.source.is_live} />
+                    </td>
                     <td data-label="Pari">{row.bet}</td>
                     <td data-label="Contraire">{row.opposite}</td>
                     <td data-label="Book US">
@@ -105,7 +108,9 @@ export function ValuesTable({
                     </td>
                     <td data-label="Cote US">{row.coteFd}</td>
                     <td data-label="Cote FR">{row.coteFr}</td>
-                    <td data-label="Book">{row.bookmaker}</td>
+                    <td data-label="Book">
+                      <FrBookBadge bookmaker={row.bookmaker} />
+                    </td>
                     <td data-label="Edge" className="value-edge">
                       {row.edgeLabel}
                     </td>

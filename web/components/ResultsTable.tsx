@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 
 import { RowCaptureDetail } from "@/components/RowCaptureDetail";
+import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
 import type { ComparableRow, MarketKind, TableColumn } from "@/lib/types";
 import { getTableColumns } from "@/lib/types";
 
@@ -64,6 +65,12 @@ function rowKey(row: ComparableRow, index: number): string {
 }
 
 function renderCell(row: ComparableRow, column: TableColumn) {
+  if (column.key === "match") {
+    return <MatchLabel match={row.match} isLive={row.is_live} />;
+  }
+  if (column.key === "bookmaker_fr") {
+    return <FrBookBadge bookmaker={row.bookmaker_fr} />;
+  }
   if (column.key === "us_source_label") {
     if (!row.us_source_label) {
       return "—";
@@ -100,7 +107,7 @@ export function ResultsTable({
       <div className="table-wrap">
         {showCaptureDetails ? (
           <p className="table-hint">
-            Clique sur une ligne pour voir le detail des cotes (FR, US ML, US decimale, contraire) et
+            Clique sur une ligne pour voir le lien du match chez le book FR, le detail des cotes et
             l&apos;heure de capture.
           </p>
         ) : null}

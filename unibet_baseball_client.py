@@ -281,19 +281,15 @@ class UnibetBaseballClient(UnibetClient):
             "competition": event.competition,
             "roster": roster,
             "market_count": len(market_list),
-            "markets": [
-                {
-                    "label": market.label,
-                    "outcomes": [(o.label, o.odds) for o in market.outcomes],
-                }
-                for market in market_list
-            ],
+            "markets": self.markets_to_payload(market_list),
         }
 
     def extract_baseball_player_markets_from_html(self, html: str) -> list[UnibetMarket]:
         """Per-player HR (and similar) markets from embedded LVS JSON."""
         grouped: dict[str, dict[str, UnibetOutcome]] = defaultdict(dict)
-        for market_desc, description, odds in self._iter_embedded_outcome_blocks(html):
+        for market_desc, description, odds, selection_id in self._iter_embedded_outcome_blocks(
+            html
+        ):
             if odds is None:
                 continue
             lower = market_desc.lower()
@@ -307,6 +303,7 @@ class UnibetBaseballClient(UnibetClient):
             grouped[market_desc][description] = UnibetOutcome(
                 label=description,
                 odds=odds,
+                selection_id=selection_id,
             )
         markets: list[UnibetMarket] = []
         for label, outcomes in grouped.items():
@@ -315,7 +312,7 @@ class UnibetBaseballClient(UnibetClient):
             markets.append(
                 UnibetMarket(label=label, outcomes=tuple(outcomes.values()))
             )
-        return markets
+        return self._attach_selection_ids(markets, self.extract_selection_catalog(html))
 
     def _iter_embedded_outcome_blocks(self, html: str):
         # Blocks where marketDesc appears after description/price — also scan
@@ -336,19 +333,25 @@ class UnibetBaseballClient(UnibetClient):
             if key in seen:
                 continue
             seen.add(key)
-            yield market_desc.strip(), description.strip(), odds
+            yield (
+                market_desc.strip(),
+                description.strip(),
+                odds,
+                self._extract_json_id(block),
+            )
 
         # Fallback: description may precede marketDesc outside a single flat object
         # when nested braces break the simple regex — pair nearby fields.
         for match in re.finditer(
-            r'"description":"([^"]+)"[\s\S]{0,240}?"price":"([^"]+)"[\s\S]{0,240}?"marketDesc":"([^"]+)"',
+            r'(?:\{[^{}]{0,40}"id":(\d+)[^{}]{0,80})?"description":"([^"]+)"[\s\S]{0,240}?"price":"([^"]+)"[\s\S]{0,240}?"marketDesc":"([^"]+)"',
             html,
             flags=re.I,
         ):
+            selection_id = match.group(1) or ""
             description, price, market_desc = (
-                match.group(1).strip(),
-                match.group(2),
-                match.group(3).strip(),
+                match.group(2).strip(),
+                match.group(3),
+                match.group(4).strip(),
             )
             odds = self._parse_decimal_odds(price)
             if odds is None:
@@ -357,12 +360,17 @@ class UnibetBaseballClient(UnibetClient):
             if key in seen:
                 continue
             seen.add(key)
-            yield market_desc, description, odds
+            yield market_desc, description, odds, selection_id
 
     @staticmethod
     def _extract_json_string(block: str, key: str) -> str | None:
         field = re.search(rf'"{re.escape(key)}":"([^"]*)"', block)
         return field.group(1).strip() if field else None
+
+    @staticmethod
+    def _extract_json_id(block: str) -> str:
+        field = re.search(r'"id":(\d+)', block)
+        return field.group(1) if field else ""
 
     @staticmethod
     def _is_player_hr_market_desc(lower: str) -> bool:

@@ -44,6 +44,7 @@ class WinamaxMatchLink:
 class WinamaxOutcome:
     label: str
     odds: float | None
+    selection_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -313,6 +314,7 @@ class WinamaxClient:
                 continue
             line = self._parse_line(str(bet.get("specialBetValue") or ""))
             label = f"{title} ({line})" if line else title
+            bet_id = str(bet.get("betId") or "").strip()
             parsed_outcomes: list[WinamaxOutcome] = []
             for outcome_id in bet.get("outcomes") or []:
                 outcome = self._lookup(outcomes, outcome_id)
@@ -331,10 +333,36 @@ class WinamaxClient:
                     parsed_odds = float(raw_odds) if raw_odds is not None else None
                 except (TypeError, ValueError):
                     parsed_odds = None
-                parsed_outcomes.append(WinamaxOutcome(label=outcome_label, odds=parsed_odds))
+                odd_id = str(outcome_id).strip()
+                selection_id = f"{bet_id}:{odd_id}" if bet_id and odd_id else ""
+                parsed_outcomes.append(
+                    WinamaxOutcome(
+                        label=outcome_label,
+                        odds=parsed_odds,
+                        selection_id=selection_id,
+                    )
+                )
             if parsed_outcomes:
                 markets.append(WinamaxMarket(label=label, outcomes=tuple(parsed_outcomes)))
         return markets
+
+    @staticmethod
+    def markets_to_payload(markets: list[WinamaxMarket]) -> list[dict[str, Any]]:
+        payload: list[dict[str, Any]] = []
+        for market in markets:
+            selection_ids = {
+                outcome.label: outcome.selection_id
+                for outcome in market.outcomes
+                if outcome.selection_id
+            }
+            item: dict[str, Any] = {
+                "label": market.label,
+                "outcomes": [(outcome.label, outcome.odds) for outcome in market.outcomes],
+            }
+            if selection_ids:
+                item["selection_ids"] = selection_ids
+            payload.append(item)
+        return payload
 
     def get_event_markets(self, match_id: str) -> list[WinamaxMarket]:
         payload = self.fetch_route(f"match:{match_id}")
@@ -356,10 +384,7 @@ class WinamaxClient:
             "start_date": link.start_date,
             "competition": link.competition,
             "market_count": len(markets),
-            "markets": [
-                {"label": market.label, "outcomes": [(item.label, item.odds) for item in market.outcomes]}
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }
 
     def build_event_payloads(self, links: list[WinamaxMatchLink]) -> list[dict[str, Any]]:
@@ -383,13 +408,7 @@ class WinamaxClient:
                     "start_date": link.start_date,
                     "competition": link.competition,
                     "market_count": len(markets),
-                    "markets": [
-                        {
-                            "label": market.label,
-                            "outcomes": [(item.label, item.odds) for item in market.outcomes],
-                        }
-                        for market in markets
-                    ],
+                    "markets": self.markets_to_payload(markets),
                 }
             )
         return events

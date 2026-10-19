@@ -12,6 +12,7 @@ from typing import Any
 from atomic_json import write_json_atomic
 from betclic_soccer_client import BetclicSoccerClient
 from basketball_props_anchor import assemble_anchor_result
+from book_urls import selection_id_for_normalized_outcome
 from fanduel_client import (
     format_american_moneyline,
     format_french_decimal,
@@ -66,6 +67,7 @@ def build_best_fr_map(
             if not is_soccer_player_prop_label(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(label, outcomes, roster, home_team=home, away_team=away):
                 payload = normalized_market_to_dict(item)
                 for outcome, odds in payload["outcomes"].items():
@@ -88,6 +90,15 @@ def build_best_fr_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                home=home,
+                                away=away,
+                                player_name=item.player_name,
+                                line=str(getattr(item, "line", "") or ""),
+                            ),
                         }
     return best
 
@@ -265,6 +276,7 @@ def compare_normalized_props(
                         "fanduel_market_label": fd_market.get("market_label", ""),
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         "us_source": fd_market.get("source", "fanduel"),
@@ -342,6 +354,8 @@ def discover_anchors(
     def anchor_key(home: str, away: str) -> str:
         return f"{home.lower()}|{away.lower()}"
 
+    from match_live import event_is_live, mark_anchor_live
+
     def ensure_anchor(home: str, away: str) -> dict[str, Any]:
         key = anchor_key(home, away)
         if key not in anchors:
@@ -355,10 +369,19 @@ def discover_anchors(
                 "unibet_event_id": None,
                 "winamax_match_id": None,
                 "fanduel_event_id": None,
+                "is_live": False,
             }
         return anchors[key]
 
-    def attach_fr(source: str, home: str, away: str, url: str, **ids: Any) -> None:
+    def attach_fr(
+        source: str,
+        home: str,
+        away: str,
+        url: str,
+        *,
+        is_live: bool = False,
+        **ids: Any,
+    ) -> None:
         matched = None
         for key, anchor in anchors.items():
             if teams_match(anchor["home_team"], anchor["away_team"], home, away):
@@ -373,6 +396,7 @@ def discover_anchors(
         for field, value in ids.items():
             if value is not None:
                 anchor[field] = value
+        mark_anchor_live(anchor, is_live)
 
     for link in betclic_links:
         attach_fr(
@@ -389,6 +413,7 @@ def discover_anchors(
             event.home_team,
             event.away_team,
             event.url,
+            is_live=event_is_live(url=getattr(event, "url", "")),
             unibet_event_id=event.event_id,
         )
 
@@ -398,6 +423,7 @@ def discover_anchors(
             link.home_team,
             link.away_team,
             link.url,
+            is_live=event_is_live(status=getattr(link, "status", "")),
             winamax_match_id=link.match_id,
             winamax_home=link.home_team,
             winamax_away=link.away_team,
@@ -437,15 +463,23 @@ def build_results_payload(results: list[dict[str, Any]], *, partial: bool = Fals
     progress: list[dict[str, Any]] = []
     for result in results:
         match = result["match"]
+        is_live = bool(result.get("is_live"))
         for row in result.get("comparables", []):
-            comparables.append({"match": match, **row})
+            comparables.append(
+                {"match": match, "is_live": bool(row.get("is_live", is_live)), **row}
+            )
         for row in result.get("fr_only", []):
-            fr_only.append({"match": match, **row})
+            fr_only.append(
+                {"match": match, "is_live": bool(row.get("is_live", is_live)), **row}
+            )
         for row in result.get("fd_only", []):
-            fd_only.append({"match": match, **row})
+            fd_only.append(
+                {"match": match, "is_live": bool(row.get("is_live", is_live)), **row}
+            )
         progress.append(
             {
                 "match": match,
+                "is_live": is_live,
                 "comparable_count": result.get("comparable_count", 0),
                 "fr_only_count": len(result.get("fr_only", [])),
                 "fd_only_count": len(result.get("fd_only", [])),

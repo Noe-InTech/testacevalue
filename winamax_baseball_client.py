@@ -118,13 +118,7 @@ class WinamaxBaseballClient(WinamaxClient):
             "competition": link.competition,
             "roster": roster,
             "market_count": len(markets),
-            "markets": [
-                {
-                    "label": market.label,
-                    "outcomes": [(item.label, item.odds) for item in market.outcomes],
-                }
-                for market in markets
-            ],
+            "markets": self.markets_to_payload(markets),
         }
 
     @staticmethod

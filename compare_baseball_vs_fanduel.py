@@ -23,6 +23,7 @@ from typing import Any, Callable
 
 from baseball_books_mapping import BOOK_NORMALIZERS, is_baseball_comparable_label, normalized_market_to_dict
 from baseball_constants import BOOK_LABELS, COMPARABLE_FAMILIES
+from book_urls import selection_id_for_normalized_outcome
 from baseball_market_mapping import (
     build_runs_player_key,
     is_comparable_key,
@@ -141,6 +142,7 @@ def build_best_fr_map(
             if not is_baseball_comparable_label(label):
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+            selection_ids = market.get("selection_ids") or {}
             for item in normalizer(
                 label,
                 outcomes,
@@ -170,6 +172,15 @@ def build_best_fr_map(
                             "bookmaker": bookmaker,
                             "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
                             "raw_outcome": outcome,
+                            "selection_id": selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                home=home_team,
+                                away=away_team,
+                                player_name=item.player_name,
+                                line=str(item.line or ""),
+                            ),
                         }
     return best
 
@@ -544,6 +555,7 @@ def compare_normalized_markets(
                         **outcome_us_source_fields(fd_market, outcome),
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fanduel_american": fd_bundle.get("american"),
                         "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                         **compute_paired_fields(
@@ -571,6 +583,8 @@ def discover_anchors(
     def anchor_key(home: str, away: str) -> str:
         return f"{home.lower()}|{away.lower()}"
 
+    from match_live import event_is_live, mark_anchor_live
+
     def ensure_anchor(home: str, away: str, competition: str = "") -> dict[str, Any]:
         key = anchor_key(home, away)
         if key not in anchors:
@@ -585,6 +599,7 @@ def discover_anchors(
                 "betclic_match_id": None,
                 "winamax_match_id": None,
                 "fanduel_event_id": None,
+                "is_live": False,
             }
         elif competition and not anchors[key].get("competition"):
             anchors[key]["competition"] = competition
@@ -595,6 +610,7 @@ def discover_anchors(
         anchor["sources"].add("unibet")
         anchor["urls"]["unibet"] = event.url
         anchor["unibet_event_id"] = event.event_id
+        mark_anchor_live(anchor, event_is_live(url=getattr(event, "url", "")))
 
     for link in betclic_links:
         matched = None
@@ -627,6 +643,7 @@ def discover_anchors(
         anchor["winamax_match_id"] = link.match_id
         if getattr(link, "competition", ""):
             anchor["competition"] = link.competition
+        mark_anchor_live(anchor, event_is_live(status=getattr(link, "status", "")))
 
     for event in fanduel_events:
         matched_key = None
@@ -654,7 +671,13 @@ def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any
     rows: list[dict[str, Any]] = []
     for result in results:
         for row in result.get("comparables", []):
-            rows.append({"match": result["match"], **row})
+            rows.append(
+                {
+                    "match": result["match"],
+                    "is_live": bool(row.get("is_live", result.get("is_live", False))),
+                    **row,
+                }
+            )
     return rows
 
 
@@ -682,6 +705,7 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         {
             "match": result.get("match", ""),
+            "is_live": bool(result.get("is_live")),
             "comparable_count": int(result.get("comparable_count", 0)),
             "fr_only_count": int(result.get("fr_only_count", 0)),
             "fd_only_count": int(result.get("fd_only_count", 0)),

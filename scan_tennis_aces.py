@@ -126,6 +126,7 @@ def merge_anchor_lists(*anchor_lists: list[dict[str, Any]]) -> list[dict[str, An
                         "sources": set(anchor.get("sources") or []),
                         "urls": dict(anchor.get("urls") or {}),
                         "competition": anchor.get("competition", ""),
+                        "is_live": bool(anchor.get("is_live")),
                     }
                 )
                 continue
@@ -133,6 +134,8 @@ def merge_anchor_lists(*anchor_lists: list[dict[str, Any]]) -> list[dict[str, An
             item["urls"].update(anchor.get("urls") or {})
             if anchor.get("competition") and not item.get("competition"):
                 item["competition"] = anchor["competition"]
+            if anchor.get("is_live"):
+                item["is_live"] = True
 
     return sorted(merged, key=lambda item: item["name"])
 
@@ -159,6 +162,7 @@ def discover_anchor_events(
         source: str,
         url: str = "",
         competition: str = "",
+        is_live: bool = False,
     ) -> None:
         if not home or not away:
             return
@@ -171,6 +175,7 @@ def discover_anchor_events(
                 "sources": set(),
                 "urls": {},
                 "competition": competition,
+                "is_live": False,
             }
             anchors.append(item)
         item["sources"].add(source)
@@ -178,14 +183,20 @@ def discover_anchor_events(
             item["urls"][source] = url
         if competition and not item.get("competition"):
             item["competition"] = competition
+        if is_live:
+            item["is_live"] = True
+
+    from match_live import event_is_live
 
     for event in unibet_events:
+        url = str(event.get("url", ""))
         add_event(
             str(event.get("home", "")),
             str(event.get("away", "")),
             source="unibet",
-            url=str(event.get("url", "")),
+            url=url,
             competition=str(event.get("competition", "")),
+            is_live=event_is_live(is_live=event.get("is_live"), url=url),
         )
     for event in betclic_events:
         add_event(
@@ -202,6 +213,7 @@ def discover_anchor_events(
             source="winamax",
             url=link.url,
             competition=link.competition,
+            is_live=event_is_live(status=getattr(link, "status", "")),
         )
     return sorted(anchors, key=lambda item: item["name"])
 

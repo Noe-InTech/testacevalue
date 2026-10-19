@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 
+from book_urls import attach_fr_book_urls
 from fanduel_client import format_american_moneyline, format_french_decimal
+from match_live import stamp_rows_live
 
 PartialCallback = Callable[[Dict[str, Any], str], None]
 
@@ -40,6 +42,7 @@ def assemble_anchor_result(
                         "outcome": outcome,
                         "best_fr_odds": fr_payload["odds"],
                         "best_fr_bookmaker": fr_payload["bookmaker_label"],
+                        "selection_id": fr_payload.get("selection_id", ""),
                         "fr_market_label": fr_market["market_label_raw"],
                     }
                 )
@@ -72,9 +75,24 @@ def assemble_anchor_result(
     attach_capture_times(comparable, fr_scraped_at=fr_scraped_at, fd_scraped_at=fd_scraped_at)
     attach_capture_times(fr_only, fr_scraped_at=fr_scraped_at)
     attach_capture_times(fd_only, fd_scraped_at=fd_scraped_at)
+    attach_fr_book_urls(
+        comparable,
+        urls=anchor.get("urls") or {},
+        book_events=book_events,
+    )
+    attach_fr_book_urls(
+        fr_only,
+        urls=anchor.get("urls") or {},
+        book_events=book_events,
+    )
+    is_live = bool(anchor.get("is_live"))
+    stamp_rows_live(comparable, is_live)
+    stamp_rows_live(fr_only, is_live)
+    stamp_rows_live(fd_only, is_live)
 
     return {
         "match": anchor["match"],
+        "is_live": is_live,
         "sources": sorted(anchor["sources"]),
         "fanduel_event_id": anchor.get("fanduel_event_id"),
         "comparable_count": len(comparable),

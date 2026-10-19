@@ -1,5 +1,7 @@
 export interface ComparableRow {
   match: string;
+  /** True si le match est en cours (live) au moment du scrape. */
+  is_live?: boolean;
   ligne_aces_fr?: string;
   ligne_breaks_fr?: string;
   ligne_victoires_fr?: string;
@@ -10,6 +12,14 @@ export interface ComparableRow {
   marche_fanduel: string;
   cote_fr: string;
   bookmaker_fr: string;
+  /** URL page match / sélection du book FR retenu (Unibet / Betclic / Winamax). */
+  url_fr?: string;
+  /** Fallback HTTPS Winamax (highlight) si le deeplink wam:// n'ouvre pas l'app. */
+  url_fr_web?: string;
+  /** "selection" si deep-link pari précis, sinon "match". */
+  url_fr_kind?: "selection" | "match";
+  /** ID sélection book FR (Unibet outcomeId, Winamax betId:oddId, Betclic sel:market). */
+  selection_id?: string;
   cote_fr_contraire?: string;
   bookmaker_fr_contraire?: string;
   cote_us_fanduel_ml: string;
@@ -38,6 +48,7 @@ export interface ComparableRow {
 
 export interface MatchProgressRow {
   match: string;
+  is_live?: boolean;
   comparable_count: number;
   fr_only_count: number;
   fd_only_count?: number;
