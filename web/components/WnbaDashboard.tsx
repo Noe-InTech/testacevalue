@@ -171,6 +171,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
   const [nbaScheduleHours, setNbaScheduleHours] = useState<8 | 12 | 24 | 48>(24);
+  const [useRotowire, setUseRotowire] = useState(false);
   const [competitions, setCompetitions] = useState<
     Array<{ id: string; name: string; event_count?: number }>
   >([]);
@@ -528,6 +529,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           match: match.trim(),
           sport: cfg.apiSport,
           ...(league === "nba" ? { nba_hours: nbaScheduleHours } : {}),
+          ...((league === "nba" || league === "wnba") && useRotowire
+            ? { use_rotowire: true }
+            : {}),
         }),
       });
       const data = await response.json();
@@ -743,6 +747,20 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
             autoComplete="current-password"
           />
         </label>
+        {league === "nba" || league === "wnba" ? (
+          <label className="rotowire-toggle">
+            <input
+              type="checkbox"
+              checked={useRotowire}
+              onChange={(event) => setUseRotowire(event.target.checked)}
+              disabled={busy}
+            />
+            <span>
+              Activer RotoWire · DraftKings (référence US si absent FanDuel —{" "}
+              <strong>plus lent</strong>, laisser décoché pour un run rapide)
+            </span>
+          </label>
+        ) : null}
         {league === "nba" ? (
           <fieldset className="nba-schedule-fieldset">
             <legend>Fenêtre horaire — matchs à inclure</legend>

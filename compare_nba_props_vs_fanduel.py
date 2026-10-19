@@ -40,7 +40,12 @@ def main() -> None:
         "--hours",
         type=int,
         default=12,
-        help="Fenetre NBA en heures (12, 24 ou 48 — defaut 12)",
+        help="Fenetre NBA en heures (8, 12, 24 ou 48 — defaut 12)",
+    )
+    parser.add_argument(
+        "--rotowire",
+        action="store_true",
+        help="Inclure RotoWire / DraftKings (plus lent, secours si ligne absente FanDuel)",
     )
     args = parser.parse_args()
 
@@ -52,10 +57,16 @@ def main() -> None:
             status_json=args.status_json,
             league="nba",
             schedule_hours=args.hours,
+            use_rotowire=args.rotowire,
         )
         return
 
-    payload = run_compare(match_filter=args.match, league="nba", schedule_hours=args.hours)
+    payload = run_compare(
+        match_filter=args.match,
+        league="nba",
+        schedule_hours=args.hours,
+        use_rotowire=args.rotowire,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info(

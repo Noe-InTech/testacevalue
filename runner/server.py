@@ -452,6 +452,7 @@ def run_compare(
     match_filter: str,
     markets: str = "",
     nba_hours: int = 12,
+    use_rotowire: bool = False,
 ) -> None:
     global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
     proc: subprocess.Popen[str] | None = None
@@ -478,6 +479,8 @@ def run_compare(
             from basketball_schedule import normalize_nba_hours
 
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
+        if sport.key in {"wnba", "nba"} and use_rotowire:
+            cmd.append("--rotowire")
         proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
@@ -906,6 +909,7 @@ class Handler(BaseHTTPRequestHandler):
             nba_hours = int(nba_hours_raw) if nba_hours_raw is not None else 12
         except (TypeError, ValueError):
             nba_hours = 12
+        use_rotowire = bool(body.get("use_rotowire") or body.get("rotowire"))
         global RUNNING, CURRENT_SPORT
         recover_stuck_run()
         with LOCK:
@@ -943,7 +947,7 @@ class Handler(BaseHTTPRequestHandler):
 
         thread = threading.Thread(
             target=run_compare,
-            args=(sport, match_filter, markets, nba_hours),
+            args=(sport, match_filter, markets, nba_hours, use_rotowire),
             daemon=True,
         )
         thread.start()

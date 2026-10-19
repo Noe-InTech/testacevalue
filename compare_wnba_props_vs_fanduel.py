@@ -1186,13 +1186,12 @@ def run_compare(
     match_filter: str = "",
     league: str = "wnba",
     schedule_hours: int | None = None,
+    use_rotowire: bool = False,
 ) -> dict[str, Any]:
     unibet = UnibetBasketballClient()
     betclic = BetclicBasketballClient()
     winamax = WinamaxBasketballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBasketballClient()
-    rotowire = RotoWireBasketballPropsClient(league=league)
-
     nba_hours = normalize_nba_hours(schedule_hours) if league == "nba" else None
     fetch_listings = fetch_live_nba_listings if league == "nba" else fetch_live_wnba_listings
     listing_kwargs: dict[str, Any] = {
@@ -1214,17 +1213,21 @@ def run_compare(
             winamax_links=winamax_links,
             fanduel_events=fanduel_events,
         )
-    rotowire_rows, rotowire_scraped_at = _safe_call(
-        "RotoWire",
-        rotowire.fetch_draftkings_prop_rows,
-        ([], None),
-    )
-    if not rotowire_rows:
-        book_warnings.append(
-            f"RotoWire · DraftKings: aucun prop {league.upper()} (hors saison ou scrape vide)."
+    rotowire_rows: list[RotoWireBasketballPropRow] = []
+    rotowire_scraped_at: str | None = None
+    if use_rotowire:
+        rotowire = RotoWireBasketballPropsClient(league=league)
+        rotowire_rows, rotowire_scraped_at = _safe_call(
+            "RotoWire",
+            rotowire.fetch_draftkings_prop_rows,
+            ([], None),
         )
-    else:
-        log.info("RotoWire %s — %d ligne(s) DraftKings", league.upper(), len(rotowire_rows))
+        if not rotowire_rows:
+            book_warnings.append(
+                f"RotoWire · DraftKings: aucun prop {league.upper()} (hors saison ou scrape vide)."
+            )
+        else:
+            log.info("RotoWire %s — %d ligne(s) DraftKings", league.upper(), len(rotowire_rows))
 
     anchors = discover_anchors(
         unibet_events=unibet_events,
@@ -1277,13 +1280,13 @@ def run_live_compare(
     status_json: Path | None = None,
     league: str = "wnba",
     schedule_hours: int | None = None,
+    use_rotowire: bool = False,
 ) -> Path:
     league_label = league.upper()
     unibet = UnibetBasketballClient()
     betclic = BetclicBasketballClient()
     winamax = WinamaxBasketballClient(fetch_timeout=WINAMAX_FETCH_TIMEOUT)
     fanduel = FanDuelBasketballClient()
-    rotowire = RotoWireBasketballPropsClient(league=league)
     anchors_total = 0
     results: list[dict[str, Any]] = []
     book_warnings: list[str] = []
@@ -1328,18 +1331,22 @@ def run_live_compare(
             winamax_links=winamax_links,
             fanduel_events=fanduel_events,
         )
-    rotowire_rows, rotowire_scraped_at = _safe_call(
-        "RotoWire",
-        rotowire.fetch_draftkings_prop_rows,
-        ([], None),
-    )
-    if not rotowire_rows:
-        book_warnings.append(
-            f"RotoWire · DraftKings: aucun prop {league_label} (hors saison ou scrape vide)."
+    rotowire_rows: list[RotoWireBasketballPropRow] = []
+    rotowire_scraped_at: str | None = None
+    if use_rotowire:
+        rotowire = RotoWireBasketballPropsClient(league=league)
+        rotowire_rows, rotowire_scraped_at = _safe_call(
+            "RotoWire",
+            rotowire.fetch_draftkings_prop_rows,
+            ([], None),
         )
-    else:
-        log.info("RotoWire %s — %d ligne(s) DraftKings", league_label, len(rotowire_rows))
-        on_listing_status(f"RotoWire · DraftKings: {len(rotowire_rows)} ligne(s) {league_label}")
+        if not rotowire_rows:
+            book_warnings.append(
+                f"RotoWire · DraftKings: aucun prop {league_label} (hors saison ou scrape vide)."
+            )
+        else:
+            log.info("RotoWire %s — %d ligne(s) DraftKings", league_label, len(rotowire_rows))
+            on_listing_status(f"RotoWire · DraftKings: {len(rotowire_rows)} ligne(s) {league_label}")
 
     anchors = discover_anchors(
         unibet_events=unibet_events,
@@ -1488,6 +1495,11 @@ def main() -> None:
         type=Path,
         help="Met a jour le statut du run (JSON)",
     )
+    parser.add_argument(
+        "--rotowire",
+        action="store_true",
+        help="Inclure RotoWire / DraftKings (plus lent, secours si ligne absente FanDuel)",
+    )
     args = parser.parse_args()
 
     if args.progress_json or args.status_json:
@@ -1496,10 +1508,11 @@ def main() -> None:
             match_filter=args.match,
             progress_json=args.progress_json,
             status_json=args.status_json,
+            use_rotowire=args.rotowire,
         )
         return
 
-    payload = run_compare(match_filter=args.match)
+    payload = run_compare(match_filter=args.match, use_rotowire=args.rotowire)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info(

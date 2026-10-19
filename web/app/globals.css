@@ -121,6 +121,27 @@ input {
   color: var(--muted);
 }
 
+.rotowire-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(8, 14, 28, 0.55);
+  cursor: pointer;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.rotowire-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--accent-strong);
+  flex-shrink: 0;
+}
+
 .launch-filter-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
