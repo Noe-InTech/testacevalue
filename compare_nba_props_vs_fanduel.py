@@ -36,6 +36,12 @@ def main() -> None:
         type=Path,
         help="Met a jour le statut du run (JSON)",
     )
+    parser.add_argument(
+        "--hours",
+        type=int,
+        default=12,
+        help="Fenetre NBA en heures (12, 24 ou 48 — defaut 12)",
+    )
     args = parser.parse_args()
 
     if args.progress_json or args.status_json:
@@ -45,10 +51,11 @@ def main() -> None:
             progress_json=args.progress_json,
             status_json=args.status_json,
             league="nba",
+            schedule_hours=args.hours,
         )
         return
 
-    payload = run_compare(match_filter=args.match, league="nba")
+    payload = run_compare(match_filter=args.match, league="nba", schedule_hours=args.hours)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info(

@@ -23,6 +23,7 @@ export const WNBA_STAT_FILTERS: WnbaStatFilter[] = [
   { id: "blocks", label: "Contres", families: ["blocks_player"] },
   { id: "steals", label: "Interceptions", families: ["steals_player"] },
   { id: "turnovers", label: "Pertes", families: ["turnovers_player"] },
+  { id: "stocks", label: "Vol+Contre", families: ["steals_blocks_player"] },
   { id: "pts_reb", label: "Pts+Reb", families: ["points_rebounds_player"] },
   { id: "pts_ast", label: "Pts+Ast", families: ["points_assists_player"] },
   { id: "reb_ast", label: "Reb+Ast", families: ["rebounds_assists_player"] },

@@ -3,6 +3,7 @@ import unittest
 from basketball_books_mapping import (
     is_wnba_player_prop_label,
     normalize_betclic_market,
+    normalize_unibet_market,
     normalize_winamax_market,
 )
 from basketball_market_mapping import (
@@ -177,6 +178,34 @@ class BasketballMarketMappingTests(unittest.TestCase):
 
         self.assertEqual(fanduel_player_prop_runner_outcome("Allisha Gray Over"), "Over")
         self.assertEqual(fanduel_player_prop_runner_outcome("Allisha Gray Under"), "Under")
+
+    def test_unibet_performance_en_dash_label(self) -> None:
+        label = "Performance du Joueur \u2013 Total Points + Rebonds + Passes - Match"
+        self.assertTrue(is_wnba_player_prop_label(label))
+        label_loose = "Performance du Joueur \ufffd Total Points + Rebonds + Passes - Match"
+        self.assertTrue(is_wnba_player_prop_label(label_loose))
+        markets = normalize_unibet_market(
+            label_loose,
+            [("Jayson Tatum 25+", 1.85)],
+            ["Jayson Tatum"],
+        )
+        self.assertEqual(len(markets), 1)
+        self.assertEqual(markets[0].market_family, "pra_player")
+
+    def test_winamax_steals_tier_and_stocks(self) -> None:
+        roster = ["Jayson Tatum"]
+        steals = normalize_winamax_market(
+            "Nombre d'interceptions du joueur (paliers) - Jayson Tatum (1.5)",
+            [("Plus de 1,5", 1.7)],
+            roster,
+        )
+        self.assertEqual(steals[0].market_family, "steals_player")
+        stocks = normalize_winamax_market(
+            "Total du joueur (interceptions + contres) - Jayson Tatum (2.5)",
+            [("Plus de 2,5", 1.9), ("Moins de 2,5", 1.85)],
+            roster,
+        )
+        self.assertEqual(stocks[0].market_family, "steals_blocks_player")
 
 
 if __name__ == "__main__":

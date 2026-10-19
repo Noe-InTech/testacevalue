@@ -22,6 +22,29 @@ from tennis_books_mapping import (
 )
 
 
+def normalize_book_label(value: str) -> str:
+    """Minuscules sans accents, tirets Unicode normalisés (Unibet en-dash, etc.)."""
+    text = str(value or "")
+    for ch in ("\u2013", "\u2014", "\u2212", "\u00ad", "\u0096", "\u0097"):
+        text = text.replace(ch, " - ")
+    text = strip_accents(text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip().lower()
+
+
+def _unibet_performance_family(label: str) -> str | None:
+    key = normalize_book_label(label)
+    family = UNIBET_PERFORMANCE_LABELS.get(key)
+    if family:
+        return family
+    loose = re.sub(r"\s*-\s*", " ", key)
+    loose = re.sub(r"\s+", " ", loose).strip()
+    for dict_key, dict_family in UNIBET_PERFORMANCE_LABELS.items():
+        if re.sub(r"\s*-\s*", " ", dict_key) == loose:
+            return dict_family
+    return None
+
+
 @dataclass(frozen=True)
 class PlayerPropPattern:
     family: str
@@ -78,6 +101,37 @@ PLAYER_PROP_PATTERNS: tuple[PlayerPropPattern, ...] = (
             r"nombre de pertes de balle du joueur\s*-\s*(.+?)\s*\(([\d.,]+)\)\s*$",
             re.I,
         ),
+    ),
+    PlayerPropPattern(
+        "steals_player",
+        re.compile(
+            r"nombre d.?interceptions du joueur \(paliers\)\s*-\s*(.+?)\s*\(([\d.,]+)\)\s*$",
+            re.I,
+        ),
+        tier=True,
+    ),
+    PlayerPropPattern(
+        "blocks_player",
+        re.compile(
+            r"nombre de contres du joueur \(paliers\)\s*-\s*(.+?)\s*\(([\d.,]+)\)\s*$",
+            re.I,
+        ),
+        tier=True,
+    ),
+    PlayerPropPattern(
+        "steals_blocks_player",
+        re.compile(
+            r"total du joueur \(interceptions \+ contres\)\s*-\s*(.+?)\s*\(([\d.,]+)\)\s*$",
+            re.I,
+        ),
+    ),
+    PlayerPropPattern(
+        "steals_blocks_player",
+        re.compile(
+            r"total du joueur \(interceptions \+ contres\) \(paliers\)\s*-\s*(.+?)\s*\(([\d.,]+)\)\s*$",
+            re.I,
+        ),
+        tier=True,
     ),
     PlayerPropPattern(
         "points_rebounds_player",
@@ -303,7 +357,9 @@ UNIBET_AGGREGATED_LABELS = frozenset(
 
 
 def is_wnba_player_prop_label(label: str) -> bool:
-    lower = strip_accents(label)
+    lower = normalize_book_label(label)
+    if _unibet_performance_family(label):
+        return True
     if lower in UNIBET_AGGREGATED_LABELS:
         return False
     if any(marker in lower for marker in EXCLUDED_LABEL_MARKERS):
@@ -315,8 +371,6 @@ def is_wnba_player_prop_label(label: str) -> bool:
     if lower in BETCLIC_OUTCOME_OU_LABELS or lower in BETCLIC_OUTCOME_TIER_LABELS:
         return True
     if any(spec[1].search(lower) for spec in UNIBET_OU_SPECS):
-        return True
-    if lower in UNIBET_PERFORMANCE_LABELS:
         return True
     return any(pattern.regex.search(lower) for pattern in PLAYER_PROP_PATTERNS)
 
@@ -554,7 +608,7 @@ def normalize_unibet_market(
     roster: list[str],
 ) -> list[NormalizedMarket]:
     raw_label = label.strip()
-    lower = strip_accents(raw_label)
+    lower = normalize_book_label(raw_label)
 
     for family, pattern in UNIBET_OU_SPECS:
         match = pattern.search(lower)
@@ -604,7 +658,7 @@ def normalize_unibet_market(
         )
         return [market] if market else []
 
-    family = UNIBET_PERFORMANCE_LABELS.get(lower)
+    family = _unibet_performance_family(raw_label)
     if family:
         return _normalize_unibet_performance_market(raw_label, family, outcomes, roster)
 
@@ -617,7 +671,7 @@ def normalize_betclic_market(
     roster: list[str],
 ) -> list[NormalizedMarket]:
     raw_label = label.strip()
-    lower = strip_accents(raw_label)
+    lower = normalize_book_label(raw_label)
 
     family = BETCLIC_OUTCOME_OU_LABELS.get(lower)
     if family:

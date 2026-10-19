@@ -447,7 +447,12 @@ def normalize_markets_arg(raw: Any) -> str:
     return str(raw).strip()
 
 
-def run_compare(sport: SportConfig, match_filter: str, markets: str = "") -> None:
+def run_compare(
+    sport: SportConfig,
+    match_filter: str,
+    markets: str = "",
+    nba_hours: int = 12,
+) -> None:
     global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
     proc: subprocess.Popen[str] | None = None
     try:
@@ -469,6 +474,10 @@ def run_compare(sport: SportConfig, match_filter: str, markets: str = "") -> Non
             cmd.extend(["--markets", markets])
         if match_filter:
             cmd.extend(["--match", match_filter])
+        if sport.key == "nba":
+            from basketball_schedule import normalize_nba_hours
+
+            cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
         proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
@@ -848,6 +857,11 @@ class Handler(BaseHTTPRequestHandler):
 
         match_filter = str(body.get("match", "")).strip()
         markets = normalize_markets_arg(body.get("markets"))
+        nba_hours_raw = body.get("nba_hours", body.get("hours"))
+        try:
+            nba_hours = int(nba_hours_raw) if nba_hours_raw is not None else 12
+        except (TypeError, ValueError):
+            nba_hours = 12
         global RUNNING, CURRENT_SPORT
         recover_stuck_run()
         with LOCK:
@@ -884,7 +898,9 @@ class Handler(BaseHTTPRequestHandler):
         )
 
         thread = threading.Thread(
-            target=run_compare, args=(sport, match_filter, markets), daemon=True
+            target=run_compare,
+            args=(sport, match_filter, markets, nba_hours),
+            daemon=True,
         )
         thread.start()
         self._json_response(

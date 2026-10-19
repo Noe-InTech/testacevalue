@@ -6,6 +6,7 @@ import unittest
 
 from basketball_books_mapping import match_player_name, normalize_winamax_market
 from basketball_market_mapping import (
+    basketball_players_match,
     build_player_prop_key,
     player_compare_token,
     player_token,
@@ -44,6 +45,19 @@ class BasketballHomonymTests(unittest.TestCase):
             build_player_prop_key("points_player", "Caitlin Clark", 20.5, roster=roster),
             "points_player|clark|20.5",
         )
+
+    def test_same_first_initial_and_last_name_distinct_tokens(self) -> None:
+        roster = ["Jrue Holiday", "Justin Holiday", "Anthony Davis"]
+        self.assertEqual(player_compare_token("Jrue Holiday", roster), "jrholiday")
+        self.assertEqual(player_compare_token("Justin Holiday", roster), "juholiday")
+        jrue = build_player_prop_key("assists_player", "Jrue Holiday", 8.5, roster=roster)
+        justin = build_player_prop_key("assists_player", "Justin Holiday", 4.5, roster=roster)
+        self.assertNotEqual(jrue.split("|")[1], justin.split("|")[1])
+
+    def test_same_first_name_different_last_names_do_not_fuzzy_match(self) -> None:
+        self.assertFalse(basketball_players_match("Chris Paul", "Chris Banchero"))
+        roster = ["Chris Paul", "Chris Banchero"]
+        self.assertEqual(resolve_roster_player("Chris", roster), "Chris")
 
     def test_winamax_fr_and_key_align_with_roster(self) -> None:
         roster = ["A'ja Wilson", "Erica Wilson"]

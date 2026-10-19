@@ -169,6 +169,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const cfg = leagueConfig(league);
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
+  const [nbaScheduleHours, setNbaScheduleHours] = useState<12 | 24 | 48>(12);
   const [competitions, setCompetitions] = useState<
     Array<{ id: string; name: string; event_count?: number }>
   >([]);
@@ -521,7 +522,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       const response = await fetch("/api/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret: secret.trim(), match: match.trim(), sport: cfg.apiSport }),
+        body: JSON.stringify({
+          secret: secret.trim(),
+          match: match.trim(),
+          sport: cfg.apiSport,
+          ...(league === "nba" ? { nba_hours: nbaScheduleHours } : {}),
+        }),
       });
       const data = await response.json();
 
@@ -799,6 +805,24 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                 </div>
               </>
             ) : null}
+          </div>
+        ) : null}
+        {league === "nba" ? (
+          <div className="schedule-window" role="group" aria-label="Fenetre horaire NBA">
+            <span className="schedule-window-label">Matchs dans les</span>
+            <div className="filter-chips">
+              {([12, 24, 48] as const).map((hours) => (
+                <button
+                  key={hours}
+                  type="button"
+                  className={`filter-chip${nbaScheduleHours === hours ? " active" : ""}`}
+                  onClick={() => setNbaScheduleHours(hours)}
+                  disabled={busy}
+                >
+                  {hours} h
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
         <button type="button" onClick={onSubmit} disabled={busy}>

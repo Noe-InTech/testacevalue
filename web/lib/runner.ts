@@ -13,6 +13,7 @@ export async function triggerRunner(
   match: string,
   sport = "tennis",
   markets = "",
+  nbaHours?: number,
 ): Promise<Response> {
   const { baseUrl, secret } = runnerConfig();
   if (!baseUrl || !secret) {
@@ -30,7 +31,14 @@ export async function triggerRunner(
         "Content-Type": "application/json",
         "X-Runner-Secret": secret,
       },
-      body: JSON.stringify({ match, sport, markets: markets || undefined }),
+      body: JSON.stringify({
+        match,
+        sport,
+        markets: markets || undefined,
+        ...(sport === "nba" && typeof nbaHours === "number"
+          ? { nba_hours: nbaHours }
+          : {}),
+      }),
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
     });

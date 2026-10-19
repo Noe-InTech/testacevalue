@@ -6,7 +6,7 @@ import re
 import unicodedata
 from typing import Any, Iterator
 
-from tennis_market_mapping import format_numeric_line, players_match
+from tennis_market_mapping import format_numeric_line
 
 
 def strip_accents(value: str) -> str:
@@ -16,6 +16,34 @@ def strip_accents(value: str) -> str:
         .decode("ascii")
         .lower()
     )
+
+
+def _name_parts(name: str) -> list[str]:
+    parts = re.split(r"[\s.]+", strip_accents(name))
+    return [part for part in parts if part]
+
+
+def basketball_players_match(name_a: str, name_b: str) -> bool:
+    """Appariement joueur strict (évite deux « Chris » ou deux « Wilson » sans prénom)."""
+    a = _name_parts(name_a)
+    b = _name_parts(name_b)
+    if not a or not b:
+        return False
+    if strip_accents(name_a) == strip_accents(name_b):
+        return True
+    last_a, last_b = a[-1], b[-1]
+    if last_a != last_b:
+        return False
+    if len(a) == 1 or len(b) == 1:
+        return True
+    first_a, first_b = a[0], b[0]
+    if first_a == first_b:
+        return True
+    if len(first_a) == 1 and first_b.startswith(first_a):
+        return True
+    if len(first_b) == 1 and first_a.startswith(first_b):
+        return True
+    return False
 
 
 def player_token(name: str) -> str:
@@ -30,26 +58,45 @@ def player_token(name: str) -> str:
 
 
 def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
-    """Tokens stables ; si plusieurs joueuses partagent un nom de famille → initiale+nom."""
-    grouped: dict[str, list[str]] = {}
-    for raw_name in roster:
-        canonical = str(raw_name or "").strip()
-        if not canonical:
-            continue
-        last = player_token(canonical)
-        grouped.setdefault(last, []).append(canonical)
+    """Tokens stables ; homonymes → préfixe prénom + nom de famille jusqu'à unicité."""
+    unique_names = sorted(
+        {str(raw_name or "").strip() for raw_name in roster if str(raw_name or "").strip()},
+        key=lambda item: strip_accents(item),
+    )
+    tokens = {name: player_token(name) for name in unique_names}
 
-    tokens: dict[str, str] = {}
-    for last, names in grouped.items():
-        unique_names = sorted(set(names), key=lambda item: strip_accents(item))
-        if len(unique_names) == 1:
-            tokens[unique_names[0]] = last
-            continue
-        for name in unique_names:
-            parts = re.split(r"[\s.]+", strip_accents(name))
-            parts = [part for part in parts if part]
-            prefix = parts[0][0] if parts else "x"
-            tokens[name] = f"{prefix}{last}"
+    while True:
+        by_token: dict[str, list[str]] = {}
+        for name, token in tokens.items():
+            by_token.setdefault(token, []).append(name)
+        collisions = {token: names for token, names in by_token.items() if len(names) > 1}
+        if not collisions:
+            break
+        progressed = False
+        for names in collisions.values():
+            last = player_token(names[0])
+            resolved = False
+            for prefix_len in range(1, 12):
+                trial: dict[str, str] = {}
+                for name in names:
+                    parts = _name_parts(name)
+                    first = parts[0] if parts else "x"
+                    trial[name] = f"{first[:prefix_len]}{last}"
+                if len(set(trial.values())) == len(names):
+                    tokens.update(trial)
+                    resolved = True
+                    progressed = True
+                    break
+            if not resolved:
+                for name in names:
+                    parts = _name_parts(name)
+                    if len(parts) >= 2:
+                        tokens[name] = f"{parts[0]}{parts[-1]}"
+                    else:
+                        tokens[name] = f"{name[:3]}{last}"
+                progressed = True
+        if not progressed:
+            break
     return tokens
 
 
@@ -66,13 +113,13 @@ def player_compare_token(name: str, roster: list[str] | None = None) -> str:
     for roster_name, token in token_map.items():
         if strip_accents(resolved) == strip_accents(roster_name):
             return token
-        if players_match(resolved, roster_name) and _unique_roster_match(resolved, roster):
+        if basketball_players_match(resolved, roster_name) and _unique_roster_match(resolved, roster):
             return token
     return player_token(resolved)
 
 
 def _unique_roster_match(name: str, roster: list[str]) -> bool:
-    matches = [candidate for candidate in roster if players_match(name, candidate)]
+    matches = [candidate for candidate in roster if basketball_players_match(name, candidate)]
     return len(matches) == 1
 
 
@@ -90,6 +137,7 @@ def is_player_prop_family(family: str) -> bool:
         "rebounds_assists_player",
         "pra_player",
         "double_double_player",
+        "steals_blocks_player",
     }
 
 
@@ -169,6 +217,16 @@ FD_PLAYER_PROP_SPECS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("pra_player", re.compile(r"^(.+?)\s*-\s*pts\s*\+\s*reb\s*\+\s*ast$", re.I)),
 )
 
+FD_ALT_PLAYER_PROP_SPECS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("points_player", re.compile(r"^(.+?)\s*-\s*alt points$", re.I)),
+    ("rebounds_player", re.compile(r"^(.+?)\s*-\s*alt rebounds$", re.I)),
+    ("assists_player", re.compile(r"^(.+?)\s*-\s*alt assists$", re.I)),
+    ("points_rebounds_player", re.compile(r"^(.+?)\s*-\s*alt pts \+ reb$", re.I)),
+    ("points_assists_player", re.compile(r"^(.+?)\s*-\s*alt pts \+ ast$", re.I)),
+    ("rebounds_assists_player", re.compile(r"^(.+?)\s*-\s*alt reb \+ ast$", re.I)),
+    ("pra_player", re.compile(r"^(.+?)\s*-\s*alt pts \+ reb \+ ast$", re.I)),
+)
+
 FD_TIER_MARKET_SPECS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("points_player", re.compile(r"^to score (\d+)\+ points$", re.I)),
     ("rebounds_player", re.compile(r"^to record (\d+)\+ rebounds$", re.I)),
@@ -215,7 +273,7 @@ def resolve_roster_player(player_name: str, roster: list[str] | None) -> str:
     fuzzy_matches = [
         str(candidate).strip()
         for candidate in roster
-        if players_match(text, candidate)
+        if basketball_players_match(text, candidate)
     ]
     # Dedup accents
     seen: set[str] = set()
@@ -268,6 +326,21 @@ def map_fanduel_market_to_compare_key(
         player_name = resolve_roster_player(match.group(1).strip(), roster)
         return build_player_prop_key(family, player_name, line, roster=roster)
     return None
+
+
+def parse_fanduel_alt_runner(
+    runner_name: str,
+    *,
+    roster: list[str] | None = None,
+) -> tuple[str, str, str] | None:
+    """Parse « Joueur Over 12.5 » sur marchés FanDuel Alt."""
+    match = re.match(r"(.+?)\s+(Over|Under)\s+([\d.]+)\s*$", str(runner_name or "").strip(), re.I)
+    if not match:
+        return None
+    player_name = resolve_roster_player(match.group(1).strip(), roster)
+    line = format_numeric_line(match.group(3))
+    outcome = match.group(2).capitalize()
+    return player_name, line, outcome
 
 
 def fanduel_player_prop_runner_outcome(runner_name: str) -> str:
