@@ -9,6 +9,9 @@ from basketball_constants import BASKETBALL_OUTRIGHT_SLUG_MARKERS
 
 def is_basketball_outright_slug(slug: str) -> bool:
     lower = slug.lower()
+    # Fiche match Betclic : …-m1195396246274048 (pas un outright « nba-26-27 »).
+    if re.search(r"-m\d{6,}$", lower):
+        return False
     if any(marker in lower for marker in BASKETBALL_OUTRIGHT_SLUG_MARKERS):
         return True
     if re.search(r"nba-\d{4}-\d{4}$", lower):

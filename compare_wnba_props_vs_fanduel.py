@@ -37,6 +37,7 @@ from basketball_market_mapping import (
     is_full_game_fanduel_prop_market,
     is_comparable_player_prop_key,
     map_fanduel_market_to_compare_key,
+    resolve_fanduel_match_for_fr_prop,
     resolve_roster_player,
     strip_accents,
     tier_threshold_to_ou_line,
@@ -507,11 +508,12 @@ def compare_normalized_props(
     for compare_key, fr_market in fr_map.items():
         if not is_comparable_player_prop_key(compare_key):
             continue
-        fd_market = fd_map.get(compare_key)
-        if not fd_market:
-            continue
         for outcome, fr_payload in fr_market["outcomes"].items():
-            fd_bundle = fd_market["outcomes"].get(outcome)
+            fd_match = resolve_fanduel_match_for_fr_prop(compare_key, outcome, fd_map)
+            if not fd_match:
+                continue
+            fd_market, fd_outcome, _fd_key = fd_match
+            fd_bundle = fd_market["outcomes"].get(fd_outcome)
             if not fd_bundle or fd_bundle.get("decimal_fr") is None:
                 continue
             from us_odds_merge import outcome_us_source_fields
@@ -531,9 +533,9 @@ def compare_normalized_props(
                     "selection_id": fr_payload.get("selection_id", ""),
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
-                    **outcome_us_source_fields(fd_market, outcome),
+                    **outcome_us_source_fields(fd_market, fd_outcome),
                     **compute_wnba_paired_fields(
-                        outcome=outcome,
+                        outcome=fd_outcome,
                         fr_market=fr_market,
                         fd_market=fd_market,
                     ),

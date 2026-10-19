@@ -109,6 +109,21 @@ class BasketballBooksMappingTests(unittest.TestCase):
         self.assertEqual(markets[0].compare_key, "points_player|gray|+25")
         self.assertEqual(markets[0].outcomes[0].label, "Over")
 
+    def test_normalize_unibet_performance_pra_ou(self) -> None:
+        from basketball_books_mapping import normalize_unibet_market
+
+        markets = normalize_unibet_market(
+            "Performance du Joueur – Total Points + Rebonds + Passes - Match",
+            [
+                ("Cade Cunningham + de 36.5", 1.45),
+                ("Cade Cunningham - de 36.5", 2.2),
+            ],
+            ["Cade Cunningham"],
+        )
+        self.assertEqual(len(markets), 1)
+        self.assertEqual(markets[0].compare_key, "pra_player|cunningham|36.5")
+        self.assertIn("Over", {o.label for o in markets[0].outcomes})
+
     def test_normalize_winamax_pra_shorthand(self) -> None:
         markets = normalize_winamax_market(
             "Total du joueur (points + rebonds + passes) - Jordin Canada (23.5)",

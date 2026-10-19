@@ -207,6 +207,51 @@ def tier_threshold_to_ou_line(threshold: int | str) -> str:
     return format_numeric_line(float(threshold) - 0.5)
 
 
+def compare_key_line_suffix(compare_key: str) -> str:
+    parts = compare_key.split("|")
+    return parts[2] if len(parts) >= 3 else ""
+
+
+def resolve_fanduel_match_for_fr_prop(
+    compare_key: str,
+    outcome: str,
+    fd_map: dict[str, dict[str, Any]],
+) -> tuple[dict[str, Any], str, str] | None:
+    """Lie une issue FR à FanDuel.
+
+    Paliers Unibet « N+ » → priorité à l'alt O/U FD « Over (N-0,5) » (ex. 4+ ↔ 3,5),
+    puis repli sur « To Record N+ » si l'alt n'existe pas.
+    """
+    tier = tier_prop_line_threshold(compare_key_line_suffix(compare_key))
+    if tier is not None:
+        parts = compare_key.split("|")
+        if len(parts) < 3:
+            return None
+        family, token = parts[0], parts[1]
+        ou_key = f"{family}|{token}|{tier_threshold_to_ou_line(tier)}"
+        fd_ou = fd_map.get(ou_key)
+        if fd_ou:
+            bundle = fd_ou.get("outcomes", {}).get("Over")
+            if bundle is not None and bundle.get("decimal_fr") is not None:
+                return fd_ou, "Over", ou_key
+        fd_tier = fd_map.get(compare_key)
+        if fd_tier:
+            fd_outcome = "Over" if outcome in {"Over", "Yes"} else outcome
+            bundle = fd_tier.get("outcomes", {}).get(fd_outcome)
+            if bundle is not None and bundle.get("decimal_fr") is not None:
+                return fd_tier, fd_outcome, compare_key
+        return None
+
+    fd_market = fd_map.get(compare_key)
+    if not fd_market:
+        return None
+    fd_outcome = outcome
+    bundle = fd_market.get("outcomes", {}).get(fd_outcome)
+    if bundle is None or bundle.get("decimal_fr") is None:
+        return None
+    return fd_market, fd_outcome, compare_key
+
+
 def align_fr_outcome_to_fanduel(outcome: str, compare_key: str) -> str:
     family = compare_key.split("|", 1)[0]
     if not is_player_prop_family(family):

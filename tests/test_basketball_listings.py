@@ -8,6 +8,11 @@ class BasketballListingsTests(unittest.TestCase):
         self.assertTrue(is_basketball_outright_slug("nba-26-27"))
         self.assertTrue(is_basketball_outright_slug("nba-2026-2027"))
         self.assertFalse(is_basketball_outright_slug("los-angeles-lakers-vs-boston-celtics"))
+        self.assertFalse(
+            is_basketball_outright_slug(
+                "detroit-pistons-boston-celtics-m1195396246274048",
+            )
+        )
 
     def test_fanduel_nba_game_event(self) -> None:
         self.assertTrue(is_fanduel_nba_game_event("Toronto Raptors @ Indiana Pacers"))

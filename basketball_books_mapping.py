@@ -322,6 +322,9 @@ UNIBET_PERFORMANCE_LABELS: dict[str, str] = {
     "performance du joueur - total points + passes - match": "points_assists_player",
     "performance du joueur - total rebonds + passes - match": "rebounds_assists_player",
     "performance du joueur - total points + rebonds + passes - match": "pra_player",
+    "nbre de contres - joueur - match": "blocks_player",
+    "nbre d'interceptions - joueur - match": "steals_player",
+    "nbre d interceptions - joueur - match": "steals_player",
 }
 
 BETCLIC_OUTCOME_OU_LABELS: dict[str, str] = {
@@ -547,11 +550,24 @@ def _normalize_outcome_player_tier_market(
         else:
             tier_match = re.match(r"(.+?)\s+(\d+)\+$", text)
             if not tier_match:
-                line_match = re.match(r"\+?\s*de\s*([\d.,]+)", strip_accents(text), flags=re.I)
+                line_match = re.match(
+                    r"^\+?\s*de\s*([\d.,]+)\s*$",
+                    strip_accents(text),
+                    flags=re.I,
+                )
                 if not line_match:
                     continue
-                player_name = ""
-                line = format_line(parse_french_number(line_match.group(1)) or line_match.group(1))
+                parsed = re.search(
+                    r"-\s*(.+?)\s*\(([\d.,]+)\)\s*$",
+                    strip_accents(label),
+                    flags=re.I,
+                )
+                if not parsed:
+                    continue
+                player_name = match_player_name(parsed.group(1).strip(), roster)
+                line = format_line(
+                    parse_french_number(line_match.group(1)) or line_match.group(1)
+                )
             else:
                 player_name = match_player_name(tier_match.group(1).strip(), roster)
                 threshold = int(tier_match.group(2))
@@ -568,6 +584,50 @@ def _normalize_outcome_player_tier_market(
             family,
             label,
             {"Over": float(odds)},
+            market_scope="player",
+            player_name=player_name,
+            line=line,
+            period="match",
+        )
+        if market:
+            markets.append(market)
+    return markets
+
+
+def _normalize_unibet_performance_ou_market(
+    label: str,
+    family: str,
+    outcomes: Iterable[tuple[str, float | None]],
+    roster: list[str],
+) -> list[NormalizedMarket]:
+    """Unibet combos PRA / P+R : « Joueur + de 36,5 » / « Joueur - de 36,5 »."""
+    markets: list[NormalizedMarket] = []
+    buckets: dict[tuple[str, str], dict[str, float]] = {}
+    pattern = re.compile(
+        r"(.+?)\s*([+-])\s*de\s*([\d.,]+)\s*$",
+        flags=re.I,
+    )
+    for raw, odds in outcomes:
+        if odds is None:
+            continue
+        match = pattern.match(str(raw).strip())
+        if not match:
+            continue
+        player_name = match_player_name(match.group(1).strip(), roster)
+        if not player_name:
+            continue
+        line = format_line(parse_french_number(match.group(3)) or match.group(3))
+        side = "Over" if match.group(2) == "+" else "Under"
+        buckets.setdefault((player_name, line), {})[side] = float(odds)
+
+    for (player_name, line), outcome_map in buckets.items():
+        if not outcome_map:
+            continue
+        market = build_market(
+            build_player_prop_key(family, player_name, line, roster=roster),
+            family,
+            label,
+            outcome_map,
             market_scope="player",
             player_name=player_name,
             line=line,
@@ -675,7 +735,23 @@ def normalize_unibet_market(
 
     family = _unibet_performance_family(raw_label)
     if family:
-        return _normalize_unibet_performance_market(raw_label, family, outcomes, roster)
+        tier_markets = _normalize_unibet_performance_market(
+            raw_label,
+            family,
+            outcomes,
+            roster,
+        )
+        if tier_markets:
+            return tier_markets
+        ou_markets = _normalize_unibet_performance_ou_market(
+            raw_label,
+            family,
+            outcomes,
+            roster,
+        )
+        if ou_markets:
+            return ou_markets
+        return []
 
     return _normalize_label_pattern_market(label, outcomes, roster)
 

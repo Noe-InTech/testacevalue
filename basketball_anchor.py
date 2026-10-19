@@ -7,6 +7,18 @@ from typing import Any, Callable
 TeamsMatch = Callable[[str, str, str, str], bool]
 
 
+def _prefer_team_label(current: str, incoming: str, *, teams_match: TeamsMatch) -> str:
+    a = str(current or "").strip()
+    b = str(incoming or "").strip()
+    if not a:
+        return b
+    if not b:
+        return a
+    if teams_match(a, b, b, a):
+        return a if len(a) >= len(b) else b
+    return a
+
+
 def anchor_storage_key(home: str, away: str) -> str:
     return f"{home.lower()}|{away.lower()}"
 
@@ -51,4 +63,12 @@ def attach_basketball_anchor(
     key = resolve_merged_anchor_key(anchors, home, away, teams_match=teams_match)
     if key not in anchors:
         anchors[key] = new_basketball_anchor(home, away)
-    return anchors[key]
+    anchor = anchors[key]
+    if teams_match(anchor["home_team"], anchor["away_team"], home, away):
+        anchor["home_team"] = _prefer_team_label(anchor["home_team"], home, teams_match=teams_match)
+        anchor["away_team"] = _prefer_team_label(anchor["away_team"], away, teams_match=teams_match)
+    elif teams_match(anchor["home_team"], anchor["away_team"], away, home):
+        anchor["home_team"] = _prefer_team_label(anchor["home_team"], away, teams_match=teams_match)
+        anchor["away_team"] = _prefer_team_label(anchor["away_team"], home, teams_match=teams_match)
+    anchor["match"] = f"{anchor['home_team']} vs {anchor['away_team']}"
+    return anchor

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 
+from basketball_market_mapping import resolve_fanduel_match_for_fr_prop
 from book_urls import attach_fr_book_urls
 from fanduel_client import format_american_moneyline, format_french_decimal
 from match_live import stamp_rows_live
@@ -29,9 +30,8 @@ def assemble_anchor_result(
 
     fr_only: list[dict[str, Any]] = []
     for compare_key, fr_market in fr_map.items():
-        fd_market = fd_map.get(compare_key)
         for outcome, fr_payload in fr_market["outcomes"].items():
-            if fd_market and outcome in fd_market.get("outcomes", {}):
+            if resolve_fanduel_match_for_fr_prop(compare_key, outcome, fd_map):
                 continue
             fr_only.append(
                 enrich_fr_only_row(
@@ -55,6 +55,25 @@ def assemble_anchor_result(
         fr_market = fr_map.get(compare_key)
         for outcome, fd_bundle in fd_market.get("outcomes", {}).items():
             if fr_market and outcome in fr_market.get("outcomes", {}):
+                continue
+            linked_from_fr_tier = False
+            for fr_key, fr_market_item in fr_map.items():
+                for fr_outcome in fr_market_item.get("outcomes", {}):
+                    resolved = resolve_fanduel_match_for_fr_prop(
+                        fr_key,
+                        fr_outcome,
+                        fd_map,
+                    )
+                    if (
+                        resolved
+                        and resolved[2] == compare_key
+                        and resolved[1] == outcome
+                    ):
+                        linked_from_fr_tier = True
+                        break
+                if linked_from_fr_tier:
+                    break
+            if linked_from_fr_tier:
                 continue
             fd_only.append(
                 enrich_fd_only_row(

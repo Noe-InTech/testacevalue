@@ -57,6 +57,7 @@ BASKETBALL_OUTRIGHT_SLUG_MARKERS = (
     "champion",
 )
 BETCLIC_BASKETBALL_GRPC_CATEGORIES = (
+    "ca_bkb_top",
     "ca_bkb_pts",
     "ca_bkb_pprp",
     "ca_bkb_scrs",

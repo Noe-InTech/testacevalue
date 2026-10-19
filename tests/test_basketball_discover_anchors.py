@@ -49,6 +49,7 @@ class DiscoverAnchorsMergeTests(unittest.TestCase):
         self.assertEqual(anchor["fanduel_event_id"], "f1")
         self.assertEqual(anchor["sources"], {"unibet", "winamax", "fanduel"})
         self.assertEqual(anchor["urls"]["winamax"], "https://winamax.example/w1")
+        self.assertEqual(anchor["match"], "Detroit Pistons vs Boston Celtics")
 
     def test_betclic_merges_with_abbreviated_unibet(self) -> None:
         betclic = [
