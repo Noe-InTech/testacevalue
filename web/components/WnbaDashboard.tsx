@@ -1050,6 +1050,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                   <th>Lignes FD</th>
                   <th>FR seul</th>
                   <th>FD seul</th>
+                  <th>Books FR</th>
                   <th>FanDuel</th>
                 </tr>
               </thead>
@@ -1071,6 +1072,19 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                     </td>
                     <td data-label="FR seul">{row.fr_only_count}</td>
                     <td data-label="FD seul">{row.fd_only_count ?? 0}</td>
+                    <td data-label="Books FR">
+                      {(() => {
+                        const scraped = new Set(
+                          (row.fr_books_scraped ?? []).map((book) => book.toLowerCase()),
+                        );
+                        const parts = [
+                          scraped.has("unibet") ? "Uni" : "—",
+                          scraped.has("winamax") ? "Wina" : "—",
+                          scraped.has("betclic") ? "Bcl" : "—",
+                        ];
+                        return parts.join(" · ");
+                      })()}
+                    </td>
                     <td data-label="FanDuel">{row.fanduel_found ? "oui" : "non"}</td>
                   </tr>
                 ))}

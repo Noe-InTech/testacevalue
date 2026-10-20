@@ -93,7 +93,7 @@ SPORTS: dict[str, SportConfig] = {
         result_json=DATA_DIR / "latest_nba.json",
         status_json=DATA_DIR / "run_status_nba.json",
         combined=False,
-        timeout=600,
+        timeout=900,
     ),
     "baseball": SportConfig(
         key="baseball",

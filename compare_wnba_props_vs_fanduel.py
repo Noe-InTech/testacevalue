@@ -749,6 +749,8 @@ def build_match_progress(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "fr_market_count": int(result.get("fr_prop_market_count", 0)),
                 "fd_market_count": int(result.get("fd_prop_market_count", 0)),
                 "fanduel_found": bool(result.get("fanduel_event_id")),
+                "fr_books_scraped": list(result.get("fr_books_scraped") or []),
+                "warnings": list(result.get("warnings") or []),
             }
         )
     return rows
@@ -785,6 +787,13 @@ def build_results_payload(
             labels.add(best)
         for book_label in labels:
             fr_books_row_counts[book_label] = fr_books_row_counts.get(book_label, 0) + 1
+    if int(fr_books_row_counts.get("Betclic") or 0) == 0 and (
+        len(comparable_rows) + len(fr_only_rows) > 0
+    ):
+        anchor_warnings.append(
+            "Betclic: 0 ligne avec cote sur ce run — sur le runner: "
+            "git pull origin main && sudo systemctl restart aces-runner (≥ commit 953070e)."
+        )
     league_label = league.upper()
     if max_fr_only_rows is not None:
         fr_only_export = fr_only_rows[:max_fr_only_rows]
@@ -1313,6 +1322,7 @@ def compare_anchor(
         enrich_fd_only_row=enrich_fd_only_row,
         attach_capture_times=attach_capture_times,
     )
+    result["fr_books_scraped"] = sorted(book_events.keys())
     if anchor_warnings:
         result["warnings"] = anchor_warnings
     return result

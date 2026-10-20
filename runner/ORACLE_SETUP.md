@@ -247,7 +247,8 @@ Mise a jour du code sur la VM :
 
 ```bash
 cd /opt/testacevalue
-git pull
+git pull origin main
+sudo systemctl restart aces-runner
 source .venv/bin/activate
 pip install -r requirements.txt
 sudo systemctl restart aces-runner

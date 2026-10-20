@@ -70,6 +70,9 @@ export interface MatchProgressRow {
   fr_market_count?: number;
   fd_market_count?: number;
   fanduel_found: boolean;
+  /** Books FR effectivement scrapés sur ce match (ex. unibet, winamax, betclic). */
+  fr_books_scraped?: string[];
+  warnings?: string[];
   skipped?: boolean;
   skip_reason?: string;
 }
