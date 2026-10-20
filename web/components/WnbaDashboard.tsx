@@ -621,8 +621,13 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   );
   const fdOnlyRows = useMemo(
     () => cfg.filterRows(payload?.fd_only_comparables ?? [], filterOptions),
-    [payload, filterOptions],
+    [payload, filterOptions, cfg],
   );
+  const filteredLineCount = useMemo(
+    () => comparables.length + frHigherRows.length + frOnlyRows.length + fdOnlyRows.length,
+    [comparables.length, frHigherRows.length, frOnlyRows.length, fdOnlyRows.length],
+  );
+  const betclicComparableLines = payload?.fr_books_row_counts?.Betclic ?? 0;
   const statCountRows = useMemo(
     () => [
       ...(payload?.comparables ?? []),
@@ -991,7 +996,13 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         </div>
         <div>
           <span className="meta-label">Lignes filtrees</span>
-          <strong>{comparables.length}</strong>
+          <strong>{filteredLineCount}</strong>
+        </div>
+        <div>
+          <span className="meta-label">Comparables Betclic</span>
+          <strong className={betclicComparableLines === 0 ? "meta-warn" : undefined}>
+            {betclicComparableLines}
+          </strong>
         </div>
         <div>
           <span className="meta-label">FR paie mieux</span>

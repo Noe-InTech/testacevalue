@@ -778,10 +778,13 @@ def build_results_payload(
             if text and text not in anchor_warnings:
                 anchor_warnings.append(text)
     fr_books_row_counts: dict[str, int] = {}
-    for row in comparable_rows:
-        for book_label in row.get("fr_books_present") or []:
-            key = str(book_label)
-            fr_books_row_counts[key] = fr_books_row_counts.get(key, 0) + 1
+    for row in (*comparable_rows, *fr_only_rows):
+        labels = {str(label) for label in (row.get("fr_books_present") or []) if label}
+        best = str(row.get("bookmaker_fr") or row.get("best_fr_bookmaker") or "").strip()
+        if best:
+            labels.add(best)
+        for book_label in labels:
+            fr_books_row_counts[book_label] = fr_books_row_counts.get(book_label, 0) + 1
     league_label = league.upper()
     if max_fr_only_rows is not None:
         fr_only_export = fr_only_rows[:max_fr_only_rows]
@@ -1213,7 +1216,7 @@ def compare_anchor(
     build_fd_payload = (
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=5) as pool:
         if betclic_link:
             futures[
                 pool.submit(
@@ -1224,6 +1227,26 @@ def compare_anchor(
                     )
                 )
             ] = "betclic"
+        if unibet_event:
+            futures[
+                pool.submit(
+                    lambda event=unibet_event: _safe_call(
+                        "Unibet",
+                        lambda: unibet.build_event_payload(event),
+                        None,
+                    )
+                )
+            ] = "unibet"
+        if winamax_link:
+            futures[
+                pool.submit(
+                    lambda link=winamax_link: _safe_call(
+                        "Winamax",
+                        lambda: winamax.build_event_payload(link),
+                        None,
+                    )
+                )
+            ] = "winamax"
         if fanduel_event:
             futures[
                 pool.submit(
@@ -1234,42 +1257,21 @@ def compare_anchor(
                     )
                 )
             ] = "fanduel"
-        if futures:
-            for future in as_completed(futures):
-                book = futures[future]
-                try:
-                    payload = future.result()
-                except Exception as exc:
-                    log.warning("%s ignore %s: %s", book, anchor["match"], exc)
-                    continue
-                if book == "fanduel":
-                    ingest_fanduel(payload)
-                else:
-                    if book == "betclic" and payload is None:
-                        anchor_warnings.append(
-                            f"Betclic: payload indisponible pour {anchor.get('match', '')}"
-                        )
-                    ingest_fr_book(book, payload)
-
-    if unibet_event:
-        ingest_fr_book(
-            "unibet",
-            _safe_call(
-                "Unibet",
-                lambda: unibet.build_event_payload(unibet_event),
-                None,
-            ),
-        )
-
-    if winamax_link:
-        ingest_fr_book(
-            "winamax",
-            _safe_call(
-                "Winamax",
-                lambda: winamax.build_event_payload(winamax_link),
-                None,
-            ),
-        )
+        for future in as_completed(futures):
+            book = futures[future]
+            try:
+                payload = future.result()
+            except Exception as exc:
+                log.warning("%s ignore %s: %s", book, anchor["match"], exc)
+                continue
+            if book == "fanduel":
+                ingest_fanduel(payload)
+            else:
+                if book == "betclic" and payload is None:
+                    anchor_warnings.append(
+                        f"Betclic: payload indisponible pour {anchor.get('match', '')}"
+                    )
+                ingest_fr_book(book, payload)
 
     if betclic_links and not betclic_link:
         anchor_warnings.append(

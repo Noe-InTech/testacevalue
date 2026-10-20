@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from basketball_constants import (
-    BETCLIC_BASKETBALL_GRPC_CATEGORIES,
     BETCLIC_NBA_COMPETITION_PREFIX,
     BETCLIC_NBA_LISTING_PATH,
     BETCLIC_WNBA_LISTING_PATH,
@@ -219,10 +218,9 @@ class BetclicBasketballClient(BetclicClient):
         return BetclicBasketballClient._teams_from_token_slug(slug, WNBA_TEAM_SLUGS)
 
     def build_event_payload(self, link: BetclicBasketballMatchLink) -> dict[str, Any]:
-        payload = self.get_full_match_payload(
-            link.url,
-            grpc_categories=BETCLIC_BASKETBALL_GRPC_CATEGORIES,
-        )
+        # SSR suffit pour les props joueur (+/-, paliers, PRA) ; le gRPC complet
+        # peut prendre plusieurs minutes par match et faire expirer le compare NBA (600s).
+        payload = self.get_match_payload(link.url)
         match = payload.get("match") or {}
         contestants = match.get("contestants") or []
         home = link.home_team or (contestants[0].get("name", "") if contestants else "")
