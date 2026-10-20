@@ -77,6 +77,18 @@ class BasketballBooksMappingTests(unittest.TestCase):
         self.assertEqual(len(markets), 2)
         self.assertEqual(markets[0].compare_key, "double_double_player|gray|0")
 
+    def test_normalize_betclic_points_plus_minus_symbol(self) -> None:
+        markets = normalize_betclic_market(
+            "Nombre de points du joueur (+/-)",
+            [
+                ("Cade Cunningham + de 24,5", 1.45),
+                ("Cade Cunningham - de 24,5", 2.2),
+            ],
+            ["Cade Cunningham"],
+        )
+        self.assertEqual(len(markets), 1)
+        self.assertEqual(markets[0].compare_key, "points_player|cunningham|24.5")
+
     def test_normalize_betclic_points_plus_moins(self) -> None:
         markets = normalize_betclic_market(
             "Nombre de points du joueur (plus/moins)",

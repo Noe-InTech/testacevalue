@@ -329,13 +329,25 @@ UNIBET_PERFORMANCE_LABELS: dict[str, str] = {
 
 BETCLIC_OUTCOME_OU_LABELS: dict[str, str] = {
     "nombre de points du joueur (plus/moins)": "points_player",
+    "nombre de points du joueur (+/-)": "points_player",
     "nombre de rebonds du joueur (plus/moins)": "rebounds_player",
+    "nombre de rebonds du joueur (+/-)": "rebounds_player",
     "nombre de passes decisives du joueur (plus/moins)": "assists_player",
+    "nombre de passes decisives du joueur (+/-)": "assists_player",
     "nombre de paniers a 3 points du joueur (plus/moins)": "threes_made_player",
+    "nombre de paniers a 3 points du joueur (+/-)": "threes_made_player",
     "total du joueur (points + rebonds) (plus/moins)": "points_rebounds_player",
+    "total du joueur (points + rebonds) (+/-)": "points_rebounds_player",
     "total du joueur (points + passes) (plus/moins)": "points_assists_player",
+    "total du joueur (points + passes) (+/-)": "points_assists_player",
     "total du joueur (passes + rebonds) (plus/moins)": "rebounds_assists_player",
+    "total du joueur (passes + rebonds) (+/-)": "rebounds_assists_player",
     "total du joueur (points + rebonds + passes) (plus/moins)": "pra_player",
+    "total du joueur (points + rebonds + passes) (+/-)": "pra_player",
+    "performance (pts+reb+pas) du joueur (+/-)": "pra_player",
+    "performance (pts+reb) du joueur (+/-)": "points_rebounds_player",
+    "performance (pts+pas) du joueur (+/-)": "points_assists_player",
+    "performance (reb+pas) du joueur (+/-)": "rebounds_assists_player",
 }
 
 BETCLIC_OUTCOME_TIER_LABELS: dict[str, str] = {

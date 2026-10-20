@@ -268,6 +268,9 @@ class BetclicClient:
         absorb_payload(base_payload)
         if grpc_categories is not None:
             ordered_categories = [cid for cid in grpc_categories if cid in category_ids]
+            for cid in category_ids:
+                if cid.startswith("ca_bkb") and cid not in ordered_categories:
+                    ordered_categories.append(cid)
         else:
             priority_categories = ["ca_ten_ptss", "ca_ten_main", "ca_ten_sets"]
             ordered_categories = [cid for cid in priority_categories if cid in category_ids]

@@ -361,11 +361,7 @@ def _normalize_grpc_subcategory(node: Any) -> dict[str, Any] | None:
     if markets_raw is None and isinstance(node.get("3"), list):
         markets_raw = node.get("3")
     markets: list[dict[str, Any]] = []
-    if isinstance(markets_raw, list):
-        for item in markets_raw:
-            market = _normalize_grpc_market(item)
-            if market:
-                markets.append(market)
+    markets.extend(_flatten_grpc_market_nodes(markets_raw if isinstance(markets_raw, list) else []))
     if not markets:
         return None
     return {
@@ -373,6 +369,26 @@ def _normalize_grpc_subcategory(node: Any) -> dict[str, Any] | None:
         "name": str(node.get("name", node.get("2", ""))),
         "markets": markets,
     }
+
+
+def _flatten_grpc_market_nodes(markets_raw: list[Any]) -> list[dict[str, Any]]:
+    """Extrait les marchés principaux et groupMarkets (props joueur Betclic basket)."""
+    flat: list[dict[str, Any]] = []
+    if not isinstance(markets_raw, list):
+        return flat
+    for item in markets_raw:
+        if not isinstance(item, dict):
+            continue
+        market = _normalize_grpc_market(item)
+        if market:
+            flat.append(market)
+        for grouped in item.get("groupMarkets") or []:
+            if not isinstance(grouped, dict):
+                continue
+            grouped_market = _normalize_grpc_market(grouped)
+            if grouped_market:
+                flat.append(grouped_market)
+    return flat
 
 
 def _normalize_grpc_category(node: Any) -> dict[str, Any] | None:
