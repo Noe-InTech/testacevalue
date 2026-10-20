@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
+import { BankrollField } from "@/components/BankrollField";
 import { ValuesTable } from "@/components/ValuesTable";
+import { useBankroll } from "@/lib/bankroll";
 import { frBookBadgeClass } from "@/lib/bookBadges";
 import { buildValueRows } from "@/lib/mptoValue";
 import type { MarketPayload, RunStatus } from "@/lib/types";
@@ -202,6 +204,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const [cancelBusy, setCancelBusy] = useState(false);
 
   const isRunning = busy || status?.status === "running";
+  const { input: bankrollInput, setInput: setBankrollInput, bankrollEur, inputInvalid: bankrollInvalid } =
+    useBankroll();
 
   useEffect(() => {
     const saved = window.localStorage.getItem(SECRET_STORAGE_KEY);
@@ -886,6 +890,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           </div>
         </div>
 
+        <BankrollField
+          value={bankrollInput}
+          onChange={setBankrollInput}
+          invalid={bankrollInvalid}
+        />
+
         <label>
           Recherche globale
           <input
@@ -1137,6 +1147,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           searchQuery={valuesSearch}
           showCaptureDetails
           runGeneratedAt={payload?.generated_at}
+          bankrollEur={bankrollEur}
           emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que la référence US."
         />
       </CollapsibleSection>

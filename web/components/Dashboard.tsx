@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ResultsTable } from "@/components/ResultsTable";
 import { RunningBanner } from "@/components/RunningBanner";
+import { BankrollField } from "@/components/BankrollField";
 import { ValuesTable } from "@/components/ValuesTable";
+import { useBankroll } from "@/lib/bankroll";
 import { buildValueRows } from "@/lib/mptoValue";
 import type { ApiPayload, RunStatus, TennisMarketKind } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
@@ -93,6 +95,8 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
   const [cacheSavedAt, setCacheSavedAt] = useState<string | null>(null);
 
   const isRunning = busy || status?.status === "running";
+  const { input: bankrollInput, setInput: setBankrollInput, bankrollEur, inputInvalid: bankrollInvalid } =
+    useBankroll();
 
   useEffect(() => {
     const saved = window.localStorage.getItem(SECRET_STORAGE_KEY);
@@ -510,6 +514,11 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
             autoComplete="current-password"
           />
         </label>
+        <BankrollField
+          value={bankrollInput}
+          onChange={setBankrollInput}
+          invalid={bankrollInvalid}
+        />
         <label>
           Filtre match (optionnel)
           <input
@@ -800,6 +809,7 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
           embedded
           showCaptureDetails
           runGeneratedAt={payload?.generated_at ?? rootMeta?.generated_at}
+          bankrollEur={bankrollEur}
           emptyMessage="Aucune value MPTO positive (Kelly 0,25) sur les lignes ou le FR paie mieux que FD."
         />
       </CollapsibleSection>

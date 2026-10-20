@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 
 import { RowCaptureDetail } from "@/components/RowCaptureDetail";
 import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
+import { formatKellyWithStake } from "@/lib/bankroll";
 import type { ValueBetRow } from "@/lib/mptoValue";
 
 interface ValuesTableProps {
@@ -14,6 +15,7 @@ interface ValuesTableProps {
   searchQuery?: string;
   runGeneratedAt?: string;
   showCaptureDetails?: boolean;
+  bankrollEur?: number | null;
 }
 
 const COLUMNS = 9;
@@ -43,6 +45,7 @@ export function ValuesTable({
   searchQuery = "",
   runGeneratedAt,
   showCaptureDetails = false,
+  bankrollEur = null,
 }: ValuesTableProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const filtered = filterRows(rows, searchQuery);
@@ -115,7 +118,7 @@ export function ValuesTable({
                       {row.edgeLabel}
                     </td>
                     <td data-label="Mise Kelly 0,25" className="value-kelly">
-                      {row.kellyLabel}
+                      {formatKellyWithStake(row.kellyLabel, row.kellyPercent, bankrollEur)}
                     </td>
                   </tr>
                   {showCaptureDetails && selected ? (

@@ -437,6 +437,13 @@ td.side {
   opacity: 0.75;
 }
 
+.bankroll-field .hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
 .market-tab,
 .sport-tab {
   border: 1px solid rgba(255, 255, 255, 0.12);
