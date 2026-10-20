@@ -6,7 +6,11 @@ import unittest
 from types import SimpleNamespace
 
 from book_urls import attach_fr_book_urls
-from compare_wnba_props_vs_fanduel import discover_anchors, teams_match
+from compare_wnba_props_vs_fanduel import (
+    discover_anchors,
+    resolve_basketball_book_link,
+    teams_match,
+)
 from basketball_anchor import attach_basketball_anchor, resolve_merged_anchor_key
 
 
@@ -121,6 +125,32 @@ class DiscoverAnchorsMergeTests(unittest.TestCase):
         )
         self.assertEqual(len(anchors), 1)
         self.assertIn(key, anchors)
+
+    def test_resolve_betclic_link_by_teams_when_stale_match_id(self) -> None:
+        anchor = {
+            "home_team": "Det Pistons",
+            "away_team": "Bos Celtics",
+            "betclic_match_id": "stale-wrong-id",
+            "sources": set(),
+            "urls": {},
+        }
+        links = [
+            SimpleNamespace(
+                home_team="Detroit Pistons",
+                away_team="Boston Celtics",
+                match_id="b-real",
+                url="https://betclic.example/m-b-real",
+            )
+        ]
+        found = resolve_basketball_book_link(
+            anchor,
+            links,
+            match_id_key="betclic_match_id",
+            source_key="betclic",
+        )
+        self.assertIs(found, links[0])
+        self.assertEqual(anchor["betclic_match_id"], "b-real")
+        self.assertIn("betclic", anchor["sources"])
 
     def test_fr_book_url_fallback_when_book_events_empty(self) -> None:
         rows = [

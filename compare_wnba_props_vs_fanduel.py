@@ -86,6 +86,66 @@ def teams_match(home_a: str, away_a: str, home_b: str, away_b: str) -> bool:
     )
 
 
+def resolve_basketball_book_link(
+    anchor: dict[str, Any],
+    links: list[Any],
+    *,
+    match_id_key: str,
+    source_key: str,
+    id_attr: str = "match_id",
+    url_attr: str = "url",
+) -> Any | None:
+    """Retrouve le lien book FR pour un anchor (id puis teams_match)."""
+    anchor_id = anchor.get(match_id_key)
+    if anchor_id is not None:
+        anchor_id_str = str(anchor_id)
+        for item in links:
+            item_id = getattr(item, id_attr, None)
+            if item_id is not None and str(item_id) == anchor_id_str:
+                return item
+    home = str(anchor.get("home_team") or "")
+    away = str(anchor.get("away_team") or "")
+    if not home or not away:
+        return None
+    for item in links:
+        if not teams_match(home, away, item.home_team, item.away_team):
+            continue
+        item_id = getattr(item, id_attr, None)
+        if item_id is not None:
+            anchor[match_id_key] = item_id
+        sources = anchor.setdefault("sources", set())
+        if isinstance(sources, set):
+            sources.add(source_key)
+        url = getattr(item, url_attr, None)
+        if url:
+            anchor.setdefault("urls", {})[source_key] = url
+        return item
+    return None
+
+
+def count_normalized_fr_outcomes_for_event(
+    bookmaker: str,
+    event: dict[str, Any] | None,
+    *,
+    roster: list[str],
+) -> int:
+    if not event:
+        return 0
+    normalizer = BOOK_NORMALIZERS.get(bookmaker)
+    if normalizer is None:
+        return 0
+    total = 0
+    for market in event.get("markets", []):
+        label = str(market.get("label", "")).strip()
+        if not is_wnba_player_prop_label(label):
+            continue
+        outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
+        for item in normalizer(label, outcomes, roster):
+            payload = normalized_market_to_dict(item, roster)
+            total += len(payload.get("outcomes") or {})
+    return total
+
+
 def build_best_fr_player_props_map(
     book_events: dict[str, dict[str, Any]],
     *,
@@ -115,25 +175,31 @@ def build_best_fr_player_props_map(
                             "outcomes": {},
                         },
                     )
-                    current = slot["outcomes"].get(aligned)
-                    if current is None or float(odds) > float(current["odds"]):
-                        slot["outcomes"][aligned] = {
-                            "odds": float(odds),
-                            "bookmaker": bookmaker,
-                            "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
-                            "raw_outcome": outcome,
-                            "fr_book_url": str(event.get("url") or ""),
-                            "fr_book_match_id": str(
-                                event.get("match_id") or event.get("event_id") or ""
-                            ),
-                            "selection_id": selection_id_for_normalized_outcome(
-                                normalized_outcome=str(outcome),
-                                raw_outcomes=outcomes,
-                                selection_ids=selection_ids,
-                                player_name=item.player_name,
-                                line=str(getattr(item, "line", "") or ""),
-                            ),
-                        }
+                    book_payload = {
+                        "odds": float(odds),
+                        "bookmaker": bookmaker,
+                        "bookmaker_label": BOOK_LABELS.get(bookmaker, bookmaker),
+                        "raw_outcome": outcome,
+                        "fr_book_url": str(event.get("url") or ""),
+                        "fr_book_match_id": str(
+                            event.get("match_id") or event.get("event_id") or ""
+                        ),
+                        "selection_id": selection_id_for_normalized_outcome(
+                            normalized_outcome=str(outcome),
+                            raw_outcomes=outcomes,
+                            selection_ids=selection_ids,
+                            player_name=item.player_name,
+                            line=str(getattr(item, "line", "") or ""),
+                        ),
+                    }
+                    outcome_slot = slot["outcomes"].setdefault(
+                        aligned,
+                        {"by_book": {}},
+                    )
+                    outcome_slot.setdefault("by_book", {})[bookmaker] = book_payload
+                    current_odds = outcome_slot.get("odds")
+                    if current_odds is None or float(odds) > float(current_odds):
+                        outcome_slot.update(book_payload)
     return best
 
 
@@ -398,8 +464,17 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
     marche_fr = str(row.get("fr_market_label", ""))
     marche_fd = str(row.get("fanduel_market_label", ""))
     us_label = str(row.get("us_source_label") or "FanDuel")
+    by_book = row.get("by_book") if isinstance(row.get("by_book"), dict) else {}
+    fr_books_present = sorted(
+        {
+            str(payload.get("bookmaker_label") or BOOK_LABELS.get(key, key))
+            for key, payload in by_book.items()
+            if isinstance(payload, dict)
+        }
+    )
     enriched = {
         **row,
+        "fr_books_present": fr_books_present,
         "us_source": row.get("us_source", "fanduel"),
         "us_source_label": us_label,
         "us_bookmaker": row.get("us_bookmaker", "FanDuel"),
@@ -531,6 +606,7 @@ def compare_normalized_props(
                     "fr_book_url": fr_payload.get("fr_book_url", ""),
                     "fr_book_match_id": fr_payload.get("fr_book_match_id", ""),
                     "selection_id": fr_payload.get("selection_id", ""),
+                    "by_book": fr_payload.get("by_book") or {},
                     "fanduel_american": fd_bundle.get("american"),
                     "fanduel_odds": float(fd_bundle.get("decimal_raw") or fd_bundle["decimal_fr"]),
                     **outcome_us_source_fields(fd_market, fd_outcome),
@@ -678,6 +754,17 @@ def build_results_payload(
     match_progress = build_match_progress(results)
     fd_events = sum(1 for result in results if int(result.get("fd_prop_market_count", 0)) > 0)
     fr_events = sum(1 for result in results if int(result.get("fr_prop_market_count", 0)) > 0)
+    anchor_warnings: list[str] = []
+    for result in results:
+        for warning in result.get("warnings") or []:
+            text = str(warning).strip()
+            if text and text not in anchor_warnings:
+                anchor_warnings.append(text)
+    fr_books_row_counts: dict[str, int] = {}
+    for row in comparable_rows:
+        for book_label in row.get("fr_books_present") or []:
+            key = str(book_label)
+            fr_books_row_counts[key] = fr_books_row_counts.get(key, 0) + 1
     league_label = league.upper()
     if max_fr_only_rows is not None:
         fr_only_export = fr_only_rows[:max_fr_only_rows]
@@ -702,11 +789,13 @@ def build_results_payload(
         "fr_only_comparables": fr_only_export,
         "fd_only_comparables": fd_only_rows if include_fd_only_rows else [],
         "match_progress": match_progress,
+        "fr_books_row_counts": fr_books_row_counts,
         "notes": [
             f"Pipeline {league_label} séparé du tennis.",
             "Référence US: FanDuel en priorité; RotoWire · DraftKings seulement si la ligne pts/reb/ast/3pts est absente cote FanDuel.",
             "Books FR: Unibet, Betclic, Winamax — meilleure cote par compare_key.",
             *(book_warnings or []),
+            *anchor_warnings,
         ],
     }
 
@@ -1078,18 +1167,26 @@ def compare_anchor(
             fd_map = rebuild_us_map()
             flush("fanduel")
 
-    unibet_event = next(
-        (item for item in unibet_events if item.event_id == anchor.get("unibet_event_id")),
-        None,
+    unibet_event = resolve_basketball_book_link(
+        anchor,
+        unibet_events,
+        match_id_key="unibet_event_id",
+        source_key="unibet",
+        id_attr="event_id",
     )
-    betclic_link = next(
-        (item for item in betclic_links if item.match_id == anchor.get("betclic_match_id")),
-        None,
+    betclic_link = resolve_basketball_book_link(
+        anchor,
+        betclic_links,
+        match_id_key="betclic_match_id",
+        source_key="betclic",
     )
-    winamax_link = next(
-        (item for item in winamax_links if item.match_id == anchor.get("winamax_match_id")),
-        None,
+    winamax_link = resolve_basketball_book_link(
+        anchor,
+        winamax_links,
+        match_id_key="winamax_match_id",
+        source_key="winamax",
     )
+    anchor_warnings: list[str] = []
     fanduel_event = next(
         (item for item in fanduel_events if item.event_id == anchor.get("fanduel_event_id")),
         None,
@@ -1131,6 +1228,10 @@ def compare_anchor(
                 if book == "fanduel":
                     ingest_fanduel(payload)
                 else:
+                    if book == "betclic" and payload is None:
+                        anchor_warnings.append(
+                            f"Betclic: payload indisponible pour {anchor.get('match', '')}"
+                        )
                     ingest_fr_book(book, payload)
 
     if unibet_event:
@@ -1153,11 +1254,34 @@ def compare_anchor(
             ),
         )
 
+    if betclic_links and not betclic_link:
+        anchor_warnings.append(
+            f"Betclic: aucun match lié pour {anchor.get('match', '')}"
+        )
+    elif betclic_link:
+        betclic_event = book_events.get("betclic")
+        if betclic_event is None:
+            anchor_warnings.append(
+                f"Betclic: scrape vide pour {anchor.get('match', '')}"
+            )
+        else:
+            betclic_norm = count_normalized_fr_outcomes_for_event(
+                "betclic",
+                betclic_event,
+                roster=roster,
+            )
+            raw_markets = len(betclic_event.get("markets") or [])
+            if betclic_norm == 0:
+                anchor_warnings.append(
+                    f"Betclic: 0 props normalisés pour {anchor.get('match', '')} "
+                    f"({raw_markets} marchés bruts — runner à jour avec mapping +/- ?)"
+                )
+
     # Ensure RotoWire overlay applies even without FanDuel payload.
     with book_lock:
         fd_map = rebuild_us_map()
 
-    return assemble_anchor_result(
+    result = assemble_anchor_result(
         anchor,
         book_events=book_events,
         roster=roster,
@@ -1170,6 +1294,9 @@ def compare_anchor(
         enrich_fd_only_row=enrich_fd_only_row,
         attach_capture_times=attach_capture_times,
     )
+    if anchor_warnings:
+        result["warnings"] = anchor_warnings
+    return result
 
 
 def run_compare(

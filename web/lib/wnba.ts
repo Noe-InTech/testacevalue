@@ -35,6 +35,15 @@ export const WNBA_BOOK_FILTERS = ["Tous", "Winamax", "Unibet", "Betclic"] as con
 
 export type WnbaBookFilter = (typeof WNBA_BOOK_FILTERS)[number];
 
+/** Ligne comparable avec une cote sur ce book FR (meilleur ou dans by_book). */
+export function rowHasFrBook(row: ComparableRow, book: string): boolean {
+  const present = row.fr_books_present;
+  if (Array.isArray(present) && present.length > 0) {
+    return present.includes(book);
+  }
+  return row.bookmaker_fr === book;
+}
+
 export function hasWnbaData(payload: MarketPayload | null | undefined): boolean {
   if (!payload) {
     return false;
@@ -152,7 +161,7 @@ export function filterWnbaRows(
         return false;
       }
     }
-    if (book !== "Tous" && row.bookmaker_fr && row.bookmaker_fr !== book) {
+    if (book !== "Tous" && !rowHasFrBook(row, book)) {
       return false;
     }
     if (matchNeedle) {
@@ -167,6 +176,7 @@ export function filterWnbaRows(
     const haystack = [
       row.match,
       row.bookmaker_fr,
+      ...(row.fr_books_present ?? []),
       row.marche_fr,
       row.marche_fanduel,
       row.ligne_props_fr,

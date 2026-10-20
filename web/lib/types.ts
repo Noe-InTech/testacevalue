@@ -12,6 +12,8 @@ export interface ComparableRow {
   marche_fanduel: string;
   cote_fr: string;
   bookmaker_fr: string;
+  /** Books FR ayant une cote sur cette ligne (meilleur + by_book). */
+  fr_books_present?: string[];
   /** URL page match / sélection du book FR retenu (Unibet / Betclic / Winamax). */
   url_fr?: string;
   /** Fallback HTTPS Winamax (highlight) si le deeplink wam:// n'ouvre pas l'app. */
