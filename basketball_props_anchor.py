@@ -101,11 +101,13 @@ def assemble_anchor_result(
         comparable,
         urls=anchor.get("urls") or {},
         book_events=book_events,
+        resolve_betclic_share=False,
     )
     attach_fr_book_urls(
         fr_only,
         urls=anchor.get("urls") or {},
         book_events=book_events,
+        resolve_betclic_share=False,
     )
     is_live = bool(anchor.get("is_live"))
     stamp_rows_live(comparable, is_live)

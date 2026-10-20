@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
@@ -340,15 +341,36 @@ class FanDuelClient:
                 events[event.event_id] = event
         return list(events.values())
 
+    @staticmethod
+    def _merge_event_page_markets(
+        merged: dict[str, dict[str, Any]],
+        markets: dict[str, Any],
+    ) -> None:
+        for market_id, market in markets.items():
+            if market_id not in merged:
+                merged[market_id] = market
+                continue
+            existing_runners = {
+                runner.get("selectionId"): runner
+                for runner in merged[market_id].get("runners", [])
+            }
+            for runner in market.get("runners", []):
+                selection_id = runner.get("selectionId")
+                if selection_id not in existing_runners:
+                    merged[market_id].setdefault("runners", []).append(runner)
+
     def get_event_markets(
         self,
         event_id: str,
         tabs: tuple[str, ...] | None = None,
         *,
         timeout: float = 15.0,
+        parallel_tabs: bool = False,
     ) -> list[dict[str, Any]]:
+        tab_list = tabs or EVENT_TABS
         merged: dict[str, dict[str, Any]] = {}
-        for tab in tabs or EVENT_TABS:
+
+        def fetch_tab(tab: str) -> dict[str, Any]:
             try:
                 payload = self._get(
                     "/api/event-page",
@@ -356,20 +378,17 @@ class FanDuelClient:
                     timeout=timeout,
                 )
             except Exception:
-                continue
-            markets = (payload.get("attachments") or {}).get("markets") or {}
-            for market_id, market in markets.items():
-                if market_id not in merged:
-                    merged[market_id] = market
-                    continue
-                existing_runners = {
-                    runner.get("selectionId"): runner
-                    for runner in merged[market_id].get("runners", [])
-                }
-                for runner in market.get("runners", []):
-                    selection_id = runner.get("selectionId")
-                    if selection_id not in existing_runners:
-                        merged[market_id].setdefault("runners", []).append(runner)
+                return {}
+            return (payload.get("attachments") or {}).get("markets") or {}
+
+        if parallel_tabs and len(tab_list) > 1:
+            workers = min(8, len(tab_list))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                for markets in pool.map(fetch_tab, tab_list):
+                    self._merge_event_page_markets(merged, markets)
+        else:
+            for tab in tab_list:
+                self._merge_event_page_markets(merged, fetch_tab(tab))
         return list(merged.values())
 
     def build_event_payload(

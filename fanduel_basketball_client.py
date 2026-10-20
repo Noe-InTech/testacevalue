@@ -118,7 +118,11 @@ class FanDuelBasketballClient(FanDuelClient):
         *,
         tabs: tuple[str, ...] = FANDUEL_WNBA_EVENT_TABS,
     ) -> dict[str, Any]:
-        markets = self.get_event_markets(event.event_id, tabs=tabs)
+        markets = self.get_event_markets(
+            event.event_id,
+            tabs=tabs,
+            parallel_tabs=True,
+        )
         return {
             "event_id": event.event_id,
             "event": event.name,
