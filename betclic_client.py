@@ -318,6 +318,22 @@ class BetclicClient:
             base_payload["grpc_market_count"] = len(merged_markets)
         return base_payload
 
+    _PLAYER_OUTCOME_TEXT = re.compile(
+        r"^.+\s[+-]\s*de\s*[\d.,]+",
+        flags=re.I,
+    )
+
+    @staticmethod
+    def _selection_outcome_label(selection: dict[str, Any]) -> str:
+        """Libellé issue : Betclic met souvent le joueur seulement dans betslipName (paliers)."""
+        name = str(selection.get("name", "")).strip()
+        betslip = str(selection.get("betslipName", "")).strip()
+        if betslip and BetclicClient._PLAYER_OUTCOME_TEXT.match(betslip):
+            return betslip
+        if name and BetclicClient._PLAYER_OUTCOME_TEXT.match(name):
+            return name
+        return betslip or name
+
     @staticmethod
     def _iter_selection_nodes(node: Any) -> Iterable[dict[str, Any]]:
         if isinstance(node, dict):
@@ -355,15 +371,19 @@ class BetclicClient:
         for selection in BetclicClient._iter_selection_nodes(market):
             if selection.get("status") not in (None, 1):
                 continue
-            label = str(selection.get("name", "")).strip()
-            if not label or label in seen:
+            label = BetclicClient._selection_outcome_label(selection)
+            if not label:
+                continue
+            selection_id = str(selection.get("id") or "").strip()
+            dedupe_key = selection_id or label.lower()
+            if dedupe_key in seen:
                 continue
             odds = selection.get("odds")
             try:
                 parsed_odds = float(odds) if odds is not None else None
             except (TypeError, ValueError):
                 parsed_odds = None
-            seen.add(label)
+            seen.add(dedupe_key)
             outcomes.append(
                 BetclicOutcome(
                     label=label,
@@ -511,7 +531,13 @@ class BetclicClient:
                 grouped_label = str(grouped.get("betslipName") or grouped.get("name") or "").strip()
                 add_market(grouped, grouped_label or None)
 
-        return markets
+        by_label: dict[str, BetclicMarket] = {}
+        for market in markets:
+            key = market.label.strip().lower()
+            existing = by_label.get(key)
+            if existing is None or len(market.outcomes) > len(existing.outcomes):
+                by_label[key] = market
+        return list(by_label.values())
 
     def get_event_markets(self, match_url: str) -> list[BetclicMarket]:
         payload = self.get_match_payload(match_url)

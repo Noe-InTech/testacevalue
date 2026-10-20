@@ -100,6 +100,33 @@ class BasketballBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(markets[0].compare_key, "points_player|gray|20.5")
 
+    def test_normalize_betclic_points_paliers_from_betslip_labels(self) -> None:
+        markets = normalize_betclic_market(
+            "Nombre de points du joueur (paliers)",
+            [
+                ("Jayson Tatum + de 16,5", 1.04),
+                ("Cade Cunningham + de 24,5", 1.84),
+            ],
+            ["Jayson Tatum", "Cade Cunningham"],
+        )
+        self.assertEqual(len(markets), 2)
+        keys = {item.compare_key for item in markets}
+        self.assertIn("points_player|tatum|16.5", keys)
+        self.assertIn("points_player|cunningham|24.5", keys)
+
+    def test_normalize_betclic_pra_long_performance_label(self) -> None:
+        markets = normalize_betclic_market(
+            "Performance du joueur (points + rebonds + passes)",
+            [
+                ("Ausar Thompson + de 19,5", 1.68),
+                ("Ausar Thompson - de 19,5", 1.8),
+            ],
+            ["Ausar Thompson"],
+        )
+        self.assertEqual(len(markets), 1)
+        self.assertEqual(markets[0].market_family, "pra_player")
+        self.assertEqual(markets[0].compare_key, "pra_player|thompson|19.5")
+
     def test_normalize_unibet_points_ou(self) -> None:
         from basketball_books_mapping import normalize_unibet_market
 

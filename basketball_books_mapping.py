@@ -348,6 +348,12 @@ BETCLIC_OUTCOME_OU_LABELS: dict[str, str] = {
     "performance (pts+reb) du joueur (+/-)": "points_rebounds_player",
     "performance (pts+pas) du joueur (+/-)": "points_assists_player",
     "performance (reb+pas) du joueur (+/-)": "rebounds_assists_player",
+    "performance du joueur (points + rebonds + passes)": "pra_player",
+    "performance du joueur (points + rebonds)": "points_rebounds_player",
+    "performance du joueur (points + passes)": "points_assists_player",
+    "performance du joueur (points + passes decisives)": "points_assists_player",
+    "performance du joueur (rebonds + passes)": "rebounds_assists_player",
+    "performance du joueur (rebonds + passes decisives)": "rebounds_assists_player",
 }
 
 BETCLIC_OUTCOME_TIER_LABELS: dict[str, str] = {
