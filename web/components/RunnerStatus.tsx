@@ -13,7 +13,7 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
   const [health, setHealth] = useState<RunnerHealth | null>(null);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<"vercel" | "live" | "configured" | null>(null);
   const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [repairing, setRepairing] = useState(false);
@@ -157,34 +157,61 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
     }
   }, [secret, refresh]);
 
-  const url = useMemo(() => {
-    const live = health?.public_url?.trim().replace(/\/$/, "") || "";
-    const configured = health?.configured_url?.trim().replace(/\/$/, "") || "";
-    return live || configured;
+  const normalizeUrl = (value?: string) => value?.trim().replace(/\/$/, "") || "";
+
+  const { liveUrl, configuredUrl, vercelTargetUrl } = useMemo(() => {
+    const live = normalizeUrl(health?.public_url);
+    const configured = normalizeUrl(health?.configured_url);
+    return {
+      liveUrl: live,
+      configuredUrl: configured,
+      vercelTargetUrl: live || configured,
+    };
   }, [health]);
 
-  const mismatch =
-    Boolean(health?.public_url) &&
-    Boolean(health?.configured_url) &&
-    health!.public_url!.replace(/\/$/, "") !== health!.configured_url!.replace(/\/$/, "");
+  const mismatch = Boolean(liveUrl) && Boolean(configuredUrl) && liveUrl !== configuredUrl;
 
-  const onCopy = async () => {
-    if (!url) {
+  const onCopyUrl = async (text: string, field: "vercel" | "live" | "configured") => {
+    if (!text) {
       return;
     }
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(text);
     } catch {
       const input = document.createElement("input");
-      input.value = url;
+      input.value = text;
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    setCopiedField(field);
+    window.setTimeout(() => setCopiedField(null), 1800);
   };
+
+  const renderUrlField = (
+    label: string,
+    url: string,
+    field: "vercel" | "live" | "configured",
+    options?: { primary?: boolean; hint?: string },
+  ) => (
+    <div className={`runner-link-field${options?.primary ? " runner-link-field-primary" : ""}`}>
+      <p className="runner-link-label">{label}</p>
+      {options?.hint ? <p className="runner-status-note">{options.hint}</p> : null}
+      <div className="runner-link-row">
+        <code className="runner-link-url" title={url}>
+          {url}
+        </code>
+        <button
+          type="button"
+          className="runner-link-copy"
+          onClick={() => void onCopyUrl(url, field)}
+        >
+          {copiedField === field ? "Copié" : "Copier"}
+        </button>
+      </div>
+    </div>
+  );
 
   const onUnlock = () => {
     void refresh(secret);
@@ -196,7 +223,7 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
       setHealth(null);
       setError("");
       setInfo("");
-      setCopied(false);
+      setCopiedField(null);
       return;
     }
     setOpen(false);
@@ -204,7 +231,7 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
     setHealth(null);
     setError("");
     setInfo("");
-    setCopied(false);
+    setCopiedField(null);
   };
 
   if (!open && !standalone) {
@@ -280,20 +307,54 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
               </button>
             </div>
 
-            {!url ? (
+            {health?.reachable === false ? (
+              <div className="runner-link-unreachable panel">
+                <p className="runner-status-note danger-text">
+                  Runner injoignable depuis Vercel
+                  {health.runner_host ? ` (${health.runner_host})` : ""}.
+                </p>
+                <p className="runner-status-note">
+                  Le tunnel Cloudflare est peut‑être mort. Clique « Réparer le runner » (GitHub
+                  Actions, ~1–2 min) ou, sur la VM Oracle, vérifie{" "}
+                  <code>aces-runner</code> / <code>cloudflared</code> puis relance le tunnel.
+                </p>
+              </div>
+            ) : null}
+
+            {!vercelTargetUrl ? (
               <p className="runner-status-note danger-text">
-                Lien introuvable pour l’instant. Utilise « Réparer le runner » ou redémarre le
-                tunnel sur la VM.
+                Aucune URL disponible. Configure <code>RUNNER_URL</code> sur Vercel ou répare le
+                runner pour obtenir une URL <code>https://….trycloudflare.com</code>.
               </p>
             ) : (
-              <div className="runner-link-row">
-                <code className="runner-link-url" title={url}>
-                  {url}
-                </code>
-                <button type="button" className="runner-link-copy" onClick={() => void onCopy()}>
-                  {copied ? "Copié" : "Copier"}
-                </button>
-              </div>
+              <>
+                {renderUrlField(
+                  "URL à configurer sur Vercel (RUNNER_URL)",
+                  vercelTargetUrl,
+                  "vercel",
+                  {
+                    primary: true,
+                    hint: liveUrl
+                      ? "Copie cette URL dans Vercel → Settings → Environment Variables → RUNNER_URL, puis redeploy."
+                      : configuredUrl
+                        ? "URL mémorisée sur Vercel — le runner ne répond pas, l’URL live peut avoir changé après réparation."
+                        : undefined,
+                  },
+                )}
+                {liveUrl
+                  ? renderUrlField("URL publique actuelle du runner", liveUrl, "live")
+                  : null}
+                {mismatch && configuredUrl
+                  ? renderUrlField(
+                      "RUNNER_URL actuel sur Vercel (obsolète ?)",
+                      configuredUrl,
+                      "configured",
+                      {
+                        hint: "Diffère du tunnel live — mets à jour RUNNER_URL puis redeploy.",
+                      },
+                    )
+                  : null}
+              </>
             )}
 
             <div className="runner-update-row">
@@ -337,12 +398,6 @@ export function RunnerStatus({ standalone = false }: { standalone?: boolean }) {
               </p>
             </div>
 
-            {mismatch ? (
-              <p className="runner-status-note">
-                Le tunnel live diffère de <code>RUNNER_URL</code> sur Vercel — mets à jour la variable
-                puis redeploy (ou lance « Réparer le runner »).
-              </p>
-            ) : null}
           </>
         ) : null}
       </section>

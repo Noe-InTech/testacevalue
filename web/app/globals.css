@@ -843,6 +843,32 @@ td.side {
   gap: 10px;
 }
 
+.runner-link-field {
+  display: grid;
+  gap: 6px;
+}
+
+.runner-link-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.runner-link-field-primary .runner-link-label {
+  color: var(--accent);
+}
+
+.runner-link-field-primary .runner-link-url {
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.runner-link-unreachable {
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
 .runner-link-header {
   display: flex;
   align-items: center;

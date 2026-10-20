@@ -17,8 +17,9 @@ export default function RunnerLinkPage() {
         <p className="eyebrow">Privé</p>
         <h1>Lien runner</h1>
         <p className="lead">
-          Page non liée depuis l’accueil. Code secret requis. Tu peux aussi mettre à jour le runner
-          depuis ici.
+          Saisis ton code secret pour voir l’URL à coller dans la variable{" "}
+          <code>RUNNER_URL</code> sur Vercel (tunnel Cloudflare du runner EU). Tu peux aussi
+          réparer ou mettre à jour le runner depuis ici.
         </p>
       </header>
       <RunnerStatus standalone />
