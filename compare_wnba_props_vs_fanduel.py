@@ -472,6 +472,10 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
             if isinstance(payload, dict)
         }
     )
+    best_label = str(row.get("best_fr_bookmaker") or "")
+    if best_label and best_label not in fr_books_present:
+        fr_books_present.append(best_label)
+        fr_books_present.sort()
     enriched = {
         **row,
         "fr_books_present": fr_books_present,
@@ -497,8 +501,21 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
 def enrich_fr_only_row(row: dict[str, Any]) -> dict[str, Any]:
     issue = props_outcome_label_fr(str(row.get("outcome", "")))
     marche_fr = str(row.get("fr_market_label", ""))
+    by_book = row.get("by_book") if isinstance(row.get("by_book"), dict) else {}
+    fr_books_present = sorted(
+        {
+            str(payload.get("bookmaker_label") or BOOK_LABELS.get(key, key))
+            for key, payload in by_book.items()
+            if isinstance(payload, dict)
+        }
+    )
+    best_label = str(row.get("best_fr_bookmaker") or "")
+    if best_label and best_label not in fr_books_present:
+        fr_books_present.append(best_label)
+        fr_books_present.sort()
     return {
         **row,
+        "fr_books_present": fr_books_present,
         "us_source": "",
         "us_source_label": "",
         "us_bookmaker": "",

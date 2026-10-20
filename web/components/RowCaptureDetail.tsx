@@ -1,4 +1,5 @@
 import { FrBookBadge } from "@/lib/bookBadges";
+import { listFrBookOdds } from "@/lib/frBookOdds";
 import type { ComparableRow } from "@/lib/types";
 
 export function formatCaptureTime(value?: string): string {
@@ -40,6 +41,7 @@ export function RowCaptureDetail({
   const bookUrl = row.url_fr?.trim() || "";
   const bookWebFallback = row.url_fr_web?.trim() || "";
   const bookName = row.bookmaker_fr?.trim() || "book FR";
+  const frBookOdds = listFrBookOdds(row);
   const isSelectionLink = row.url_fr_kind === "selection";
   const isBookBridge = /^\/go\/(winamax|unibet|betclic)\?/.test(bookUrl);
   const bookLinkLabel = isSelectionLink
@@ -98,8 +100,25 @@ export function RowCaptureDetail({
           <span className={usBadgeClass}>{usLabel}</span>
         </dd>
 
-        <dt>Cote FR</dt>
+        <dt>Cote FR (meilleur)</dt>
         <dd>{displayOdds(row.cote_fr)}</dd>
+
+        {frBookOdds.length > 0 ? (
+          <>
+            <dt>Cotes FR par book</dt>
+            <dd>
+              <ul className="fr-book-odds-stack fr-book-odds-stack-detail">
+                {frBookOdds.map((entry) => (
+                  <li key={`${entry.key}-${entry.oddsFormatted}`} className={entry.isBest ? "is-best" : undefined}>
+                    <FrBookBadge bookmaker={entry.label} />
+                    <span className="fr-book-odds-value">{entry.oddsFormatted}</span>
+                    {entry.isBest ? <span className="fr-book-odds-best-tag">meilleur</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        ) : null}
 
         <dt>Cote US moneyline</dt>
         <dd>{displayOdds(row.cote_us_fanduel_ml)}</dd>

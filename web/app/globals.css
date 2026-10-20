@@ -951,6 +951,42 @@ td.side {
   color: var(--accent);
 }
 
+.fr-book-odds-stack {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fr-book-odds-stack li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fr-book-odds-stack li.is-best .fr-book-odds-value {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.fr-book-odds-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+}
+
+.fr-book-odds-best-tag {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.fr-book-odds-stack-detail {
+  gap: 6px;
+}
+
 @media (max-width: 720px) {
   .runner-link-row {
     grid-template-columns: 1fr;

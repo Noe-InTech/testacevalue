@@ -45,6 +45,7 @@ def assemble_anchor_result(
                         "fr_book_url": fr_payload.get("fr_book_url", ""),
                         "fr_book_match_id": fr_payload.get("fr_book_match_id", ""),
                         "selection_id": fr_payload.get("selection_id", ""),
+                        "by_book": fr_payload.get("by_book") or {},
                         "fr_market_label": fr_market["market_label_raw"],
                     }
                 )

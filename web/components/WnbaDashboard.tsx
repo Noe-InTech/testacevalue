@@ -646,6 +646,17 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
 
   const overlapHint = useMemo(() => {
     const notes = payload?.notes ?? [];
+    const betclicWarning = notes.find((note) => /betclic:/i.test(note));
+    if (betclicWarning) {
+      return betclicWarning;
+    }
+    const counts = payload?.fr_books_row_counts;
+    if (counts && (payload?.comparable_count ?? 0) > 0) {
+      const betclicRows = counts.Betclic ?? 0;
+      if (betclicRows === 0 && (counts.Winamax ?? counts.Unibet)) {
+        return "Aucune ligne comparable avec cote Betclic — runner à jour (git pull) ou scrape Betclic vide sur ce run.";
+      }
+    }
     const bookNote = notes.find((note) => /winamax|unibet|betclic|fanduel/i.test(note));
     if (bookNote) {
       return bookNote;

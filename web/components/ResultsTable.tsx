@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 
 import { RowCaptureDetail } from "@/components/RowCaptureDetail";
 import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
+import { listFrBookOdds } from "@/lib/frBookOdds";
 import type { ComparableRow, MarketKind, TableColumn } from "@/lib/types";
 import { getTableColumns } from "@/lib/types";
 
@@ -69,7 +70,20 @@ function renderCell(row: ComparableRow, column: TableColumn) {
     return <MatchLabel match={row.match} isLive={row.is_live} />;
   }
   if (column.key === "bookmaker_fr") {
-    return <FrBookBadge bookmaker={row.bookmaker_fr} />;
+    const books = listFrBookOdds(row);
+    if (books.length <= 1) {
+      return <FrBookBadge bookmaker={row.bookmaker_fr} />;
+    }
+    return (
+      <ul className="fr-book-odds-stack">
+        {books.map((entry) => (
+          <li key={`${entry.key}-${entry.oddsFormatted}`} className={entry.isBest ? "is-best" : undefined}>
+            <FrBookBadge bookmaker={entry.label} />
+            <span className="fr-book-odds-value">{entry.oddsFormatted}</span>
+          </li>
+        ))}
+      </ul>
+    );
   }
   if (column.key === "us_source_label") {
     if (!row.us_source_label) {
@@ -83,7 +97,17 @@ function renderCell(row: ComparableRow, column: TableColumn) {
         : row.us_source_label;
     return <span className={badgeClass}>{label}</span>;
   }
-  return "format" in column && column.format ? column.format(row) : row[column.key as keyof ComparableRow];
+  if ("format" in column && column.format) {
+    return column.format(row);
+  }
+  const raw = row[column.key as keyof ComparableRow];
+  if (raw === null || raw === undefined) {
+    return "—";
+  }
+  if (typeof raw === "object") {
+    return "—";
+  }
+  return String(raw);
 }
 
 export function ResultsTable({

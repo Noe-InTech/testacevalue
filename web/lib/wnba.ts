@@ -1,4 +1,5 @@
 import type { ComparableRow, MarketPayload, RunStatus } from "@/lib/types";
+import { rowHasFrBookLabel } from "@/lib/frBookOdds";
 
 export const WNBA_CACHE_KEY = "wnba_last_results_v1";
 
@@ -37,11 +38,7 @@ export type WnbaBookFilter = (typeof WNBA_BOOK_FILTERS)[number];
 
 /** Ligne comparable avec une cote sur ce book FR (meilleur ou dans by_book). */
 export function rowHasFrBook(row: ComparableRow, book: string): boolean {
-  const present = row.fr_books_present;
-  if (Array.isArray(present) && present.length > 0) {
-    return present.includes(book);
-  }
-  return row.bookmaker_fr === book;
+  return rowHasFrBookLabel(row, book);
 }
 
 export function hasWnbaData(payload: MarketPayload | null | undefined): boolean {

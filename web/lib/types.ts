@@ -14,6 +14,17 @@ export interface ComparableRow {
   bookmaker_fr: string;
   /** Books FR ayant une cote sur cette ligne (meilleur + by_book). */
   fr_books_present?: string[];
+  /** Cotes par book (clés winamax / unibet / betclic). */
+  by_book?: Record<
+    string,
+    {
+      odds?: number;
+      bookmaker?: string;
+      bookmaker_label?: string;
+      fr_book_url?: string;
+      selection_id?: string;
+    }
+  >;
   /** URL page match / sélection du book FR retenu (Unibet / Betclic / Winamax). */
   url_fr?: string;
   /** Fallback HTTPS Winamax (highlight) si le deeplink wam:// n'ouvre pas l'app. */
@@ -84,6 +95,8 @@ export interface MarketPayload {
   fr_only_comparables?: ComparableRow[];
   fd_only_comparables?: ComparableRow[];
   match_progress?: MatchProgressRow[];
+  /** Nombre de lignes comparables ayant une cote par book FR. */
+  fr_books_row_counts?: Record<string, number>;
   notes?: string[];
 }
 
@@ -265,7 +278,14 @@ export function getTableColumns(marketKind: MarketKind) {
       label: "Cote FR",
       hint: "Meilleure cote decimale chez Unibet, Betclic ou Winamax",
     },
-    { key: "bookmaker_fr" as const, label: "Book FR", hint: "Bookmaker FR retenu pour ce cote" },
+    {
+      key: "bookmaker_fr" as const,
+      label: "Books FR",
+      hint:
+        marketKind === "wnba" || marketKind === "nba"
+          ? "Cote decimale par book FR (Winamax, Unibet, Betclic) sur cette ligne"
+          : "Bookmaker FR retenu pour ce cote",
+    },
     {
       key: "us_source_label" as const,
       label: "Book US",
