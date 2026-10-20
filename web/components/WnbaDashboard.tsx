@@ -10,7 +10,7 @@ import { frBookBadgeClass } from "@/lib/bookBadges";
 import { buildValueRows } from "@/lib/mptoValue";
 import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
-import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
+import { shouldApplyRunnerPayload, shouldUseLocalResultsCache } from "@/lib/runSession";
 import { getDisplayRunMeta } from "@/lib/runMeta";
 import {
   clearCachedWnbaResults,
@@ -208,12 +208,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     if (saved) {
       setSecret(saved);
     }
-    const cached = cfg.loadCache();
-    if (cached) {
-      setPayload(cached.payload);
-      setStatus(cached.status);
-      setCacheSavedAt(cached.savedAt);
-    }
   }, []);
 
   const applyResults = useCallback((nextPayload: MarketPayload | null, nextStatus: RunStatus | null) => {
@@ -237,30 +231,24 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         const data = await response.json();
         const nextPayload = (data.payload as MarketPayload) ?? null;
         const nextStatus = (data.status as RunStatus) ?? null;
-        const runStartedAt = resolveRunStartedAt(runStartedAtRef.current, nextStatus);
-        const payloadFromCurrentRun =
-          nextPayload &&
-          cfg.hasData(nextPayload) &&
-          isPayloadFromRun(nextPayload, runStartedAt);
+        const acceptPayload = shouldApplyRunnerPayload(
+          nextPayload,
+          nextStatus,
+          runStartedAtRef.current,
+          Boolean(nextPayload && cfg.hasData(nextPayload)),
+        );
 
-        if (payloadFromCurrentRun) {
-          applyResults(nextPayload, nextStatus);
-          if (!options?.silent) {
-            setWarning("");
-          }
-        } else if (
-          nextStatus?.status === "success" &&
-          nextPayload &&
-          cfg.hasData(nextPayload) &&
-          data.source === "runner-live"
-        ) {
+        if (acceptPayload && nextPayload) {
           applyResults(nextPayload, nextStatus);
           if (!options?.silent) {
             setWarning("");
           }
         } else if (data.source === "runner-unreachable") {
-          // Ne pas vider l'ecran pendant un run.
-          if (!suppressCacheRef.current) {
+          const useCache = shouldUseLocalResultsCache({
+            runnerStatus: nextStatus?.status,
+            suppressCache: suppressCacheRef.current,
+          });
+          if (useCache) {
             const cached = cfg.loadCache();
             if (cached) {
               setPayload(cached.payload);
@@ -275,11 +263,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
               );
             }
           } else if (!options?.silent) {
-            setWarning("Connexion runner instable — derniers resultats conserves a l'ecran.");
+            setWarning("Connexion runner instable — on n'affiche pas l'ancien cache pendant le scrape.");
           }
-        } else if (nextStatus && !suppressCacheRef.current) {
-          setStatus(nextStatus);
-        } else if (nextStatus && suppressCacheRef.current) {
+        } else if (nextStatus) {
           setStatus(nextStatus);
         }
 
@@ -289,7 +275,11 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           source?: string;
         };
       } catch (exc) {
-        if (!suppressCacheRef.current) {
+        const useCache = shouldUseLocalResultsCache({
+          runnerStatus: status?.status,
+          suppressCache: suppressCacheRef.current,
+        });
+        if (useCache) {
           const cached = cfg.loadCache();
           if (cached) {
             setPayload(cached.payload);
@@ -317,7 +307,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         };
       }
     },
-    [applyResults, cfg],
+    [applyResults, cfg, status?.status],
   );
 
   useEffect(() => {
@@ -537,6 +527,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       const data = await response.json();
 
       if (response.status === 409 && data.already_running) {
+        cfg.clearCache();
+        setCacheSavedAt(null);
+        setPayload(emptyBasketballPayload(cfg.source));
         suppressCacheRef.current = true;
         if (typeof data.started_at === "string" && data.started_at.trim()) {
           runStartedAtRef.current = data.started_at.trim();
@@ -627,7 +620,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => comparables.length + frHigherRows.length + frOnlyRows.length + fdOnlyRows.length,
     [comparables.length, frHigherRows.length, frOnlyRows.length, fdOnlyRows.length],
   );
-  const betclicComparableLines = payload?.fr_books_row_counts?.Betclic ?? 0;
   const statCountRows = useMemo(
     () => [
       ...(payload?.comparables ?? []),
@@ -654,13 +646,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     const betclicWarning = notes.find((note) => /betclic:/i.test(note));
     if (betclicWarning) {
       return betclicWarning;
-    }
-    const counts = payload?.fr_books_row_counts;
-    if (counts && (payload?.comparable_count ?? 0) > 0) {
-      const betclicRows = counts.Betclic ?? 0;
-      if (betclicRows === 0 && (counts.Winamax ?? counts.Unibet)) {
-        return "Aucune ligne comparable avec cote Betclic — runner à jour (git pull) ou scrape Betclic vide sur ce run.";
-      }
     }
     const bookNote = notes.find((note) => /winamax|unibet|betclic|fanduel/i.test(note));
     if (bookNote) {
@@ -997,12 +982,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
         <div>
           <span className="meta-label">Lignes filtrees</span>
           <strong>{filteredLineCount}</strong>
-        </div>
-        <div>
-          <span className="meta-label">Comparables Betclic</span>
-          <strong className={betclicComparableLines === 0 ? "meta-warn" : undefined}>
-            {betclicComparableLines}
-          </strong>
         </div>
         <div>
           <span className="meta-label">FR paie mieux</span>

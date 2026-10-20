@@ -9,6 +9,7 @@ import argparse
 import json
 import logging
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -781,11 +782,7 @@ def build_results_payload(
                 anchor_warnings.append(text)
     fr_books_row_counts: dict[str, int] = {}
     for row in (*comparable_rows, *fr_only_rows):
-        labels = {str(label) for label in (row.get("fr_books_present") or []) if label}
-        best = str(row.get("bookmaker_fr") or row.get("best_fr_bookmaker") or "").strip()
-        if best:
-            labels.add(best)
-        for book_label in labels:
+        for book_label in _fr_book_labels_on_row(row):
             fr_books_row_counts[book_label] = fr_books_row_counts.get(book_label, 0) + 1
     if int(fr_books_row_counts.get("Betclic") or 0) == 0 and (
         len(comparable_rows) + len(fr_only_rows) > 0
@@ -895,6 +892,75 @@ def _safe_call(label: str, callback: Callable[[], Any], fallback: Any) -> Any:
         return fallback
 
 
+def _fetch_betclic_links_with_retry(*, league: str, attempts: int = 3) -> list[Any]:
+    """Betclic listing échoue parfois à vide sous charge parallèle (session / réseau)."""
+    list_fn_name = "list_nba_matches" if league == "nba" else "list_wnba_matches"
+    for attempt in range(1, attempts + 1):
+        client = BetclicBasketballClient()
+        list_fn = getattr(client, list_fn_name)
+        links = _safe_call("Betclic", list_fn, [])
+        if links:
+            if attempt > 1:
+                log.info(
+                    "Betclic listing OK après %d tentative(s) — %d match(s) %s",
+                    attempt,
+                    len(links),
+                    league.upper(),
+                )
+            return links
+        if attempt < attempts:
+            delay = 1.25 * attempt
+            log.warning(
+                "Betclic listing %s vide (tentative %d/%d) — nouvel essai dans %.1fs",
+                league.upper(),
+                attempt,
+                attempts,
+                delay,
+            )
+            time.sleep(delay)
+    return []
+
+
+def _load_betclic_event_payload(link: Any) -> dict[str, Any] | None:
+    for attempt in range(1, 4):
+        client = BetclicBasketballClient()
+        payload = _safe_call(
+            "Betclic",
+            lambda: client.build_event_payload(link),
+            None,
+        )
+        if payload:
+            return payload
+        if attempt < 3:
+            time.sleep(1.0 * attempt)
+    return None
+
+
+def _fr_book_labels_on_row(row: dict[str, Any]) -> set[str]:
+    labels: set[str] = set()
+    by_book = row.get("by_book") if isinstance(row.get("by_book"), dict) else {}
+    for key, payload in by_book.items():
+        if not isinstance(payload, dict):
+            continue
+        odds = payload.get("odds")
+        if odds is None:
+            continue
+        try:
+            if not float(odds) > 0:
+                continue
+        except (TypeError, ValueError):
+            continue
+        labels.add(str(payload.get("bookmaker_label") or BOOK_LABELS.get(str(key), str(key))))
+    for label in row.get("fr_books_present") or []:
+        text = str(label).strip()
+        if text:
+            labels.add(text)
+    best = str(row.get("bookmaker_fr") or row.get("best_fr_bookmaker") or "").strip()
+    if best:
+        labels.add(best)
+    return labels
+
+
 def fetch_live_wnba_listings(
     *,
     unibet: UnibetBasketballClient,
@@ -910,16 +976,16 @@ def fetch_live_wnba_listings(
     warnings: list[str] = []
     status("Chargement parallele des calendriers WNBA...")
 
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         fut_unibet = pool.submit(unibet.list_wnba_events)
-        fut_betclic = pool.submit(betclic.list_wnba_matches)
         fut_winamax = pool.submit(winamax.list_wnba_matches)
         fut_fanduel = pool.submit(fanduel.list_wnba_events)
 
         unibet_events = _safe_call("Unibet", fut_unibet.result, [])
-        betclic_links = _safe_call("Betclic", fut_betclic.result, [])
         winamax_links = _safe_call("Winamax", fut_winamax.result, [])
         fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
+
+    betclic_links = _fetch_betclic_links_with_retry(league="wnba")
 
     if not unibet_events:
         warnings.append("Unibet indisponible depuis le runner EU (souvent bloque IP datacenter).")
@@ -956,21 +1022,23 @@ def fetch_live_nba_listings(
     warnings: list[str] = []
     status("Chargement parallele des calendriers NBA...")
 
-    with ThreadPoolExecutor(max_workers=4) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         fut_unibet = pool.submit(unibet.list_nba_events)
-        fut_betclic = pool.submit(betclic.list_nba_matches)
         fut_winamax = pool.submit(winamax.list_nba_matches)
         fut_fanduel = pool.submit(fanduel.list_nba_events)
 
         unibet_events = _safe_call("Unibet", fut_unibet.result, [])
-        betclic_links = _safe_call("Betclic", fut_betclic.result, [])
         winamax_links = _safe_call("Winamax", fut_winamax.result, [])
         fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
+
+    betclic_links = _fetch_betclic_links_with_retry(league="nba")
 
     if not unibet_events:
         warnings.append("Unibet: aucun match NBA ou scrape indisponible.")
     if not betclic_links:
-        warnings.append("Betclic: aucun match NBA ou scrape indisponible.")
+        warnings.append(
+            "Betclic: aucun match NBA ou scrape indisponible (listing vide après plusieurs essais)."
+        )
     if not winamax_links:
         warnings.append("Winamax: aucun match NBA ou scrape indisponible.")
     if not fanduel_events:
@@ -1229,11 +1297,7 @@ def compare_anchor(
         if betclic_link:
             futures[
                 pool.submit(
-                    lambda link=betclic_link: _safe_call(
-                        "Betclic",
-                        lambda: betclic.build_event_payload(link),
-                        None,
-                    )
+                    lambda link=betclic_link: _load_betclic_event_payload(link)
                 )
             ] = "betclic"
         if unibet_event:
@@ -1282,7 +1346,11 @@ def compare_anchor(
                     )
                 ingest_fr_book(book, payload)
 
-    if betclic_links and not betclic_link:
+    if not betclic_links:
+        anchor_warnings.append(
+            f"Betclic: calendrier vide sur ce run — {anchor.get('match', '')}"
+        )
+    elif not betclic_link:
         anchor_warnings.append(
             f"Betclic: aucun match lié pour {anchor.get('match', '')}"
         )

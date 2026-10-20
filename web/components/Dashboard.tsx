@@ -9,7 +9,7 @@ import { ValuesTable } from "@/components/ValuesTable";
 import { buildValueRows } from "@/lib/mptoValue";
 import type { ApiPayload, RunStatus, TennisMarketKind } from "@/lib/types";
 import { isCombinedPayload, pickMarketPayload, getPayloadProgressSnapshot } from "@/lib/types";
-import { isPayloadFromRun, resolveRunStartedAt } from "@/lib/runSession";
+import { shouldApplyRunnerPayload, shouldUseLocalResultsCache } from "@/lib/runSession";
 import { getDisplayRunMeta } from "@/lib/runMeta";
 import {
   hasTennisData,
@@ -99,12 +99,6 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     if (saved) {
       setSecret(saved);
     }
-    const cached = loadCachedTennisResults();
-    if (cached) {
-      setRawPayload(cached.payload);
-      setStatus(cached.status);
-      setCacheSavedAt(cached.savedAt);
-    }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -115,45 +109,33 @@ export function Dashboard({ embedded = false }: { embedded?: boolean }) {
     const data = await response.json();
     const nextPayload = (data.payload as ApiPayload) ?? null;
     const nextStatus = (data.status as RunStatus) ?? null;
-    const runStartedAt = resolveRunStartedAt(runStartedAtRef.current, nextStatus);
-    const payloadFromCurrentRun =
-      nextPayload &&
-      hasTennisData(nextPayload) &&
-      isPayloadFromRun(nextPayload, runStartedAt);
+    const acceptPayload = shouldApplyRunnerPayload(
+      nextPayload,
+      nextStatus,
+      runStartedAtRef.current,
+      Boolean(nextPayload && hasTennisData(nextPayload)),
+    );
 
-    if (payloadFromCurrentRun) {
+    if (acceptPayload && nextPayload) {
       setRawPayload(nextPayload);
-      // Toujours persister, meme pendant un run (sinon fermer l'app = resultats perdus).
       saveCachedTennisResults(nextPayload, nextStatus);
       setCacheSavedAt(new Date().toISOString());
     } else if (data.source === "runner-unreachable") {
-      // Ne pas vider l'ecran pendant un run — juste retomber sur le cache si dispo.
-      const cached = loadCachedTennisResults();
-      if (cached) {
-        setRawPayload(cached.payload);
-        setCacheSavedAt(cached.savedAt);
-        if (!status || status.status !== "running") {
+      const useCache = shouldUseLocalResultsCache({
+        runnerStatus: nextStatus?.status,
+        suppressCache: suppressCacheRef.current,
+      });
+      if (useCache) {
+        const cached = loadCachedTennisResults();
+        if (cached) {
+          setRawPayload(cached.payload);
+          setCacheSavedAt(cached.savedAt);
           setStatus(cached.status);
         }
       }
-    } else if (
-      nextPayload &&
-      hasTennisData(nextPayload) &&
-      !runStartedAtRef.current &&
-      !suppressCacheRef.current
-    ) {
-      // Reouverture: reprendre les derniers resultats runner s'ils existent.
-      setRawPayload(nextPayload);
-      saveCachedTennisResults(nextPayload, nextStatus);
     }
 
-    if (
-      nextStatus &&
-      !suppressCacheRef.current &&
-      data.source !== "runner-unreachable"
-    ) {
-      setStatus(nextStatus);
-    } else if (nextStatus && suppressCacheRef.current && data.source !== "runner-unreachable") {
+    if (nextStatus && data.source !== "runner-unreachable") {
       setStatus(nextStatus);
     }
 
