@@ -753,15 +753,6 @@ def normalize_unibet_market(
 
     family = _unibet_performance_family(raw_label)
     if family:
-        # Prefer +/- buckets (14 joueurs × lignes) before tier « Joueur N+ » (centaines de marchés).
-        ou_markets = _normalize_unibet_performance_ou_market(
-            raw_label,
-            family,
-            outcomes,
-            roster,
-        )
-        if ou_markets:
-            return ou_markets
         tier_markets = _normalize_unibet_performance_market(
             raw_label,
             family,
@@ -770,6 +761,14 @@ def normalize_unibet_market(
         )
         if tier_markets:
             return tier_markets
+        ou_markets = _normalize_unibet_performance_ou_market(
+            raw_label,
+            family,
+            outcomes,
+            roster,
+        )
+        if ou_markets:
+            return ou_markets
         return []
 
     return _normalize_label_pattern_market(label, outcomes, roster)

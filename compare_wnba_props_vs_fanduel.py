@@ -11,7 +11,6 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -48,7 +47,7 @@ from basketball_market_mapping import (
     parse_fanduel_alt_runner,
 )
 from betclic_basketball_client import BetclicBasketballClient
-from basketball_props_anchor import assemble_anchor_result
+from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
 from fanduel_basketball_client import FanDuelBasketballClient
 from fanduel_client import (
     american_to_decimal_fr,
@@ -74,29 +73,6 @@ log = logging.getLogger("compare_wnba")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 WINAMAX_FETCH_TIMEOUT = 10
-BOOK_STEP_TIMEOUT = 22.0
-FD_STEP_TIMEOUT = 55.0
-
-
-def _run_with_timeout(
-    callback: Callable[[], Any],
-    *,
-    timeout: float,
-    label: str,
-) -> Any | None:
-    pool = ThreadPoolExecutor(max_workers=1)
-    try:
-        future = pool.submit(callback)
-        try:
-            return future.result(timeout=timeout)
-        except FuturesTimeout:
-            log.warning("%s: timeout apres %.0fs — on passe", label, timeout)
-            return None
-        except Exception as exc:
-            log.warning("%s: %s — on passe", label, exc)
-            return None
-    finally:
-        pool.shutdown(wait=False)
 
 
 def utc_now() -> str:
@@ -185,7 +161,6 @@ def build_best_fr_player_props_map(
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
             selection_ids = market.get("selection_ids") or {}
-            resolve_selection_ids = len(outcomes) <= 64
             for item in normalizer(label, outcomes, roster):
                 payload = normalized_market_to_dict(item, roster)
                 for outcome, odds in payload["outcomes"].items():
@@ -210,16 +185,12 @@ def build_best_fr_player_props_map(
                         "fr_book_match_id": str(
                             event.get("match_id") or event.get("event_id") or ""
                         ),
-                        "selection_id": (
-                            selection_id_for_normalized_outcome(
-                                normalized_outcome=str(outcome),
-                                raw_outcomes=outcomes,
-                                selection_ids=selection_ids,
-                                player_name=item.player_name,
-                                line=str(getattr(item, "line", "") or ""),
-                            )
-                            if resolve_selection_ids
-                            else ""
+                        "selection_id": selection_id_for_normalized_outcome(
+                            normalized_outcome=str(outcome),
+                            raw_outcomes=outcomes,
+                            selection_ids=selection_ids,
+                            player_name=item.player_name,
+                            line=str(getattr(item, "line", "") or ""),
                         ),
                     }
                     outcome_slot = slot["outcomes"].setdefault(
@@ -1198,10 +1169,8 @@ def compare_anchor(
     rotowire_scraped_at: str | None = None,
     league: str = "wnba",
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
-    on_step: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     book_events: dict[str, dict[str, Any]] = {}
-    match_label = str(anchor.get("match") or "")
     home_team = anchor["home_team"]
     away_team = anchor["away_team"]
     fanduel_event_meta = None
@@ -1221,6 +1190,23 @@ def compare_anchor(
     fanduel_payload: dict[str, Any] | None = None
     rw_rows = rotowire_rows or []
 
+    def flush(step: str) -> None:
+        flush_anchor_partial(
+            anchor,
+            book_events=book_events,
+            roster=roster,
+            fr_map=fr_map,
+            fd_map=fd_map,
+            fr_scraped_at=fr_scraped_at,
+            fd_scraped_at=fd_scraped_at,
+            step=step,
+            on_partial=on_partial,
+            compare_normalized_props=compare_normalized_props,
+            enrich_fr_only_row=enrich_fr_only_row,
+            enrich_fd_only_row=enrich_fd_only_row,
+            attach_capture_times=attach_capture_times,
+        )
+
     def merge_roster_from_books() -> list[str]:
         return merge_roster(
             book_events.get("winamax", {}).get("roster"),
@@ -1229,7 +1215,7 @@ def compare_anchor(
             [home_team, away_team],
         )
 
-    def rebuild_us_map(*, include_bet365: bool = False) -> dict[str, dict[str, Any]]:
+    def rebuild_us_map() -> dict[str, dict[str, Any]]:
         from us_runner_client import fetch_bet365_us_map
 
         base_map = build_fanduel_player_props_map(
@@ -1237,15 +1223,12 @@ def compare_anchor(
             roster=roster,
             captured_at=fd_scraped_at,
         )
-        bet365_map: dict[str, Any] = {}
-        if include_bet365:
-            sport_key = (league or "wnba").strip().lower() or "wnba"
-            bet365_meta = fetch_bet365_us_map(
-                sport=sport_key if sport_key in {"wnba", "nba"} else "wnba",
-                home=home_team,
-                away=away_team,
-            )
-            bet365_map = bet365_meta.get("map") or {}
+        sport_key = (league or "wnba").strip().lower() or "wnba"
+        bet365_meta = fetch_bet365_us_map(
+            sport=sport_key if sport_key in {"wnba", "nba"} else "wnba",
+            home=home_team,
+            away=away_team,
+        )
         return overlay_us_reference_map(
             base_map,
             rotowire_rows=rw_rows,
@@ -1253,62 +1236,33 @@ def compare_anchor(
             away_team=away_team,
             roster=roster,
             rotowire_captured_at=rotowire_scraped_at,
-            bet365_map=bet365_map,
+            bet365_map=bet365_meta.get("map") or {},
         )
 
     book_lock = threading.Lock()
 
     def ingest_fr_book(book: str, payload: dict[str, Any] | None) -> None:
-        nonlocal roster, fr_scraped_at, fr_map
+        nonlocal roster, fr_scraped_at, fr_map, fd_map
         if not payload:
             return
-        t0 = time.perf_counter()
-        log.info("%s — integration %s (%s marches bruts)", match_label, book, len(payload.get("markets") or []))
         with book_lock:
             book_events[book] = payload
             roster = merge_roster_from_books()
             fr_scraped_at = utc_now()
-            events_snapshot = dict(book_events)
-            roster_snapshot = list(roster)
-        map_label = f"mapFR {book} {match_label}"
-        built = _run_with_timeout(
-            lambda: build_best_fr_player_props_map(events_snapshot, roster=roster_snapshot),
-            timeout=120.0,
-            label=map_label,
-        )
-        if built is None:
-            log.warning("%s — %s map FR timeout (>120s)", match_label, book)
-            built = {}
-        with book_lock:
-            fr_map = built
-        log.info(
-            "%s — %s integre en %.1fs (%s marches bruts)",
-            match_label,
-            book,
-            time.perf_counter() - t0,
-            len(payload.get("markets") or []),
-        )
-        if on_step is not None:
-            on_step(f"{book} integre — scrape books en cours…")
+            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+            fd_map = rebuild_us_map()
+            flush(book)
 
     def ingest_fanduel(payload: dict[str, Any] | None) -> None:
         nonlocal roster, fd_scraped_at, fd_map, fanduel_payload
         if not payload:
             return
-        t0 = time.perf_counter()
         with book_lock:
             fanduel_payload = payload
             fd_scraped_at = utc_now()
             roster = merge_roster_from_books()
-            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-            fd_map = rebuild_us_map(include_bet365=False)
-        log.info(
-            "%s — fanduel integre en %.1fs",
-            match_label,
-            time.perf_counter() - t0,
-        )
-        if on_step is not None:
-            on_step("FanDuel integre — finalisation…")
+            fd_map = rebuild_us_map()
+            flush("fanduel")
 
     unibet_event = resolve_basketball_book_link(
         anchor,
@@ -1335,112 +1289,62 @@ def compare_anchor(
         None,
     )
 
+    futures: dict[Any, str] = {}
     build_fd_payload = (
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
-    book_jobs: list[tuple[str, Callable[[], Any]]] = []
-    if unibet_event:
-        book_jobs.append(
-            (
-                "unibet",
-                lambda event=unibet_event: _run_with_timeout(
-                    lambda: _safe_call(
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        if betclic_link:
+            futures[
+                pool.submit(
+                    lambda link=betclic_link: _load_betclic_event_payload(link)
+                )
+            ] = "betclic"
+        if unibet_event:
+            futures[
+                pool.submit(
+                    lambda event=unibet_event: _safe_call(
                         "Unibet",
                         lambda: unibet.build_event_payload(event),
                         None,
-                    ),
-                    timeout=BOOK_STEP_TIMEOUT,
-                    label=f"Unibet {match_label}",
-                ),
-            )
-        )
-    if betclic_link:
-        book_jobs.append(
-            (
-                "betclic",
-                lambda link=betclic_link: _run_with_timeout(
-                    lambda: _load_betclic_event_payload(link),
-                    timeout=BOOK_STEP_TIMEOUT,
-                    label=f"Betclic {match_label}",
-                ),
-            )
-        )
-    if winamax_link:
-        book_jobs.append(
-            (
-                "winamax",
-                lambda link=winamax_link: _run_with_timeout(
-                    lambda: _safe_call(
+                    )
+                )
+            ] = "unibet"
+        if winamax_link:
+            futures[
+                pool.submit(
+                    lambda link=winamax_link: _safe_call(
                         "Winamax",
                         lambda: winamax.build_event_payload(link),
                         None,
-                    ),
-                    timeout=BOOK_STEP_TIMEOUT,
-                    label=f"Winamax {match_label}",
-                ),
-            )
-        )
-    if fanduel_event:
-        book_jobs.append(
-            (
-                "fanduel",
-                lambda event=fanduel_event: _run_with_timeout(
-                    lambda: _safe_call(
+                    )
+                )
+            ] = "winamax"
+        if fanduel_event:
+            futures[
+                pool.submit(
+                    lambda event=fanduel_event: _safe_call(
                         "FanDuel",
                         lambda: build_fd_payload(event),
                         None,
-                    ),
-                    timeout=FD_STEP_TIMEOUT,
-                    label=f"FanDuel {match_label}",
-                ),
-            )
-        )
-    if book_jobs:
-        heartbeat_stop = threading.Event()
-        current_scrape_book: list[str] = [""]
-
-        def scrape_heartbeat() -> None:
-            while not heartbeat_stop.wait(15.0):
-                if on_step is not None:
-                    active = current_scrape_book[0] or "…"
-                    on_step(f"scrape en cours ({active})…")
-
-        heartbeat = threading.Thread(target=scrape_heartbeat, daemon=True)
-        heartbeat.start()
-        try:
-            for book, run_book in book_jobs:
-                current_scrape_book[0] = book
-                log.info("%s — demarrage %s", match_label, book)
-                payload = run_book()
-                if book == "unibet" and isinstance(payload, dict):
-                    log.info(
-                        "%s — unibet termine — %s marches bruts, roster %s",
-                        match_label,
-                        payload.get("market_count", len(payload.get("markets") or [])),
-                        len(payload.get("roster") or []),
                     )
-                elif book == "winamax" and isinstance(payload, dict):
-                    log.info(
-                        "%s — winamax termine — %s marches bruts",
-                        match_label,
-                        payload.get("market_count", len(payload.get("markets") or [])),
+                )
+            ] = "fanduel"
+        for future in as_completed(futures):
+            book = futures[future]
+            try:
+                payload = future.result()
+            except Exception as exc:
+                log.warning("%s ignore %s: %s", book, anchor["match"], exc)
+                continue
+            if book == "fanduel":
+                ingest_fanduel(payload)
+            else:
+                if book == "betclic" and payload is None:
+                    anchor_warnings.append(
+                        f"Betclic: payload indisponible pour {anchor.get('match', '')}"
                     )
-                else:
-                    log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
-                if book == "fanduel":
-                    if payload is None:
-                        anchor_warnings.append(
-                            f"FanDuel: scrape vide ou timeout pour {match_label}"
-                        )
-                    ingest_fanduel(payload)
-                else:
-                    if book == "betclic" and payload is None:
-                        anchor_warnings.append(
-                            f"Betclic: payload indisponible pour {match_label}"
-                        )
-                    ingest_fr_book(book, payload)
-        finally:
-            heartbeat_stop.set()
+                ingest_fr_book(book, payload)
 
     if not betclic_links:
         anchor_warnings.append(
@@ -1469,46 +1373,9 @@ def compare_anchor(
                     f"({raw_markets} marchés bruts — runner à jour avec mapping +/- ?)"
                 )
 
-    if not unibet_events:
-        anchor_warnings.append("Unibet: calendrier vide sur ce run.")
-    elif not unibet_event:
-        anchor_warnings.append(
-            f"Unibet: aucun match lié pour {anchor.get('match', '')}"
-        )
-    elif unibet_event:
-        unibet_payload = book_events.get("unibet")
-        if unibet_payload is None:
-            anchor_warnings.append(
-                f"Unibet: scrape vide ou timeout pour {anchor.get('match', '')}"
-            )
-        else:
-            unibet_norm = count_normalized_fr_outcomes_for_event(
-                "unibet",
-                unibet_payload,
-                roster=roster,
-            )
-            raw_markets = len(unibet_payload.get("markets") or [])
-            if unibet_norm == 0:
-                sample_labels = [
-                    str(m.get("label", ""))[:80]
-                    for m in (unibet_payload.get("markets") or [])[:3]
-                ]
-                extra = f" — ex: {sample_labels[0]}" if sample_labels else ""
-                anchor_warnings.append(
-                    f"Unibet: 0 props normalisés pour {anchor.get('match', '')} "
-                    f"({raw_markets} marchés bruts{extra})"
-                )
-            elif raw_markets == 0:
-                anchor_warnings.append(
-                    f"Unibet: page OK mais 0 marché props extrait pour {anchor.get('match', '')} "
-                    f"(HTML sans marketDesc joueur — voir probe_unibet_nba_event.py)"
-                )
-
-    if on_step is not None:
-        on_step("finalisation (Bet365 US si configure + export)…")
-
+    # Ensure RotoWire overlay applies even without FanDuel payload.
     with book_lock:
-        fd_map = rebuild_us_map(include_bet365=True)
+        fd_map = rebuild_us_map()
 
     result = assemble_anchor_result(
         anchor,
@@ -1526,8 +1393,6 @@ def compare_anchor(
     result["fr_books_scraped"] = sorted(book_events.keys())
     if anchor_warnings:
         result["warnings"] = anchor_warnings
-    if on_partial is not None:
-        on_partial(result, "termine")
     return result
 
 
@@ -1748,28 +1613,8 @@ def run_live_compare(
         )
 
     for index, anchor in enumerate(anchors, start=1):
-        write_run_status_file(
-            status_json,
-            "running",
-            (
-                f"{index}/{anchors_total} — {anchor['match']} — "
-                "scrape Betclic / Unibet / Winamax / FanDuel..."
-            ),
-            match_filter=match_filter,
-            results=results,
-            anchors_total=anchors_total,
-            sport=league,
-        )
-
         def on_anchor_partial(partial: dict[str, Any], step: str) -> None:
             snapshot = results + [partial]
-            agg = build_results_payload(
-                snapshot,
-                partial=True,
-                anchors_total=anchors_total,
-                league=league,
-                include_fd_only_rows=False,
-            )
             write_progress_json(
                 progress_json,
                 snapshot,
@@ -1782,33 +1627,11 @@ def run_live_compare(
                 "running",
                 (
                     f"{index}/{anchors_total} — {anchor['match']} ({step}) — "
-                    f"total {agg['comparable_count']} comparee(s), "
-                    f"{agg['fr_only_count']} FR seul"
+                    f"{partial['comparable_count']} comparee(s), "
+                    f"{partial['fr_only_count']} FR seul"
                 ),
                 match_filter=match_filter,
                 results=snapshot,
-                anchors_total=anchors_total,
-                sport=league,
-            )
-
-        def on_anchor_step(detail: str) -> None:
-            agg = build_results_payload(
-                results,
-                partial=True,
-                anchors_total=anchors_total,
-                league=league,
-                include_fd_only_rows=False,
-            )
-            write_run_status_file(
-                status_json,
-                "running",
-                (
-                    f"{index}/{anchors_total} — {anchor['match']} — {detail} — "
-                    f"total {agg['comparable_count']} comparee(s), "
-                    f"{agg['fr_only_count']} FR seul"
-                ),
-                match_filter=match_filter,
-                results=results,
                 anchors_total=anchors_total,
                 sport=league,
             )
@@ -1827,7 +1650,6 @@ def run_live_compare(
             rotowire_scraped_at=rotowire_scraped_at,
             league=league,
             on_partial=on_anchor_partial,
-            on_step=on_anchor_step,
         )
         results.append(compared)
         on_progress(
