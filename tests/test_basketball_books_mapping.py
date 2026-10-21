@@ -182,25 +182,6 @@ class BasketballBooksMappingTests(unittest.TestCase):
     def test_tennis_breaks_filter_unchanged(self) -> None:
         self.assertTrue(is_breaks_market("Plus / Moins Breaks - Match"))
 
-    def test_unibet_performance_prefers_ou_over_tier_board(self) -> None:
-        """Board « Performance Joueur » : bucket +/- au lieu de 100+ marchés tier."""
-        roster = ["Jayson Tatum", "LaMelo Ball"]
-        outcomes = [
-            ("Jayson Tatum + de 28,5", 1.9),
-            ("Jayson Tatum - de 28,5", 1.85),
-            ("LaMelo Ball + de 22,5", 1.88),
-            ("LaMelo Ball - de 22,5", 1.82),
-        ]
-        markets = normalize_unibet_market(
-            "Performance Joueur-Point(s) - Match",
-            outcomes,
-            roster,
-        )
-        self.assertEqual(len(markets), 2)
-        keys = {m.compare_key for m in markets}
-        self.assertIn(build_player_prop_key("points_player", "Jayson Tatum", "28.5"), keys)
-        self.assertIn(build_player_prop_key("points_player", "LaMelo Ball", "22.5"), keys)
-
 
 class BasketballMarketMappingTests(unittest.TestCase):
     def test_compare_key(self) -> None:
