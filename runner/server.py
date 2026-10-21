@@ -339,7 +339,7 @@ def recover_stuck_run() -> bool:
 
     sport = SPORTS.get(sport_key) if sport_key else None
     if sport is not None:
-        results = read_json(sport.results_json, {})
+        results = read_json(sport.result_json, {})
         has_rows = bool(
             results.get("comparables")
             or results.get("comparable_count")
@@ -439,6 +439,15 @@ def empty_payload(sport: SportConfig) -> dict[str, Any]:
     }
 
 
+def _compare_log_tail(path: Path, limit: int = 2000) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "Erreur inconnue."
+    tail = text[-limit:].strip()
+    return tail or "Erreur inconnue."
+
+
 def normalize_markets_arg(raw: Any) -> str:
     if raw is None:
         return ""
@@ -481,31 +490,40 @@ def run_compare(
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
         if sport.key in {"wnba", "nba"} and use_rotowire:
             cmd.append("--rotowire")
-        proc = subprocess.Popen(
-            cmd,
-            cwd=str(ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        with LOCK:
-            CURRENT_PROC = proc
+        # Fichier, pas PIPE : communicate() ne lit les tubes qu'à la fin, et un
+        # buffer plein (~64 Ko) fige le compare à 0 % CPU sans rien écrire.
+        log_path = DATA_DIR / f"compare_{sport.key}.log"
+        log_handle = log_path.open("a", encoding="utf-8", buffering=1)
         try:
-            stdout, stderr = proc.communicate(timeout=sport.timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.communicate()
-            write_status(
-                sport,
-                "error",
-                f"Comparaison live interrompue apres {sport.timeout // 60} minutes (timeout).",
-                match_filter=match_filter,
+            log_handle.write(f"\n--- compare {sport.key} {utc_now()} ---\n")
+            log_handle.flush()
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(ROOT),
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
             )
-            return
-        finally:
             with LOCK:
-                if CURRENT_PROC is proc:
-                    CURRENT_PROC = None
+                CURRENT_PROC = proc
+            try:
+                proc.wait(timeout=sport.timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=15)
+                write_status(
+                    sport,
+                    "error",
+                    f"Comparaison live interrompue apres {sport.timeout // 60} minutes (timeout).",
+                    match_filter=match_filter,
+                )
+                return
+            finally:
+                with LOCK:
+                    if CURRENT_PROC is proc:
+                        CURRENT_PROC = None
+        finally:
+            log_handle.close()
 
         if CANCEL_REQUESTED:
             write_status(
@@ -518,7 +536,7 @@ def run_compare(
             return
 
         if proc.returncode != 0:
-            detail = (stderr or stdout or "Erreur inconnue.")[-2000:]
+            detail = _compare_log_tail(DATA_DIR / f"compare_{sport.key}.log")
             current = read_json(sport.status_json, {})
             if current.get("status") not in {"error", "cancelled"}:
                 write_status(

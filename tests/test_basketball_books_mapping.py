@@ -137,6 +137,37 @@ class BasketballBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(markets[0].compare_key, "points_player|gray|20.5")
 
+    def test_unibet_performance_keeps_ou_and_tiers(self) -> None:
+        """+/- et paliers N+ restent : 25+ et Over 24,5 sont la même value entière."""
+        from basketball_books_mapping import normalize_unibet_market
+        from basketball_market_mapping import build_player_prop_key, build_player_tier_prop_key
+
+        roster = ["Jayson Tatum", "LaMelo Ball"]
+        outcomes = [
+            ("Jayson Tatum 25+", 2.4),
+            ("Jayson Tatum + de 28,5", 1.9),
+            ("Jayson Tatum - de 28,5", 1.85),
+            ("LaMelo Ball 20+", 2.1),
+            ("LaMelo Ball + de 22,5", 1.88),
+            ("LaMelo Ball - de 22,5", 1.82),
+        ]
+        markets = normalize_unibet_market(
+            "Performance Joueur-Point(s) - Match",
+            outcomes,
+            roster,
+        )
+        self.assertEqual(len(markets), 4)
+        keys = {market.compare_key for market in markets}
+        self.assertEqual(
+            keys,
+            {
+                build_player_prop_key("points_player", "Jayson Tatum", "28.5", roster=roster),
+                build_player_prop_key("points_player", "LaMelo Ball", "22.5", roster=roster),
+                build_player_tier_prop_key("points_player", "Jayson Tatum", 25, roster=roster),
+                build_player_tier_prop_key("points_player", "LaMelo Ball", 20, roster=roster),
+            },
+        )
+
     def test_normalize_unibet_performance_tier(self) -> None:
         from basketball_books_mapping import normalize_unibet_market
 

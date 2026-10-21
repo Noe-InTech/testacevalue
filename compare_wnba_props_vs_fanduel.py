@@ -28,7 +28,14 @@ from basketball_schedule import (
     nba_schedule_empty_hint,
     normalize_nba_hours,
 )
-from book_urls import selection_id_for_normalized_outcome
+from book_urls import (
+    index_fr_selection_ids,
+    lookup_indexed_selection_id,
+    selection_id_for_normalized_outcome,
+)
+
+# Au-delà, selection_id_for_normalized_outcome est O(issues²) et fige Unibet.
+_SELECTION_INDEX_MIN_OUTCOMES = 64
 from basketball_market_mapping import (
     align_fr_outcome_to_fanduel,
     build_double_double_key,
@@ -161,10 +168,31 @@ def build_best_fr_player_props_map(
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
             selection_ids = market.get("selection_ids") or {}
+            selection_index = (
+                index_fr_selection_ids(outcomes, selection_ids)
+                if len(outcomes) > _SELECTION_INDEX_MIN_OUTCOMES
+                else None
+            )
             for item in normalizer(label, outcomes, roster):
                 payload = normalized_market_to_dict(item, roster)
                 for outcome, odds in payload["outcomes"].items():
                     aligned = align_fr_outcome_to_fanduel(outcome, item.compare_key)
+                    line = str(getattr(item, "line", "") or "")
+                    if selection_index is not None:
+                        selection_id = lookup_indexed_selection_id(
+                            selection_index,
+                            normalized_outcome=str(outcome),
+                            player_name=item.player_name,
+                            line=line,
+                        )
+                    else:
+                        selection_id = selection_id_for_normalized_outcome(
+                            normalized_outcome=str(outcome),
+                            raw_outcomes=outcomes,
+                            selection_ids=selection_ids,
+                            player_name=item.player_name,
+                            line=line,
+                        )
                     slot = best.setdefault(
                         item.compare_key,
                         {
@@ -185,13 +213,7 @@ def build_best_fr_player_props_map(
                         "fr_book_match_id": str(
                             event.get("match_id") or event.get("event_id") or ""
                         ),
-                        "selection_id": selection_id_for_normalized_outcome(
-                            normalized_outcome=str(outcome),
-                            raw_outcomes=outcomes,
-                            selection_ids=selection_ids,
-                            player_name=item.player_name,
-                            line=str(getattr(item, "line", "") or ""),
-                        ),
+                        "selection_id": selection_id,
                     }
                     outcome_slot = slot["outcomes"].setdefault(
                         aligned,
