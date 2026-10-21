@@ -68,6 +68,32 @@ Service : `aces-runner.service` avec `RUNNER_ROLE=eu`.
 
 Tunnel Cloudflare (comme Oracle) → note l’URL `https://....trycloudflare.com`.
 
+### Mise à jour manuelle (git)
+
+Le clone initial se fait souvent en `sudo` → le repo appartient à **root**. En tant qu’`ubuntu`, `git pull` peut afficher *dubious ownership*.
+
+**Recommandé (une fois)** — rendre le repo à ton user SSH :
+
+```bash
+sudo chown -R ubuntu:ubuntu /opt/testacevalue
+git config --global --add safe.directory /opt/testacevalue
+cd /opt/testacevalue && git pull origin main
+sudo systemctl restart aces-runner
+```
+
+**Sans changer les droits** — pull en root :
+
+```bash
+sudo git -C /opt/testacevalue pull origin main
+sudo systemctl restart aces-runner
+```
+
+Ou réutiliser le script d’install (pull + deps + restart) :
+
+```bash
+cd /opt/testacevalue && sudo RUNNER_SECRET=TON_PIN bash runner/install_eu_runner.sh
+```
+
 ---
 
 ## 3. Installer le runner **US**

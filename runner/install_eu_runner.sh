@@ -21,6 +21,10 @@ fi
 echo "==> Mise a jour du code"
 cd "${REPO_DIR}"
 git pull --ff-only origin main
+DEPLOY_USER="${SUDO_USER:-ubuntu}"
+if id "${DEPLOY_USER}" &>/dev/null; then
+  chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${REPO_DIR}"
+fi
 
 echo "==> Dependances Python"
 if [[ ! -d "${VENV}" ]]; then
