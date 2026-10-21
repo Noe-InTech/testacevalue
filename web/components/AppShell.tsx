@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BaseballDashboard } from "@/components/BaseballDashboard";
 import { Dashboard } from "@/components/Dashboard";
 import { NbaDashboard } from "@/components/NbaDashboard";
+import { RunnerStatusBar } from "@/components/RunnerStatusBar";
 import { WnbaDashboard } from "@/components/WnbaDashboard";
 import type { SportKey } from "@/lib/types";
 
@@ -47,6 +48,8 @@ export function AppShell() {
           Baseball
         </button>
       </div>
+
+      <RunnerStatusBar />
 
       {activeSport === "tennis" ? (
         <Dashboard embedded />
