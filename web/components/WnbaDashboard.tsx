@@ -334,7 +334,8 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
 
   const waitForCompletion = useCallback(async (signal?: AbortSignal) => {
     // Foot: scrape long (~300 matchs) — ne pas abandonner le suivi a 20 min.
-    const waitMinutes = league === "soccer" ? 60 : league === "baseball" ? 35 : 20;
+    const waitMinutes =
+      league === "soccer" ? 60 : league === "baseball" ? 35 : league === "nba" ? 45 : 20;
     const hardDeadline = Date.now() + waitMinutes * 60 * 1000;
     const pollMs = league === "soccer" ? 2000 : 500;
     let lastRows = 0;
