@@ -82,6 +82,58 @@ export function formatPercent(fraction: number, digits = 1): string {
   return `${sign}${value.toFixed(digits).replace(".", ",")}%`;
 }
 
+function tierThreshold(line: string): number | null {
+  if (!line.startsWith("+")) {
+    return null;
+  }
+  const value = Number(line.slice(1));
+  if (!Number.isInteger(value) || value <= 0) {
+    return null;
+  }
+  return value;
+}
+
+function ouLineForTier(threshold: number): string {
+  return String(threshold - 0.5);
+}
+
+function propLinesSameBet(left: string, right: string): boolean {
+  if (left === right) {
+    return true;
+  }
+  const leftTier = tierThreshold(left);
+  const rightTier = tierThreshold(right);
+  if (leftTier !== null && rightTier === null) {
+    return right === ouLineForTier(leftTier);
+  }
+  if (rightTier !== null && leftTier === null) {
+    return left === ouLineForTier(rightTier);
+  }
+  return false;
+}
+
+/** 20+ et 19.5 sont le meme pari. 20+ n'est pas 20.5, ni l'Under. */
+export function playerPropKeysSameBet(left?: string, right?: string): boolean {
+  if (!left || !right) {
+    return false;
+  }
+  if (left === right) {
+    return true;
+  }
+  const leftParts = left.split("|");
+  const rightParts = right.split("|");
+  if (leftParts.length < 3 || rightParts.length < 3) {
+    return false;
+  }
+  if (leftParts[0] !== rightParts[0] || leftParts[1] !== rightParts[1]) {
+    return false;
+  }
+  if (leftParts[0] === "double_double_player") {
+    return false;
+  }
+  return propLinesSameBet(leftParts[2], rightParts[2]);
+}
+
 export function formatBetLabel(row: ComparableRow, marketKind?: MarketKind): string {
   if (marketKind === "breaks" && row.ligne_breaks_fr) {
     return row.ligne_breaks_fr;
@@ -114,11 +166,12 @@ export function computeValueFromComparable(
     return null;
   }
 
-  // Refuse toute ligne ou la cle FR ≠ cle US de reference (mauvais appariement).
+  // Sans Over et Under cote US, pas de value. Une equivalence 20+ ↔ 19,5
+  // n'est acceptee que si c'est le meme joueur et le meme seuil.
   if (
     row.compare_key &&
     row.fanduel_compare_key &&
-    row.compare_key !== row.fanduel_compare_key
+    !playerPropKeysSameBet(row.compare_key, row.fanduel_compare_key)
   ) {
     return null;
   }
