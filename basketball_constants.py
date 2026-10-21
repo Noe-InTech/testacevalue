@@ -28,6 +28,26 @@ FANDUEL_WNBA_EVENT_TABS = (
 
 FANDUEL_NBA_EVENT_TABS = FANDUEL_WNBA_EVENT_TABS
 
+# Euroleague hommes (content-managed-page basketball, competition 10534437).
+FANDUEL_EUROLEAGUE_COMPETITION_ID = "10534437"
+# Props joueurs seulement. Les onglets combo/contres NBA sont vides sur ces matchs.
+FANDUEL_EUROLEAGUE_EVENT_TABS = (
+    "player-points",
+    "player-rebounds",
+    "player-assists",
+    "player-threes",
+)
+
+# Winamax Socket.IO — tournoi Euroleague hommes (sport basket = 2).
+WINAMAX_EUROLEAGUE_TOURNAMENT_ID = 153
+
+# Unibet listing (hommes). euroleague-f est la compétition féminine.
+UNIBET_EUROLEAGUE_PATH_FRAGMENT = "/paris-basketball/international/euroleague-h/"
+
+# Betclic compétition Euroleague hommes.
+BETCLIC_EUROLEAGUE_LISTING_PATH = "/basketball-sbasketball/euroligue-c14"
+BETCLIC_EUROLEAGUE_COMPETITION_PREFIX = "euroligue-c14"
+
 # Winamax Socket.IO
 WINAMAX_BASKETBALL_SPORT_ID = 2
 

@@ -37,7 +37,7 @@ export async function triggerRunner(
         match,
         sport,
         markets: markets || undefined,
-        ...(sport === "nba" && typeof nbaHours === "number"
+        ...((sport === "nba" || sport === "euroleague") && typeof nbaHours === "number"
           ? { nba_hours: nbaHours }
           : {}),
         ...((sport === "nba" || sport === "wnba") && useRotowire
