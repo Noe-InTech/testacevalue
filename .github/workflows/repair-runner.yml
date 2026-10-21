@@ -19,13 +19,16 @@ jobs:
     steps:
       - name: Check SSH secrets
         env:
+          RUNNER_SSH_HOST: ${{ secrets.RUNNER_SSH_HOST }}
           ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
           ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
         run: |
-          if [ -z "$ORACLE_HOST" ] || [ -z "$ORACLE_SSH_KEY" ]; then
-            echo "::error::Secrets ORACLE_HOST et ORACLE_SSH_KEY requis (GitHub → Settings → Secrets)."
+          HOST="${RUNNER_SSH_HOST:-$ORACLE_HOST}"
+          if [ -z "$HOST" ] || [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "::error::Secrets RUNNER_SSH_HOST (ou ORACLE_HOST) et ORACLE_SSH_KEY requis."
             exit 1
           fi
+          echo "RUNNER_SSH_HOST=$HOST" >> "$GITHUB_ENV"
 
       - name: Setup SSH key
         env:
@@ -34,15 +37,16 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/oracle_aces
           chmod 600 ~/.ssh/oracle_aces
-          ssh-keyscan -T 20 -H "${{ secrets.ORACLE_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -T 20 -H "${{ env.RUNNER_SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Repair services on VM
         id: repair
         env:
-          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          RUNNER_SSH_USER: ${{ secrets.RUNNER_SSH_USER }}
         run: |
           set -euo pipefail
-          SSH=(ssh -i ~/.ssh/oracle_aces -o StrictHostKeyChecking=accept-new -o ConnectTimeout=45 -o ServerAliveInterval=5 ubuntu@"$ORACLE_HOST")
+          SSH_USER="${RUNNER_SSH_USER:-ubuntu}"
+          SSH=(ssh -i ~/.ssh/oracle_aces -o StrictHostKeyChecking=accept-new -o ConnectTimeout=45 -o ServerAliveInterval=5 "${SSH_USER}@${RUNNER_SSH_HOST}")
 
           echo "==> git pull + restart runner + tunnel"
           "${SSH[@]}" bash -s <<'REMOTE'

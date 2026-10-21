@@ -1284,27 +1284,43 @@ def compare_anchor(
     book_lock = threading.Lock()
 
     def ingest_fr_book(book: str, payload: dict[str, Any] | None) -> None:
-        nonlocal roster, fr_scraped_at, fr_map, fd_map
+        nonlocal roster, fr_scraped_at, fr_map
         if not payload:
             return
+        t0 = time.perf_counter()
         with book_lock:
             book_events[book] = payload
             roster = merge_roster_from_books()
             fr_scraped_at = utc_now()
             fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-            fd_map = rebuild_us_map(include_bet365=False)
-            flush(book)
+        log.info(
+            "%s — %s integre en %.1fs (%s marches bruts)",
+            match_label,
+            book,
+            time.perf_counter() - t0,
+            len(payload.get("markets") or []),
+        )
+        if on_step is not None:
+            on_step(f"{book} integre — scrape books en cours…")
 
     def ingest_fanduel(payload: dict[str, Any] | None) -> None:
         nonlocal roster, fd_scraped_at, fd_map, fanduel_payload
         if not payload:
             return
+        t0 = time.perf_counter()
         with book_lock:
             fanduel_payload = payload
             fd_scraped_at = utc_now()
             roster = merge_roster_from_books()
-            fd_map = rebuild_us_map(include_bet365=True)
-            flush("fanduel")
+            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+            fd_map = rebuild_us_map(include_bet365=False)
+        log.info(
+            "%s — fanduel integre en %.1fs",
+            match_label,
+            time.perf_counter() - t0,
+        )
+        if on_step is not None:
+            on_step("FanDuel integre — finalisation…")
 
     unibet_event = resolve_basketball_book_link(
         anchor,
@@ -1494,9 +1510,6 @@ def compare_anchor(
                     f"Unibet: page OK mais 0 marché props extrait pour {anchor.get('match', '')} "
                     f"(HTML sans marketDesc joueur — voir probe_unibet_nba_event.py)"
                 )
-
-    if on_partial and book_events:
-        flush("finalisation")
 
     if on_step is not None:
         on_step("finalisation (Bet365 US si configure + export)…")
