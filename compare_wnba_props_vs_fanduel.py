@@ -1445,6 +1445,34 @@ def compare_anchor(
                     f"({raw_markets} marchés bruts — runner à jour avec mapping +/- ?)"
                 )
 
+    if not unibet_events:
+        anchor_warnings.append("Unibet: calendrier vide sur ce run.")
+    elif not unibet_event:
+        anchor_warnings.append(
+            f"Unibet: aucun match lié pour {anchor.get('match', '')}"
+        )
+    elif unibet_event:
+        unibet_payload = book_events.get("unibet")
+        if unibet_payload is None:
+            anchor_warnings.append(
+                f"Unibet: scrape vide ou timeout pour {anchor.get('match', '')}"
+            )
+        else:
+            unibet_norm = count_normalized_fr_outcomes_for_event(
+                "unibet",
+                unibet_payload,
+                roster=roster,
+            )
+            raw_markets = len(unibet_payload.get("markets") or [])
+            if unibet_norm == 0:
+                anchor_warnings.append(
+                    f"Unibet: 0 props normalisés pour {anchor.get('match', '')} "
+                    f"({raw_markets} marchés bruts)"
+                )
+
+    if on_partial and book_events:
+        flush("finalisation")
+
     # Bet365 US une seule fois en fin de match (pas a chaque flush FR).
     with book_lock:
         fd_map = rebuild_us_map(include_bet365=True)
