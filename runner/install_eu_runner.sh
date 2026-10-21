@@ -22,8 +22,10 @@ echo "==> Mise a jour du code"
 cd "${REPO_DIR}"
 git pull --ff-only origin main
 DEPLOY_USER="${SUDO_USER:-ubuntu}"
+git config --global --add safe.directory "${REPO_DIR}"
 if id "${DEPLOY_USER}" &>/dev/null; then
   chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${REPO_DIR}"
+  sudo -u "${DEPLOY_USER}" git config --global --add safe.directory "${REPO_DIR}" 2>/dev/null || true
 fi
 
 echo "==> Dependances Python"

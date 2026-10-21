@@ -178,15 +178,7 @@ def schedule_self_update(*, restart_tunnel: bool = False) -> tuple[bool, str, di
 
     threading.Thread(target=_clear_update_flag_later, daemon=True).start()
 
-    before = ""
-    try:
-        before = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(ROOT),
-            text=True,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError):
-        before = ""
+    before = _git_rev_parse_short()
 
     payload = {
         "ok": True,
@@ -288,15 +280,28 @@ def wipe_result_file(sport: SportConfig) -> None:
     write_json_atomic(sport.result_json, empty_payload(sport))
 
 
-def _git_head_short() -> str:
+def _git_rev_parse_short() -> str:
+    """HEAD court — safe.directory pour repo ubuntu + service systemd root."""
     try:
         return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
+            [
+                "git",
+                "-c",
+                f"safe.directory={ROOT}",
+                "rev-parse",
+                "--short",
+                "HEAD",
+            ],
             cwd=str(ROOT),
             text=True,
+            stderr=subprocess.DEVNULL,
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
+
+
+def _git_head_short() -> str:
+    return _git_rev_parse_short()
 
 
 def clear_running_lock(*, reason: str = "") -> None:
@@ -481,20 +486,26 @@ def run_compare(
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
         if sport.key in {"wnba", "nba"} and use_rotowire:
             cmd.append("--rotowire")
+        # Ne pas utiliser PIPE : le subprocess compare peut logger beaucoup → pipe plein
+        # → deadlock (UI bloquee sur « scrape Betclic / … » sans lignes).
+        compare_log = DATA_DIR / f"compare_{sport.key}.log"
+        log_handle = open(compare_log, "a", encoding="utf-8")
+        log_handle.write(f"\n===== {utc_now()} compare {sport.key} start =====\n")
+        log_handle.flush()
         proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
             text=True,
         )
         with LOCK:
             CURRENT_PROC = proc
         try:
-            stdout, stderr = proc.communicate(timeout=sport.timeout)
+            proc.wait(timeout=sport.timeout)
         except subprocess.TimeoutExpired:
             proc.kill()
-            proc.communicate()
+            proc.wait()
             write_status(
                 sport,
                 "error",
@@ -503,6 +514,14 @@ def run_compare(
             )
             return
         finally:
+            try:
+                log_handle.write(
+                    f"===== {utc_now()} compare {sport.key} exit {proc.returncode} =====\n"
+                )
+                log_handle.flush()
+                log_handle.close()
+            except OSError:
+                pass
             with LOCK:
                 if CURRENT_PROC is proc:
                     CURRENT_PROC = None
@@ -518,7 +537,12 @@ def run_compare(
             return
 
         if proc.returncode != 0:
-            detail = (stderr or stdout or "Erreur inconnue.")[-2000:]
+            detail = "Erreur inconnue."
+            try:
+                tail = compare_log.read_text(encoding="utf-8")[-4000:]
+                detail = tail or detail
+            except OSError:
+                pass
             current = read_json(sport.status_json, {})
             if current.get("status") not in {"error", "cancelled"}:
                 write_status(

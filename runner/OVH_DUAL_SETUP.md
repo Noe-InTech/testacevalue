@@ -77,9 +77,12 @@ Le clone initial se fait souvent en `sudo` → le repo appartient à **root**. E
 ```bash
 sudo chown -R ubuntu:ubuntu /opt/testacevalue
 git config --global --add safe.directory /opt/testacevalue
+sudo git config --global --add safe.directory /opt/testacevalue
 cd /opt/testacevalue && git pull origin main
 sudo systemctl restart aces-runner
 ```
+
+Le service `aces-runner` tourne en **root** : sans `sudo git config … safe.directory`, le journal peut afficher *dubious ownership* au health check (le runner reste actif).
 
 **Sans changer les droits** — pull en root :
 
