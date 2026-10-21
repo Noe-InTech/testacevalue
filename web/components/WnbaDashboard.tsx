@@ -334,8 +334,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
 
   const waitForCompletion = useCallback(async (signal?: AbortSignal) => {
     // Foot: scrape long (~300 matchs) — ne pas abandonner le suivi a 20 min.
-    const waitMinutes =
-      league === "soccer" ? 60 : league === "baseball" ? 35 : league === "nba" ? 45 : 20;
+    const waitMinutes = league === "soccer" ? 60 : league === "baseball" ? 35 : 20;
     const hardDeadline = Date.now() + waitMinutes * 60 * 1000;
     const pollMs = league === "soccer" ? 2000 : 500;
     let lastRows = 0;
@@ -523,7 +522,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           secret: secret.trim(),
           match: match.trim(),
           sport: cfg.apiSport,
-          force_restart: true,
           ...(league === "nba" ? { nba_hours: nbaScheduleHours } : {}),
           ...((league === "nba" || league === "wnba") && useRotowire
             ? { use_rotowire: true }
@@ -648,19 +646,10 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   }, [matchProgress, progressSearch]);
 
   const overlapHint = useMemo(() => {
-    const counts = payload?.fr_books_row_counts ?? {};
-    const countParts = ["Betclic", "Unibet", "Winamax"]
-      .map((book) => `${book} ${counts[book] ?? 0}`)
-      .join(" · ");
     const notes = payload?.notes ?? [];
-    const bookNotes = notes.filter((note) =>
-      /betclic:|unibet:|winamax:|fanduel:/i.test(note),
-    );
-    if (bookNotes.length > 0) {
-      return `${countParts} — ${bookNotes.slice(0, 2).join(" ")}`;
-    }
-    if (Object.keys(counts).length > 0) {
-      return `Lignes avec cote FR par book : ${countParts}.`;
+    const betclicWarning = notes.find((note) => /betclic:/i.test(note));
+    if (betclicWarning) {
+      return betclicWarning;
     }
     const bookNote = notes.find((note) => /winamax|unibet|betclic|fanduel/i.test(note));
     if (bookNote) {
@@ -1020,16 +1009,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           <span className="meta-label">US sans FR</span>
           <strong>{fdOnlyRows.length}</strong>
         </div>
-        {payload?.fr_books_row_counts ? (
-          <div className="meta-wide">
-            <span className="meta-label">Lignes FR par book</span>
-            <strong>
-              Betclic {payload.fr_books_row_counts.Betclic ?? 0} · Unibet{" "}
-              {payload.fr_books_row_counts.Unibet ?? 0} · Winamax{" "}
-              {payload.fr_books_row_counts.Winamax ?? 0}
-            </strong>
-          </div>
-        ) : null}
       </section>
 
       {overlapHint ? (

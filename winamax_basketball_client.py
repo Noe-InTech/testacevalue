@@ -6,13 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-import logging
-
-from basketball_books_mapping import is_basketball_player_prop_label
 from basketball_constants import WINAMAX_BASKETBALL_SPORT_ID
 from winamax_client import WinamaxClient, WinamaxMatchLink
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -157,23 +152,6 @@ class WinamaxBasketballClient(WinamaxClient):
         if not payload:
             raise RuntimeError(f"Winamax payload introuvable pour match:{link.match_id}")
         markets = self.extract_markets_from_payload(payload, link.match_id)
-        raw_count = len(markets)
-        player_markets = [m for m in markets if is_basketball_player_prop_label(m.label)]
-        if player_markets:
-            markets = player_markets
-        elif raw_count > 0:
-            log.warning(
-                "Winamax %s: 0 marche props joueur sur %d bruts — garde tout",
-                link.title,
-                raw_count,
-            )
-        if raw_count > 80 and len(markets) < raw_count:
-            log.info(
-                "Winamax %s: %d marches props (filtre depuis %d bruts)",
-                link.title,
-                len(markets),
-                raw_count,
-            )
         roster = self._extract_roster(payload, link)
         return {
             "url": link.url,

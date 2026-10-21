@@ -72,7 +72,7 @@ const idlePayload: ApiPayload = {
 const runnerUnreachableStatus: RunStatus = {
   status: "error",
   message:
-    "Runner FR/EU injoignable depuis Vercel. Verifie RUNNER_URL (tunnel Cloudflare https://....trycloudflare.com) puis redeploy.",
+    "Runner EU injoignable depuis Vercel. Verifie RUNNER_URL (URL Cloudflare https://....trycloudflare.com, pas l'IP Oracle) puis redeploy.",
   updated_at: new Date().toISOString(),
 };
 

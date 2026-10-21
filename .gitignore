@@ -9,7 +9,6 @@ output/
 
 # Runner EU data
 runner/data/
-runner/ovh.local.env
 
 # Next.js dashboard
 web/node_modules/
