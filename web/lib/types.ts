@@ -267,7 +267,7 @@ export function getTableColumns(marketKind: MarketKind) {
       label: "Equiv. US",
       hint:
         marketKind === "wnba" || marketKind === "nba"
-          ? "Meme prop joueur cote US (libelle anglais)"
+          ? "Ligne US exacte (19,5 ou 20+) puis le libelle du marche"
           : marketKind === "baseball"
             ? "Meme marche baseball cote par la reference US"
             : marketKind === "soccer"

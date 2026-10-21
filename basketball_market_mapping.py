@@ -236,9 +236,74 @@ def tier_threshold_to_ou_line(threshold: int | str) -> str:
     return format_numeric_line(float(threshold) - 0.5)
 
 
+def ou_line_to_tier_threshold(line: str | float | None) -> int | None:
+    """Over 19,5 ↔ 20+. Un entier ou un autre pas (19, 19,25, 20,5) ne compte pas."""
+    text = str(line or "").strip()
+    if not text or text.startswith("+"):
+        return None
+    try:
+        number = float(text)
+    except ValueError:
+        return None
+    if number <= 0 or abs(number - round(number)) < 1e-9:
+        return None
+    doubled = number * 2
+    if abs(doubled - round(doubled)) > 1e-6:
+        return None
+    threshold = int(round(number + 0.5))
+    if threshold <= 0 or abs((threshold - 0.5) - number) > 1e-6:
+        return None
+    return threshold
+
+
 def compare_key_line_suffix(compare_key: str) -> str:
     parts = compare_key.split("|")
     return parts[2] if len(parts) >= 3 else ""
+
+
+def format_prop_line_label(line: str | float | None) -> str:
+    """Libellé affiché : « 20+ » ou « 19,5 ». Ne convertit pas."""
+    tier = tier_prop_line_threshold(line)
+    if tier is not None:
+        return f"{tier}+"
+    text = str(line or "").strip()
+    if not text:
+        return ""
+    return text.replace(".", ",")
+
+
+def player_prop_keys_same_bet(left: str, right: str) -> bool:
+    """Même joueur, même stat, et lignes identiques ou équivalentes (20+ ↔ 19,5)."""
+    if left == right:
+        return True
+    left_parts = left.split("|")
+    right_parts = right.split("|")
+    if len(left_parts) < 3 or len(right_parts) < 3:
+        return False
+    if left_parts[0] != right_parts[0] or left_parts[1] != right_parts[1]:
+        return False
+    if left_parts[0] == "double_double_player":
+        return False
+    return _prop_lines_same_bet(left_parts[2], right_parts[2])
+
+
+def _prop_lines_same_bet(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    left_tier = tier_prop_line_threshold(left)
+    right_tier = tier_prop_line_threshold(right)
+    if left_tier is not None and right_tier is None:
+        return right == tier_threshold_to_ou_line(left_tier)
+    if right_tier is not None and left_tier is None:
+        return left == tier_threshold_to_ou_line(right_tier)
+    return False
+
+
+def _priced_outcome(market: dict[str, Any] | None, outcome: str) -> bool:
+    if not market:
+        return False
+    bundle = (market.get("outcomes") or {}).get(outcome)
+    return bundle is not None and bundle.get("decimal_fr") is not None
 
 
 def resolve_fanduel_match_for_fr_prop(
@@ -248,37 +313,44 @@ def resolve_fanduel_match_for_fr_prop(
 ) -> tuple[dict[str, Any], str, str] | None:
     """Lie une issue FR à FanDuel.
 
-    Paliers Unibet « N+ » → priorité à l'alt O/U FD « Over (N-0,5) » (ex. 4+ ↔ 3,5),
-    puis repli sur « To Record N+ » si l'alt n'existe pas.
+    Sur un stat entier, N+ et Over (N−0,5) sont le même pari (20+ ↔ Over 19,5).
+    L'Under (N−0,5) n'est pas un palier : il ne se relie qu'à l'Under de la même ligne.
+    Un palier N+ prend d'abord l'O/U (N−0,5) s'il a un Over, sinon le palier N+.
+    Un Over X,5 prend d'abord l'O/U exact, sinon le palier (X+0,5)+.
     """
-    tier = tier_prop_line_threshold(compare_key_line_suffix(compare_key))
+    parts = compare_key.split("|")
+    if len(parts) < 3:
+        return None
+    family, token, line = parts[0], parts[1], parts[2]
+    tier = tier_prop_line_threshold(line)
+
     if tier is not None:
-        parts = compare_key.split("|")
-        if len(parts) < 3:
+        if outcome not in {"Over", "Yes"}:
             return None
-        family, token = parts[0], parts[1]
         ou_key = f"{family}|{token}|{tier_threshold_to_ou_line(tier)}"
         fd_ou = fd_map.get(ou_key)
-        if fd_ou:
-            bundle = fd_ou.get("outcomes", {}).get("Over")
-            if bundle is not None and bundle.get("decimal_fr") is not None:
-                return fd_ou, "Over", ou_key
+        if _priced_outcome(fd_ou, "Over"):
+            return fd_ou, "Over", ou_key
         fd_tier = fd_map.get(compare_key)
-        if fd_tier:
-            fd_outcome = "Over" if outcome in {"Over", "Yes"} else outcome
-            bundle = fd_tier.get("outcomes", {}).get(fd_outcome)
-            if bundle is not None and bundle.get("decimal_fr") is not None:
-                return fd_tier, fd_outcome, compare_key
+        if _priced_outcome(fd_tier, "Over"):
+            return fd_tier, "Over", compare_key
         return None
 
     fd_market = fd_map.get(compare_key)
-    if not fd_market:
+    if _priced_outcome(fd_market, outcome):
+        return fd_market, outcome, compare_key
+
+    if outcome != "Over":
         return None
-    fd_outcome = outcome
-    bundle = fd_market.get("outcomes", {}).get(fd_outcome)
-    if bundle is None or bundle.get("decimal_fr") is None:
+    threshold = ou_line_to_tier_threshold(line)
+    if threshold is None:
         return None
-    return fd_market, fd_outcome, compare_key
+    # Le token de la clé est déjà normalisé : ne pas le réécrire.
+    tier_key = f"{family}|{token}|+{threshold}"
+    fd_tier = fd_map.get(tier_key)
+    if _priced_outcome(fd_tier, "Over"):
+        return fd_tier, "Over", tier_key
+    return None
 
 
 def align_fr_outcome_to_fanduel(outcome: str, compare_key: str) -> str:

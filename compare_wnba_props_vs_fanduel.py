@@ -45,6 +45,8 @@ from basketball_market_mapping import (
     fanduel_player_prop_runner_outcome,
     is_full_game_fanduel_prop_market,
     is_comparable_player_prop_key,
+    compare_key_line_suffix,
+    format_prop_line_label,
     map_fanduel_market_to_compare_key,
     resolve_fanduel_match_for_fr_prop,
     resolve_roster_player,
@@ -553,6 +555,12 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
     issue = props_outcome_label_fr(str(row.get("outcome", "")))
     marche_fr = str(row.get("fr_market_label", ""))
     marche_fd = str(row.get("fanduel_market_label", ""))
+    fr_line = format_prop_line_label(compare_key_line_suffix(str(row.get("compare_key") or "")))
+    us_line = format_prop_line_label(
+        compare_key_line_suffix(str(row.get("fanduel_compare_key") or ""))
+    )
+    if us_line:
+        marche_fd = f"{us_line} · {marche_fd}" if marche_fd else us_line
     us_label = str(row.get("us_source_label") or "FanDuel")
     by_book = row.get("by_book") if isinstance(row.get("by_book"), dict) else {}
     fr_books_present = sorted(
@@ -583,9 +591,25 @@ def enrich_comparable_row(row: dict[str, Any]) -> dict[str, Any]:
         "issue_fr": issue,
         "marche_fr": marche_fr,
         "marche_fanduel": marche_fd,
-        "ligne_props_fr": format_ligne_props_fr(row),
+        "ligne_props_fr": _ligne_props_with_us_line(
+            format_ligne_props_fr(row),
+            fr_line,
+            us_line,
+        ),
     }
+    if enriched.get("cote_fr_fanduel_contraire") and us_line:
+        outcome = str(row.get("outcome") or "")
+        if outcome == "Over":
+            enriched["issue_fr_contraire"] = f"Moins {us_line}"
+        elif outcome == "Under":
+            enriched["issue_fr_contraire"] = f"Plus {us_line}"
     return enriched
+
+
+def _ligne_props_with_us_line(label: str, fr_line: str, us_line: str) -> str:
+    if not label or not us_line or not fr_line or us_line == fr_line:
+        return label
+    return f"{label} (US {us_line})"
 
 
 def enrich_fr_only_row(row: dict[str, Any]) -> dict[str, Any]:
@@ -694,7 +718,7 @@ def compare_normalized_props(
             fd_match = resolve_fanduel_match_for_fr_prop(compare_key, outcome, fd_map)
             if not fd_match:
                 continue
-            fd_market, fd_outcome, _fd_key = fd_match
+            fd_market, fd_outcome, fd_key = fd_match
             if fanduel_market_names_other_player(
                 str(fd_market.get("market_label") or ""),
                 str(fr_market.get("player_name") or ""),
@@ -708,6 +732,7 @@ def compare_normalized_props(
             row = enrich_comparable_row(
                 {
                     "compare_key": compare_key,
+                    "fanduel_compare_key": fd_key,
                     "market_family": fr_market["market_family"],
                     "player_name": fr_market.get("player_name", ""),
                     "outcome": outcome,
