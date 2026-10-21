@@ -1258,6 +1258,7 @@ def compare_anchor(
         if not payload:
             return
         t0 = time.perf_counter()
+        log.info("%s — integration %s (%s marches bruts)", match_label, book, len(payload.get("markets") or []))
         with book_lock:
             book_events[book] = payload
             roster = merge_roster_from_books()
@@ -1321,21 +1322,6 @@ def compare_anchor(
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
     book_jobs: list[tuple[str, Callable[[], Any]]] = []
-    if winamax_link:
-        book_jobs.append(
-            (
-                "winamax",
-                lambda link=winamax_link: _run_with_timeout(
-                    lambda: _safe_call(
-                        "Winamax",
-                        lambda: winamax.build_event_payload(link),
-                        None,
-                    ),
-                    timeout=BOOK_STEP_TIMEOUT,
-                    label=f"Winamax {match_label}",
-                ),
-            )
-        )
     if unibet_event:
         book_jobs.append(
             (
@@ -1362,6 +1348,21 @@ def compare_anchor(
                 ),
             )
         )
+    if winamax_link:
+        book_jobs.append(
+            (
+                "winamax",
+                lambda link=winamax_link: _run_with_timeout(
+                    lambda: _safe_call(
+                        "Winamax",
+                        lambda: winamax.build_event_payload(link),
+                        None,
+                    ),
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Winamax {match_label}",
+                ),
+            )
+        )
     if fanduel_event:
         book_jobs.append(
             (
@@ -1379,16 +1380,19 @@ def compare_anchor(
         )
     if book_jobs:
         heartbeat_stop = threading.Event()
+        current_scrape_book: list[str] = [""]
 
         def scrape_heartbeat() -> None:
             while not heartbeat_stop.wait(15.0):
                 if on_step is not None:
-                    on_step("scrape books en cours (Winamax / Unibet / Betclic / FanDuel)…")
+                    active = current_scrape_book[0] or "…"
+                    on_step(f"scrape en cours ({active})…")
 
         heartbeat = threading.Thread(target=scrape_heartbeat, daemon=True)
         heartbeat.start()
         try:
             for book, run_book in book_jobs:
+                current_scrape_book[0] = book
                 log.info("%s — demarrage %s", match_label, book)
                 payload = run_book()
                 if book == "unibet" and isinstance(payload, dict):
