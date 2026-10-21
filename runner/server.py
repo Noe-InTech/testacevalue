@@ -339,7 +339,7 @@ def recover_stuck_run() -> bool:
 
     sport = SPORTS.get(sport_key) if sport_key else None
     if sport is not None:
-        results = read_json(sport.results_json, {})
+        results = read_json(sport.result_json, {})
         has_rows = bool(
             results.get("comparables")
             or results.get("comparable_count")
@@ -574,6 +574,18 @@ def request_cancel(sport_key: str = "") -> tuple[bool, str]:
             proc.kill()
 
     return True, "Arret demande."
+
+
+def stop_active_compare_and_wait(*, sport_key: str, max_wait: float = 8.0) -> None:
+    """Termine le subprocess en cours et attend la liberation du lock RUNNING."""
+    request_cancel(sport_key)
+    deadline = time.time() + max_wait
+    while time.time() < deadline:
+        with LOCK:
+            if not RUNNING:
+                return
+        time.sleep(0.2)
+    recover_stuck_run()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -910,11 +922,21 @@ class Handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             nba_hours = 12
         use_rotowire = bool(body.get("use_rotowire") or body.get("rotowire"))
+        force_restart = body.get("force_restart", True)
+        if isinstance(force_restart, str):
+            force_restart = force_restart.strip().lower() not in {"0", "false", "no"}
+        else:
+            force_restart = bool(force_restart)
         global RUNNING, CURRENT_SPORT
         recover_stuck_run()
         with LOCK:
-            if RUNNING:
-                running_sport = CURRENT_SPORT or sport.key
+            running = RUNNING
+            current = CURRENT_SPORT
+        if running:
+            if force_restart and current == sport.key:
+                stop_active_compare_and_wait(sport_key=sport.key)
+            else:
+                running_sport = current or sport.key
                 running_cfg = SPORTS.get(running_sport) or sport
                 status = read_json(running_cfg.status_json, {})
                 self._json_response(
@@ -932,6 +954,28 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 )
                 return
+        with LOCK:
+            if RUNNING:
+                if not (force_restart and CURRENT_SPORT == sport.key):
+                    running_sport = CURRENT_SPORT or sport.key
+                    running_cfg = SPORTS.get(running_sport) or sport
+                    status = read_json(running_cfg.status_json, {})
+                    self._json_response(
+                        409,
+                        {
+                            "error": f"Une comparaison {running_sport} est deja active.",
+                            "already_running": True,
+                            "sport": running_sport,
+                            "started_at": status.get("run_started_at")
+                            or status.get("updated_at")
+                            or "",
+                            "matches_done": status.get("matches_done", 0),
+                            "anchors_total": status.get("anchors_total", 0),
+                            "message": status.get("message", ""),
+                        },
+                    )
+                    return
+                stop_active_compare_and_wait(sport_key=sport.key)
             RUNNING = True
             CURRENT_SPORT = sport.key
 

@@ -523,6 +523,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           secret: secret.trim(),
           match: match.trim(),
           sport: cfg.apiSport,
+          force_restart: true,
           ...(league === "nba" ? { nba_hours: nbaScheduleHours } : {}),
           ...((league === "nba" || league === "wnba") && useRotowire
             ? { use_rotowire: true }

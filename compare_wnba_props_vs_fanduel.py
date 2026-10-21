@@ -1047,14 +1047,27 @@ def fetch_live_nba_listings(
     warnings: list[str] = []
     status("Chargement parallele des calendriers NBA...")
 
+    listing_timeout = 45.0
     with ThreadPoolExecutor(max_workers=3) as pool:
         fut_unibet = pool.submit(unibet.list_nba_events)
         fut_winamax = pool.submit(winamax.list_nba_matches)
         fut_fanduel = pool.submit(fanduel.list_nba_events)
 
-        unibet_events = _safe_call("Unibet", fut_unibet.result, [])
-        winamax_links = _safe_call("Winamax", fut_winamax.result, [])
-        fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
+        unibet_events = _safe_call(
+            "Unibet",
+            lambda: fut_unibet.result(timeout=listing_timeout),
+            [],
+        )
+        winamax_links = _safe_call(
+            "Winamax",
+            lambda: fut_winamax.result(timeout=listing_timeout),
+            [],
+        )
+        fanduel_events = _safe_call(
+            "FanDuel",
+            lambda: fut_fanduel.result(timeout=listing_timeout),
+            [],
+        )
 
     betclic_links = _fetch_betclic_links_with_retry(league="nba")
 
@@ -1240,7 +1253,7 @@ def compare_anchor(
             [home_team, away_team],
         )
 
-    def rebuild_us_map() -> dict[str, dict[str, Any]]:
+    def rebuild_us_map(*, include_bet365: bool = False) -> dict[str, dict[str, Any]]:
         from us_runner_client import fetch_bet365_us_map
 
         base_map = build_fanduel_player_props_map(
@@ -1248,12 +1261,15 @@ def compare_anchor(
             roster=roster,
             captured_at=fd_scraped_at,
         )
-        sport_key = (league or "wnba").strip().lower() or "wnba"
-        bet365_meta = fetch_bet365_us_map(
-            sport=sport_key if sport_key in {"wnba", "nba"} else "wnba",
-            home=home_team,
-            away=away_team,
-        )
+        bet365_map: dict[str, Any] = {}
+        if include_bet365:
+            sport_key = (league or "wnba").strip().lower() or "wnba"
+            bet365_meta = fetch_bet365_us_map(
+                sport=sport_key if sport_key in {"wnba", "nba"} else "wnba",
+                home=home_team,
+                away=away_team,
+            )
+            bet365_map = bet365_meta.get("map") or {}
         return overlay_us_reference_map(
             base_map,
             rotowire_rows=rw_rows,
@@ -1261,7 +1277,7 @@ def compare_anchor(
             away_team=away_team,
             roster=roster,
             rotowire_captured_at=rotowire_scraped_at,
-            bet365_map=bet365_meta.get("map") or {},
+            bet365_map=bet365_map,
         )
 
     book_lock = threading.Lock()
@@ -1275,7 +1291,7 @@ def compare_anchor(
             roster = merge_roster_from_books()
             fr_scraped_at = utc_now()
             fr_map = build_best_fr_player_props_map(book_events, roster=roster)
-            fd_map = rebuild_us_map()
+            fd_map = rebuild_us_map(include_bet365=False)
             flush(book)
 
     def ingest_fanduel(payload: dict[str, Any] | None) -> None:
@@ -1286,7 +1302,7 @@ def compare_anchor(
             fanduel_payload = payload
             fd_scraped_at = utc_now()
             roster = merge_roster_from_books()
-            fd_map = rebuild_us_map()
+            fd_map = rebuild_us_map(include_bet365=True)
             flush("fanduel")
 
     unibet_event = resolve_basketball_book_link(
@@ -1429,9 +1445,9 @@ def compare_anchor(
                     f"({raw_markets} marchés bruts — runner à jour avec mapping +/- ?)"
                 )
 
-    # Ensure RotoWire overlay applies even without FanDuel payload.
+    # Bet365 US une seule fois en fin de match (pas a chaque flush FR).
     with book_lock:
-        fd_map = rebuild_us_map()
+        fd_map = rebuild_us_map(include_bet365=True)
 
     result = assemble_anchor_result(
         anchor,
@@ -1669,6 +1685,19 @@ def run_live_compare(
         )
 
     for index, anchor in enumerate(anchors, start=1):
+        write_run_status_file(
+            status_json,
+            "running",
+            (
+                f"{index}/{anchors_total} — {anchor['match']} — "
+                "scrape Betclic / Unibet / Winamax / FanDuel..."
+            ),
+            match_filter=match_filter,
+            results=results,
+            anchors_total=anchors_total,
+            sport=league,
+        )
+
         def on_anchor_partial(partial: dict[str, Any], step: str) -> None:
             snapshot = results + [partial]
             agg = build_results_payload(
