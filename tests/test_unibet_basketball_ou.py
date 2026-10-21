@@ -37,18 +37,6 @@ class UnibetBasketballOuTests(unittest.TestCase):
         self.assertEqual(odds["Over"], 1.95)
         self.assertEqual(odds["Under"], 1.5)
 
-    def test_fallback_market_desc_chunks_when_embedded_blocks_empty(self) -> None:
-        html = (
-            "x" * 50
-            + '"marketDesc":"Plus / Moins Points - LeBron James - Match",'
-            + '"description":"Plus","price":"1,85","spread":24.5,'
-            + '"description":"Moins","price":"1,95","spread":24.5,'
-            + "y" * 50
-        )
-        markets = UnibetBasketballClient().extract_basketball_player_markets_from_html(html)
-        self.assertGreaterEqual(len(markets), 1)
-        self.assertIn("LeBron", markets[0].label)
-
     def test_extract_markets_do_not_mix_players_in_chunk(self) -> None:
         html = (
             '{"id":1,"description":"Moins 4.5","price":"1,50","spread":4.5,'

@@ -93,8 +93,7 @@ SPORTS: dict[str, SportConfig] = {
         result_json=DATA_DIR / "latest_nba.json",
         status_json=DATA_DIR / "run_status_nba.json",
         combined=False,
-        # Plusieurs matchs × (Betclic + FanDuel) : 15 min coupait au 1er match.
-        timeout=2700,
+        timeout=900,
     ),
     "baseball": SportConfig(
         key="baseball",
@@ -179,7 +178,15 @@ def schedule_self_update(*, restart_tunnel: bool = False) -> tuple[bool, str, di
 
     threading.Thread(target=_clear_update_flag_later, daemon=True).start()
 
-    before = _git_rev_parse_short()
+    before = ""
+    try:
+        before = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(ROOT),
+            text=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        before = ""
 
     payload = {
         "ok": True,
@@ -281,28 +288,15 @@ def wipe_result_file(sport: SportConfig) -> None:
     write_json_atomic(sport.result_json, empty_payload(sport))
 
 
-def _git_rev_parse_short() -> str:
-    """HEAD court — safe.directory pour repo ubuntu + service systemd root."""
+def _git_head_short() -> str:
     try:
         return subprocess.check_output(
-            [
-                "git",
-                "-c",
-                f"safe.directory={ROOT}",
-                "rev-parse",
-                "--short",
-                "HEAD",
-            ],
+            ["git", "rev-parse", "--short", "HEAD"],
             cwd=str(ROOT),
             text=True,
-            stderr=subprocess.DEVNULL,
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
-
-
-def _git_head_short() -> str:
-    return _git_rev_parse_short()
 
 
 def clear_running_lock(*, reason: str = "") -> None:
@@ -345,7 +339,7 @@ def recover_stuck_run() -> bool:
 
     sport = SPORTS.get(sport_key) if sport_key else None
     if sport is not None:
-        results = read_json(sport.result_json, {})
+        results = read_json(sport.results_json, {})
         has_rows = bool(
             results.get("comparables")
             or results.get("comparable_count")
@@ -467,7 +461,6 @@ def run_compare(
         write_status(sport, "running", "Comparaison live en cours...", match_filter=match_filter)
         cmd = [
             sys.executable,
-            "-u",
             str(ROOT / sport.script),
             "-o",
             str(sport.result_json.with_suffix(".csv")),
@@ -488,29 +481,20 @@ def run_compare(
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
         if sport.key in {"wnba", "nba"} and use_rotowire:
             cmd.append("--rotowire")
-        # Ne pas utiliser PIPE : le subprocess compare peut logger beaucoup → pipe plein
-        # → deadlock (UI bloquee sur « scrape Betclic / … » sans lignes).
-        compare_log = DATA_DIR / f"compare_{sport.key}.log"
-        log_handle = open(compare_log, "a", encoding="utf-8")
-        log_handle.write(f"\n===== {utc_now()} compare {sport.key} start =====\n")
-        log_handle.flush()
-        proc_env = os.environ.copy()
-        proc_env["PYTHONUNBUFFERED"] = "1"
         proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
-            stdout=log_handle,
-            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            env=proc_env,
         )
         with LOCK:
             CURRENT_PROC = proc
         try:
-            proc.wait(timeout=sport.timeout)
+            stdout, stderr = proc.communicate(timeout=sport.timeout)
         except subprocess.TimeoutExpired:
             proc.kill()
-            proc.wait()
+            proc.communicate()
             write_status(
                 sport,
                 "error",
@@ -519,14 +503,6 @@ def run_compare(
             )
             return
         finally:
-            try:
-                log_handle.write(
-                    f"===== {utc_now()} compare {sport.key} exit {proc.returncode} =====\n"
-                )
-                log_handle.flush()
-                log_handle.close()
-            except OSError:
-                pass
             with LOCK:
                 if CURRENT_PROC is proc:
                     CURRENT_PROC = None
@@ -542,12 +518,7 @@ def run_compare(
             return
 
         if proc.returncode != 0:
-            detail = "Erreur inconnue."
-            try:
-                tail = compare_log.read_text(encoding="utf-8")[-4000:]
-                detail = tail or detail
-            except OSError:
-                pass
+            detail = (stderr or stdout or "Erreur inconnue.")[-2000:]
             current = read_json(sport.status_json, {})
             if current.get("status") not in {"error", "cancelled"}:
                 write_status(
@@ -603,18 +574,6 @@ def request_cancel(sport_key: str = "") -> tuple[bool, str]:
             proc.kill()
 
     return True, "Arret demande."
-
-
-def stop_active_compare_and_wait(*, sport_key: str, max_wait: float = 8.0) -> None:
-    """Termine le subprocess en cours et attend la liberation du lock RUNNING."""
-    request_cancel(sport_key)
-    deadline = time.time() + max_wait
-    while time.time() < deadline:
-        with LOCK:
-            if not RUNNING:
-                return
-        time.sleep(0.2)
-    recover_stuck_run()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -951,21 +910,11 @@ class Handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             nba_hours = 12
         use_rotowire = bool(body.get("use_rotowire") or body.get("rotowire"))
-        force_restart = body.get("force_restart", True)
-        if isinstance(force_restart, str):
-            force_restart = force_restart.strip().lower() not in {"0", "false", "no"}
-        else:
-            force_restart = bool(force_restart)
         global RUNNING, CURRENT_SPORT
         recover_stuck_run()
         with LOCK:
-            running = RUNNING
-            current = CURRENT_SPORT
-        if running:
-            if force_restart and current == sport.key:
-                stop_active_compare_and_wait(sport_key=sport.key)
-            else:
-                running_sport = current or sport.key
+            if RUNNING:
+                running_sport = CURRENT_SPORT or sport.key
                 running_cfg = SPORTS.get(running_sport) or sport
                 status = read_json(running_cfg.status_json, {})
                 self._json_response(
@@ -983,28 +932,6 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 )
                 return
-        with LOCK:
-            if RUNNING:
-                if not (force_restart and CURRENT_SPORT == sport.key):
-                    running_sport = CURRENT_SPORT or sport.key
-                    running_cfg = SPORTS.get(running_sport) or sport
-                    status = read_json(running_cfg.status_json, {})
-                    self._json_response(
-                        409,
-                        {
-                            "error": f"Une comparaison {running_sport} est deja active.",
-                            "already_running": True,
-                            "sport": running_sport,
-                            "started_at": status.get("run_started_at")
-                            or status.get("updated_at")
-                            or "",
-                            "matches_done": status.get("matches_done", 0),
-                            "anchors_total": status.get("anchors_total", 0),
-                            "message": status.get("message", ""),
-                        },
-                    )
-                    return
-                stop_active_compare_and_wait(sport_key=sport.key)
             RUNNING = True
             CURRENT_SPORT = sport.key
 

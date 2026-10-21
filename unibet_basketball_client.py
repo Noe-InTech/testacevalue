@@ -136,21 +136,6 @@ class UnibetBasketballClient(UnibetClient):
         return home, away
 
     def extract_basketball_player_markets_from_html(self, html: str) -> list[UnibetMarket]:
-        grouped = self._group_player_markets_from_embedded_blocks(html)
-        if not grouped:
-            grouped = self._group_player_markets_from_market_desc_chunks(html)
-
-        markets = [
-            UnibetMarket(label=market_desc, outcomes=tuple(outcome_map.values()))
-            for market_desc, outcome_map in grouped.items()
-            if outcome_map
-        ]
-        return self._attach_selection_ids(markets, self.extract_selection_catalog(html))
-
-    def _group_player_markets_from_embedded_blocks(
-        self,
-        html: str,
-    ) -> dict[str, dict[str, UnibetOutcome]]:
         grouped: dict[str, dict[str, UnibetOutcome]] = defaultdict(dict)
 
         for market_desc, description, odds, selection_id in self._iter_embedded_outcome_blocks(
@@ -170,27 +155,13 @@ class UnibetBasketballClient(UnibetClient):
             if not re.search(r"[\d.,]", label):
                 continue
             grouped[market_desc][label] = outcome
-        return grouped
 
-    def _group_player_markets_from_market_desc_chunks(
-        self,
-        html: str,
-    ) -> dict[str, dict[str, UnibetOutcome]]:
-        """Repli NBA : blocs JSON trop gros pour _EMBEDDED_OUTCOME_BLOCK_RE."""
-        grouped: dict[str, dict[str, UnibetOutcome]] = defaultdict(dict)
-        for match in re.finditer(r'"marketDesc":"((?:\\.|[^"\\])*)"', html, flags=re.I):
-            market_desc = match.group(1).replace('\\"', '"').strip()
-            lower = self._strip_html(market_desc).lower()
-            if not self._is_player_market_desc(lower):
-                continue
-            start = max(0, match.start() - 120)
-            end = min(len(html), match.end() + 1200)
-            chunk = html[start:end]
-            for outcome in self._parse_ou_outcomes(chunk):
-                grouped[market_desc][outcome.label] = outcome
-            for outcome in self._parse_performance_outcomes(chunk):
-                grouped[market_desc][outcome.label] = outcome
-        return grouped
+        markets = [
+            UnibetMarket(label=market_desc, outcomes=tuple(outcome_map.values()))
+            for market_desc, outcome_map in grouped.items()
+            if outcome_map
+        ]
+        return self._attach_selection_ids(markets, self.extract_selection_catalog(html))
 
     def _iter_embedded_outcome_blocks(
         self,
@@ -237,11 +208,9 @@ class UnibetBasketballClient(UnibetClient):
             return False
         markers = (
             "plus / moins points -",
-            "plus / moins pts -",
             "plus / moins rebonds -",
             "plus / moins passes",
             "paniers 3 pts",
-            "paniers à 3 pts",
             "+/- paniers",
             "performance joueur",
             "nbre de rebonds - joueur",
