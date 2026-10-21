@@ -13,6 +13,8 @@ export async function POST(request: Request) {
     hours?: number;
     use_rotowire?: boolean;
     rotowire?: boolean;
+    use_pinnacle?: boolean;
+    pinnacle?: boolean;
   };
   try {
     body = await request.json();
@@ -46,8 +48,9 @@ export async function POST(request: Request) {
       ? Number(nbaHoursRaw)
       : undefined;
   const useRotowire = Boolean(body.use_rotowire ?? body.rotowire);
+  const usePinnacle = Boolean(body.use_pinnacle ?? body.pinnacle);
   const response = runnerEnabled()
-    ? await triggerRunner(match, sport, markets, nbaHours, useRotowire)
+    ? await triggerRunner(match, sport, markets, nbaHours, useRotowire, usePinnacle)
     : await triggerWorkflow(match, "live");
   const data = await response.json();
   return NextResponse.json(data, { status: response.status });

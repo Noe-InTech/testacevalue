@@ -47,6 +47,11 @@ def main() -> None:
         action="store_true",
         help="Inclure RotoWire / DraftKings (plus lent, secours si ligne absente FanDuel)",
     )
+    parser.add_argument(
+        "--pinnacle",
+        action="store_true",
+        help="Inclure Pinnacle. S'il a les deux côtés, son prix remplace la référence US.",
+    )
     args = parser.parse_args()
 
     if args.progress_json or args.status_json:
@@ -58,6 +63,7 @@ def main() -> None:
             league="nba",
             schedule_hours=args.hours,
             use_rotowire=args.rotowire,
+            use_pinnacle=args.pinnacle,
         )
         return
 
@@ -66,6 +72,7 @@ def main() -> None:
         league="nba",
         schedule_hours=args.hours,
         use_rotowire=args.rotowire,
+        use_pinnacle=args.pinnacle,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -7,6 +7,7 @@ import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
 import { listFrBookOdds } from "@/lib/frBookOdds";
 import type { ComparableRow, MarketKind, TableColumn } from "@/lib/types";
 import { getTableColumns } from "@/lib/types";
+import { usSourceBadgeClass, usSourceBadgeLabel } from "@/lib/usSource";
 
 interface ResultsTableProps {
   title: string;
@@ -89,12 +90,8 @@ function renderCell(row: ComparableRow, column: TableColumn) {
     if (!row.us_source_label) {
       return "—";
     }
-    const badgeClass =
-      row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
-    const label =
-      row.us_source === "rotowire" && row.us_bookmaker
-        ? `${row.us_source_label} · ${row.us_bookmaker}`
-        : row.us_source_label;
+    const badgeClass = usSourceBadgeClass(row.us_source);
+    const label = usSourceBadgeLabel(row);
     return <span className={badgeClass}>{label}</span>;
   }
   if ("format" in column && column.format) {

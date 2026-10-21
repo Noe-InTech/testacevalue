@@ -462,6 +462,7 @@ def run_compare(
     markets: str = "",
     nba_hours: int = 12,
     use_rotowire: bool = False,
+    use_pinnacle: bool = False,
 ) -> None:
     global RUNNING, CURRENT_SPORT, CURRENT_PROC, CANCEL_REQUESTED
     proc: subprocess.Popen[str] | None = None
@@ -490,6 +491,8 @@ def run_compare(
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
         if sport.key in {"wnba", "nba"} and use_rotowire:
             cmd.append("--rotowire")
+        if sport.key in {"wnba", "nba"} and use_pinnacle:
+            cmd.append("--pinnacle")
         # Fichier, pas PIPE : communicate() ne lit les tubes qu'à la fin, et un
         # buffer plein (~64 Ko) fige le compare à 0 % CPU sans rien écrire.
         log_path = DATA_DIR / f"compare_{sport.key}.log"
@@ -931,6 +934,7 @@ class Handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             nba_hours = 12
         use_rotowire = bool(body.get("use_rotowire") or body.get("rotowire"))
+        use_pinnacle = bool(body.get("use_pinnacle") or body.get("pinnacle"))
         global RUNNING, CURRENT_SPORT
         recover_stuck_run()
         with LOCK:
@@ -968,7 +972,7 @@ class Handler(BaseHTTPRequestHandler):
 
         thread = threading.Thread(
             target=run_compare,
-            args=(sport, match_filter, markets, nba_hours, use_rotowire),
+            args=(sport, match_filter, markets, nba_hours, use_rotowire, use_pinnacle),
             daemon=True,
         )
         thread.start()
