@@ -1234,13 +1234,21 @@ def compare_anchor(
         )
         bet365_map: dict[str, Any] = {}
         if include_bet365:
-            sport_key = (league or "wnba").strip().lower() or "wnba"
-            bet365_meta = fetch_bet365_us_map(
-                sport=sport_key if sport_key in {"wnba", "nba"} else "wnba",
-                home=home_team,
-                away=away_team,
-            )
-            bet365_map = bet365_meta.get("map") or {}
+            from us_runner_client import us_runner_enabled
+
+            if us_runner_enabled():
+                sport_key = (league or "wnba").strip().lower() or "wnba"
+                bet365_meta = fetch_bet365_us_map(
+                    sport=sport_key if sport_key in {"wnba", "nba"} else "wnba",
+                    home=home_team,
+                    away=away_team,
+                )
+                bet365_map = bet365_meta.get("map") or {}
+            else:
+                log.debug(
+                    "%s — Bet365 US ignore (US_RUNNER_URL non configure, phase 1 FR seule)",
+                    match_label,
+                )
         return overlay_us_reference_map(
             base_map,
             rotowire_rows=rw_rows,
@@ -1484,7 +1492,7 @@ def compare_anchor(
                 )
 
     if on_step is not None:
-        on_step("finalisation (Bet365 US si configure + export)…")
+        on_step("finalisation comparaison + export…")
 
     with book_lock:
         fd_map = rebuild_us_map(include_bet365=True)
