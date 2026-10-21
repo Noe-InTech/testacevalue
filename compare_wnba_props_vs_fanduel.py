@@ -1472,9 +1472,19 @@ def compare_anchor(
             )
             raw_markets = len(unibet_payload.get("markets") or [])
             if unibet_norm == 0:
+                sample_labels = [
+                    str(m.get("label", ""))[:80]
+                    for m in (unibet_payload.get("markets") or [])[:3]
+                ]
+                extra = f" — ex: {sample_labels[0]}" if sample_labels else ""
                 anchor_warnings.append(
                     f"Unibet: 0 props normalisés pour {anchor.get('match', '')} "
-                    f"({raw_markets} marchés bruts)"
+                    f"({raw_markets} marchés bruts{extra})"
+                )
+            elif raw_markets == 0:
+                anchor_warnings.append(
+                    f"Unibet: page OK mais 0 marché props extrait pour {anchor.get('match', '')} "
+                    f"(HTML sans marketDesc joueur — voir probe_unibet_nba_event.py)"
                 )
 
     if on_partial and book_events:
