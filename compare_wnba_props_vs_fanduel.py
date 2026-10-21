@@ -1335,15 +1335,20 @@ def compare_anchor(
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
     match_label = anchor.get("match", "")
+    # Ordre : books FR rapides d'abord, FanDuel en dernier (scrape lourd).
     book_jobs: list[tuple[str, Callable[[], Any]]] = []
-    if betclic_link:
+    if winamax_link:
         book_jobs.append(
             (
-                "betclic",
-                lambda link=betclic_link: _run_with_timeout(
-                    lambda: _load_betclic_event_payload(link),
+                "winamax",
+                lambda link=winamax_link: _run_with_timeout(
+                    lambda: _safe_call(
+                        "Winamax",
+                        lambda: winamax.build_event_payload(link),
+                        None,
+                    ),
                     timeout=BOOK_STEP_TIMEOUT,
-                    label=f"Betclic {match_label}",
+                    label=f"Winamax {match_label}",
                 ),
             )
         )
@@ -1362,18 +1367,14 @@ def compare_anchor(
                 ),
             )
         )
-    if winamax_link:
+    if betclic_link:
         book_jobs.append(
             (
-                "winamax",
-                lambda link=winamax_link: _run_with_timeout(
-                    lambda: _safe_call(
-                        "Winamax",
-                        lambda: winamax.build_event_payload(link),
-                        None,
-                    ),
+                "betclic",
+                lambda link=betclic_link: _run_with_timeout(
+                    lambda: _load_betclic_event_payload(link),
                     timeout=BOOK_STEP_TIMEOUT,
-                    label=f"Winamax {match_label}",
+                    label=f"Betclic {match_label}",
                 ),
             )
         )
@@ -1403,32 +1404,24 @@ def compare_anchor(
         heartbeat = threading.Thread(target=scrape_heartbeat, daemon=True)
         heartbeat.start()
         try:
-            with ThreadPoolExecutor(max_workers=min(5, len(book_jobs))) as pool:
-                futures = {pool.submit(job[1]): job[0] for job in book_jobs}
-                for future in as_completed(futures):
-                    book = futures[future]
-                    try:
-                        payload = future.result(timeout=FD_STEP_TIMEOUT + 5)
-                    except Exception as exc:
-                        log.warning("%s ignore %s: %s", book, match_label, exc)
-                        if book == "fanduel":
-                            anchor_warnings.append(
-                                f"FanDuel: timeout ou erreur pour {match_label}"
-                            )
-                        continue
-                    log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
-                    if book == "fanduel":
-                        if payload is None:
-                            anchor_warnings.append(
-                                f"FanDuel: scrape vide ou timeout pour {match_label}"
-                            )
-                        ingest_fanduel(payload)
-                    else:
-                        if book == "betclic" and payload is None:
-                            anchor_warnings.append(
-                                f"Betclic: payload indisponible pour {match_label}"
-                            )
-                        ingest_fr_book(book, payload)
+            # Sequential : le parallele + _run_with_timeout imbrique laissait des threads
+            # CPU a 100%% (Betclic/FanDuel) et bloquait as_completed apres le 1er book.
+            for book, run_book in book_jobs:
+                log.info("%s — demarrage %s", match_label, book)
+                payload = run_book()
+                log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
+                if book == "fanduel":
+                    if payload is None:
+                        anchor_warnings.append(
+                            f"FanDuel: scrape vide ou timeout pour {match_label}"
+                        )
+                    ingest_fanduel(payload)
+                else:
+                    if book == "betclic" and payload is None:
+                        anchor_warnings.append(
+                            f"Betclic: payload indisponible pour {match_label}"
+                        )
+                    ingest_fr_book(book, payload)
         finally:
             heartbeat_stop.set()
 
