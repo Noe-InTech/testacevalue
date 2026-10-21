@@ -1,3 +1,4 @@
+/** Badge du book US affiché dans les tableaux (FanDuel, RotoWire ou Pinnacle). */
 export function usSourceBadgeClass(source?: string): string {
   if (source === "pinnacle") {
     return "us-source-badge us-source-badge-pinnacle";
