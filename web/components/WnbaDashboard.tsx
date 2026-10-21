@@ -58,9 +58,20 @@ import {
   saveCachedSoccerResults,
   type SoccerBookFilter,
 } from "@/lib/soccer";
+import {
+  EUROLEAGUE_BOOK_FILTERS,
+  EUROLEAGUE_STAT_FILTERS,
+  clearCachedEuroleagueResults,
+  countRowsByStat as countEuroleagueRowsByStat,
+  filterEuroleagueRows,
+  hasEuroleagueData,
+  loadCachedEuroleagueResults,
+  saveCachedEuroleagueResults,
+  type EuroleagueBookFilter,
+} from "@/lib/euroleague";
 
-type BasketballLeague = "wnba" | "nba" | "baseball" | "soccer";
-type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter | SoccerBookFilter;
+type BasketballLeague = "wnba" | "nba" | "euroleague" | "baseball" | "soccer";
+type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter | SoccerBookFilter | EuroleagueBookFilter;
 
 function leagueConfig(league: BasketballLeague) {
   if (league === "nba") {
@@ -77,6 +88,22 @@ function leagueConfig(league: BasketballLeague) {
       bookFilters: NBA_BOOK_FILTERS,
       filterRows: filterNbaRows,
       countRowsByStat: countNbaRowsByStat,
+    };
+  }
+  if (league === "euroleague") {
+    return {
+      label: "Euroleague",
+      apiSport: "euroleague" as const,
+      marketKind: "euroleague" as const,
+      source: "euroleague_player_props_comparable",
+      hasData: hasEuroleagueData,
+      loadCache: loadCachedEuroleagueResults,
+      saveCache: saveCachedEuroleagueResults,
+      clearCache: clearCachedEuroleagueResults,
+      statFilters: EUROLEAGUE_STAT_FILTERS,
+      bookFilters: EUROLEAGUE_BOOK_FILTERS,
+      filterRows: filterEuroleagueRows,
+      countRowsByStat: countEuroleagueRowsByStat,
     };
   }
   if (league === "baseball") {
@@ -173,6 +200,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const [secret, setSecret] = useState("");
   const [match, setMatch] = useState("");
   const [nbaScheduleHours, setNbaScheduleHours] = useState<8 | 12 | 24 | 48>(24);
+  const [euroleagueScheduleHours, setEuroleagueScheduleHours] = useState<24 | 48 | 96>(96);
   const [useRotowire, setUseRotowire] = useState(false);
   const [usePinnacle, setUsePinnacle] = useState(false);
   const [competitions, setCompetitions] = useState<
@@ -524,6 +552,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           match: match.trim(),
           sport: cfg.apiSport,
           ...(league === "nba" ? { nba_hours: nbaScheduleHours } : {}),
+          ...(league === "euroleague" ? { hours: euroleagueScheduleHours } : {}),
           ...((league === "nba" || league === "wnba") && useRotowire
             ? { use_rotowire: true }
             : {}),
@@ -735,6 +764,12 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
               Les pills filtrent par famille — seules celles
               avec des lignes apparaissent.
             </>
+          ) : league === "euroleague" ? (
+            <>
+              Compare les stats joueurs <strong>points, rebonds, passes, 3 pts</strong> (Euroleague — Unibet,
+              Betclic, Winamax) avec <strong>FanDuel</strong>. La value n&apos;est calculée que si FanDuel cote le
+              plus et le moins. Les props joueurs FanDuel arrivent surtout près du coup d&apos;envoi.
+            </>
           ) : (
             <>
               Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
@@ -784,6 +819,30 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           </label>
           </>
         ) : null}
+        {league === "euroleague" ? (
+          <fieldset className="nba-schedule-fieldset">
+            <legend>Fenêtre horaire — matchs à inclure</legend>
+            <div className="nba-schedule-options" role="radiogroup" aria-label="Fenêtre horaire Euroleague">
+              {([24, 48, 96] as const).map((hours) => (
+                <label key={hours} className="nba-schedule-option">
+                  <input
+                    type="radio"
+                    name="euroleague-schedule-hours"
+                    value={hours}
+                    checked={euroleagueScheduleHours === hours}
+                    onChange={() => setEuroleagueScheduleHours(hours)}
+                    disabled={busy}
+                  />
+                  <span>{hours} prochaines heures</span>
+                </label>
+              ))}
+            </div>
+            <p className="hint">
+              96 h couvre un round Euroleague (jeudi–vendredi, parfois le lendemain). 24 h si tu ne veux que
+              les matchs tout proches, là où FanDuel poste les props joueurs.
+            </p>
+          </fieldset>
+        ) : null}
         {league === "nba" ? (
           <fieldset className="nba-schedule-fieldset">
             <legend>Fenêtre horaire — matchs à inclure</legend>
@@ -822,7 +881,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
                     ? "équipe ou ligue (MLB, KBO, NPB...)"
                     : league === "nba"
                       ? "pistons, celtics, lakers, knicks..."
-                      : "dream, lynx, gray..."
+                      : league === "euroleague"
+                        ? "paris, asvel, real, olympiacos..."
+                        : "dream, lynx, gray..."
               }
             />
             {supportsCompetitionPicker ? (
@@ -931,7 +992,11 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
             value={displayMatchFilter}
             onChange={(event) => setDisplayMatchFilter(event.target.value)}
             placeholder={
-              league === "nba" ? "pistons, celtics, tatum..." : "dream, sparks, gray..."
+              league === "nba"
+                ? "pistons, celtics, tatum..."
+                : league === "euroleague"
+                  ? "paris, asvel, real..."
+                  : "dream, sparks, gray..."
             }
           />
         </label>

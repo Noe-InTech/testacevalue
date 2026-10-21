@@ -7,7 +7,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
-from basketball_constants import UNIBET_BASKETBALL_LISTING_PATH, UNIBET_NBA_HUB_PATHS
+from basketball_constants import (
+    UNIBET_BASKETBALL_LISTING_PATH,
+    UNIBET_EUROLEAGUE_PATH_FRAGMENT,
+    UNIBET_NBA_HUB_PATHS,
+)
+from euroleague_teams import canonical_euroleague_club
 from basketball_listings import is_basketball_outright_slug
 from unibet_client import UnibetClient, UnibetMarket, UnibetOutcome
 
@@ -67,6 +72,66 @@ class UnibetBasketballClient(UnibetClient):
             html = self.get_tennis_listing_html(page)
             self._ingest_unibet_nba_paths(html, events)
         return sorted(events.values(), key=lambda item: item.name)
+
+    def list_euroleague_events(self) -> list[UnibetBasketballEvent]:
+        html = self.get_tennis_listing_html(UNIBET_BASKETBALL_LISTING_PATH)
+        # Le hub basket ne liste pas toujours l'Euroleague : la page compétition est la source.
+        try:
+            comp_html = self.get_tennis_listing_html(
+                UNIBET_EUROLEAGUE_PATH_FRAGMENT.rstrip("/")
+            )
+        except Exception:
+            comp_html = ""
+        events: dict[str, UnibetBasketballEvent] = {}
+        for page in (html, comp_html):
+            if page:
+                self._ingest_unibet_euroleague_paths(page, events)
+        return sorted(events.values(), key=lambda item: item.name)
+
+    def _ingest_unibet_euroleague_paths(
+        self,
+        html: str,
+        events: dict[str, UnibetBasketballEvent],
+    ) -> None:
+        fragment = UNIBET_EUROLEAGUE_PATH_FRAGMENT.rstrip("/")
+        for match in re.finditer(
+            rf'href="({re.escape(fragment)}/\d+/[^"#?]+)"',
+            html,
+            flags=re.I,
+        ):
+            path = match.group(1).rstrip("/")
+            slug = path.rsplit("/", 1)[-1]
+            if "vs" not in slug.lower():
+                continue
+            event_id = path.split("/")[-2]
+            home, away = self._teams_from_euroleague_slug(slug)
+            if not home or not away:
+                continue
+            name = f"{home} - {away}"
+            key = f"{home}|{away}".lower()
+            url = f"{self.base_url}{path}"
+            existing = events.get(key)
+            if existing is None or len(url) > len(existing.url):
+                events[key] = UnibetBasketballEvent(
+                    event_id=str(event_id),
+                    name=name,
+                    home_team=home,
+                    away_team=away,
+                    url=url,
+                    competition="Euroleague",
+                )
+
+    @staticmethod
+    def _teams_from_euroleague_slug(slug: str) -> tuple[str, str]:
+        body = slug.replace("-vs-", "|").replace("-v-", "|")
+        if "|" not in body:
+            return "", ""
+        left, right = body.split("|", 1)
+        home = canonical_euroleague_club(left.replace("-", " "))
+        away = canonical_euroleague_club(right.replace("-", " "))
+        if not home or not away or home == away:
+            return "", ""
+        return home, away
 
     def _ingest_unibet_nba_paths(
         self,

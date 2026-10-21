@@ -258,6 +258,100 @@ class BasketballMarketMappingTests(unittest.TestCase):
             "threes_made_player|allishagray|1.5",
         )
 
+    def test_map_fanduel_euroleague_total_points(self) -> None:
+        from basketball_market_mapping import map_fanduel_milestone_market
+
+        market = {
+            "marketName": "Marcus Carr - Total Points",
+            "runners": [
+                {"runnerName": "Marcus Carr Over", "handicap": 14.5, "runnerStatus": "ACTIVE"},
+                {"runnerName": "Marcus Carr Under", "handicap": 14.5, "runnerStatus": "ACTIVE"},
+            ],
+        }
+        self.assertEqual(
+            map_fanduel_market_to_compare_key(market, roster=["Marcus Carr"]),
+            "points_player|marcuscarr|14.5",
+        )
+        self.assertIsNone(
+            map_fanduel_market_to_compare_key(
+                {
+                    "marketName": "Total Points inc Overtime",
+                    "runners": [{"runnerName": "Over", "handicap": 166.5}],
+                }
+            )
+        )
+        self.assertIsNone(
+            map_fanduel_market_to_compare_key(
+                {
+                    "marketName": "1st Half - Total Points",
+                    "runners": [{"runnerName": "Over", "handicap": 80.5}],
+                }
+            )
+        )
+        milestones = map_fanduel_milestone_market(
+            {
+                "marketName": "Points Milestones - Marcus Carr",
+                "runners": [
+                    {"runnerName": "Marcus Carr to Score 11+ Points", "runnerStatus": "ACTIVE"},
+                    {"runnerName": "Marcus Carr to Score 15+ Points", "runnerStatus": "ACTIVE"},
+                ],
+            },
+            roster=["Marcus Carr"],
+        )
+        self.assertEqual(
+            [item[0] for item in milestones],
+            ["points_player|marcuscarr|+11", "points_player|marcuscarr|+15"],
+        )
+        threes = {
+            "marketName": "Marcus Carr - Total Threes Made",
+            "runners": [{"runnerName": "Over", "handicap": 1.5}],
+        }
+        self.assertEqual(
+            map_fanduel_market_to_compare_key(threes, roster=["Marcus Carr"]),
+            "threes_made_player|marcuscarr|1.5",
+        )
+
+    def test_euroleague_fanduel_map_keeps_both_sides(self) -> None:
+        from compare_wnba_props_vs_fanduel import build_fanduel_player_props_map
+
+        def runner(name: str, american: int, handicap: float | None = 14.5) -> dict:
+            payload = {
+                "runnerName": name,
+                "runnerStatus": "ACTIVE",
+                "winRunnerOdds": {"americanDisplayOdds": {"americanOdds": american}},
+            }
+            if handicap is not None:
+                payload["handicap"] = handicap
+            return payload
+
+        mapped = build_fanduel_player_props_map(
+            {
+                "markets": [
+                    {
+                        "marketName": "Marcus Carr - Total Points",
+                        "runners": [
+                            runner("Marcus Carr Over", -110),
+                            runner("Marcus Carr Under", -110),
+                        ],
+                    },
+                    {
+                        "marketName": "Points Milestones - Marcus Carr",
+                        "runners": [runner("Marcus Carr to Score 15+ Points", 220, None)],
+                    },
+                    {
+                        "marketName": "Total Points inc Overtime",
+                        "runners": [runner("Over", -110, 166.5), runner("Under", -110, 166.5)],
+                    },
+                ]
+            },
+            roster=["Marcus Carr"],
+        )
+        ou = mapped["points_player|marcuscarr|14.5"]
+        self.assertEqual(set(ou["outcomes"]), {"Over", "Under"})
+        self.assertIn("Over", mapped["points_player|marcuscarr|+15"]["outcomes"])
+        self.assertNotIn("Under", mapped["points_player|marcuscarr|+15"]["outcomes"])
+        self.assertEqual(len(mapped), 2)
+
     def test_fanduel_runner_outcome(self) -> None:
         from basketball_market_mapping import fanduel_player_prop_runner_outcome
 

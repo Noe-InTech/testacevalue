@@ -4,12 +4,13 @@ import { useState } from "react";
 
 import { BaseballDashboard } from "@/components/BaseballDashboard";
 import { Dashboard } from "@/components/Dashboard";
+import { EuroleagueDashboard } from "@/components/EuroleagueDashboard";
 import { NbaDashboard } from "@/components/NbaDashboard";
 import { WnbaDashboard } from "@/components/WnbaDashboard";
 import type { SportKey } from "@/lib/types";
 
 /** Foot temporairement désactivé (scrape trop lourd pour la VM). */
-const ENABLED_SPORTS: SportKey[] = ["tennis", "wnba", "nba", "baseball"];
+const ENABLED_SPORTS: SportKey[] = ["tennis", "wnba", "nba", "euroleague", "baseball"];
 
 export function AppShell() {
   const [sport, setSport] = useState<SportKey>("tennis");
@@ -41,6 +42,13 @@ export function AppShell() {
         </button>
         <button
           type="button"
+          className={`sport-tab${activeSport === "euroleague" ? " active" : ""}`}
+          onClick={() => setSport("euroleague")}
+        >
+          Euroleague
+        </button>
+        <button
+          type="button"
           className={`sport-tab${activeSport === "baseball" ? " active" : ""}`}
           onClick={() => setSport("baseball")}
         >
@@ -54,6 +62,8 @@ export function AppShell() {
         <WnbaDashboard />
       ) : activeSport === "nba" ? (
         <NbaDashboard />
+      ) : activeSport === "euroleague" ? (
+        <EuroleagueDashboard />
       ) : (
         <BaseballDashboard />
       )}

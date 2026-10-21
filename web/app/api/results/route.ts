@@ -38,6 +38,7 @@ function emptyMarketPayload(source: string): MarketPayload {
 
 const idleWnbaPayload: MarketPayload = emptyMarketPayload("wnba_player_props_comparable");
 const idleNbaPayload: MarketPayload = emptyMarketPayload("nba_player_props_comparable");
+const idleEuroleaguePayload: MarketPayload = emptyMarketPayload("euroleague_player_props_comparable");
 const idleBaseballPayload: MarketPayload = emptyMarketPayload("baseball_markets_comparable");
 const idleSoccerPayload: MarketPayload = emptyMarketPayload("soccer_player_props_comparable");
 
@@ -47,6 +48,9 @@ function idlePayloadForSport(sport: SportKey): ApiPayload {
   }
   if (sport === "nba") {
     return idleNbaPayload;
+  }
+  if (sport === "euroleague") {
+    return idleEuroleaguePayload;
   }
   if (sport === "baseball") {
     return idleBaseballPayload;

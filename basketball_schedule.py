@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 NBA_SCHEDULE_HOUR_OPTIONS = (8, 12, 24, 48)
+EUROLEAGUE_SCHEDULE_HOUR_OPTIONS = (24, 48, 96)
 
 
 def normalize_nba_hours(raw: Any) -> int:
@@ -16,6 +17,16 @@ def normalize_nba_hours(raw: Any) -> int:
     except (TypeError, ValueError):
         return 12
     return hours if hours in NBA_SCHEDULE_HOUR_OPTIONS else 12
+
+
+def normalize_euroleague_hours(raw: Any) -> int:
+    if raw is None:
+        return 96
+    try:
+        hours = int(raw)
+    except (TypeError, ValueError):
+        return 96
+    return hours if hours in EUROLEAGUE_SCHEDULE_HOUR_OPTIONS else 96
 
 
 def listing_matches_text_filter(
@@ -135,9 +146,11 @@ def filter_nba_listings_by_hours(
     hours: int,
     teams_match: Callable[[str, str, str, str], bool],
     now: datetime | None = None,
+    normalize: Callable[[Any], int] | None = None,
+    label: str = "NBA",
 ) -> tuple[list[Any], list[Any], list[Any], list[Any], str | None]:
     """Ne garde que les matchs dont le coup d'envoi est dans les ``hours`` prochaines heures."""
-    window = normalize_nba_hours(hours)
+    window = (normalize or normalize_nba_hours)(hours)
     now_dt = now or datetime.now(timezone.utc)
     end_dt = now_dt + timedelta(hours=window)
 
@@ -175,14 +188,14 @@ def filter_nba_listings_by_hours(
     note: str | None = None
     if timed_refs:
         note = (
-            f"Filtre NBA {window}h — "
+            f"Filtre {label} {window}h — "
             f"FanDuel {len(fd_in_window)}/{len(fanduel_events)}, "
             f"Winamax {len(wx_in_window)}/{len(winamax_links)}, "
             f"Unibet {len(uni_filtered)}/{len(unibet_events)}, "
             f"Betclic {len(bet_filtered)}/{len(betclic_links)}."
         )
     elif fanduel_events or winamax_links:
-        note = f"Filtre NBA {window}h — aucun match avec heure de début dans la fenêtre."
+        note = f"Filtre {label} {window}h — aucun match avec heure de début dans la fenêtre."
 
     return uni_filtered, bet_filtered, wx_in_window, fd_in_window, note
 
@@ -195,8 +208,9 @@ def filter_nba_anchors_by_hours(
     hours: int,
     teams_match: Callable[[str, str, str, str], bool],
     now: datetime | None = None,
+    normalize: Callable[[Any], int] | None = None,
 ) -> list[dict[str, Any]]:
-    window = normalize_nba_hours(hours)
+    window = (normalize or normalize_nba_hours)(hours)
     now_dt = now or datetime.now(timezone.utc)
     end_dt = now_dt + timedelta(hours=window)
 
