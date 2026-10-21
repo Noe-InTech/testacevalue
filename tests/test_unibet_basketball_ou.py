@@ -32,7 +32,7 @@ class UnibetBasketballOuTests(unittest.TestCase):
             ["Jordin Canada"],
         )
         self.assertEqual(len(markets), 1)
-        self.assertEqual(markets[0].compare_key, "rebounds_player|canada|4.5")
+        self.assertEqual(markets[0].compare_key, "rebounds_player|jordincanada|4.5")
         odds = {item.label: item.odds for item in markets[0].outcomes}
         self.assertEqual(odds["Over"], 1.95)
         self.assertEqual(odds["Under"], 1.5)
