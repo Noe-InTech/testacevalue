@@ -178,15 +178,7 @@ def schedule_self_update(*, restart_tunnel: bool = False) -> tuple[bool, str, di
 
     threading.Thread(target=_clear_update_flag_later, daemon=True).start()
 
-    before = ""
-    try:
-        before = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(ROOT),
-            text=True,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError):
-        before = ""
+    before = _git_rev_parse_short()
 
     payload = {
         "ok": True,
@@ -288,15 +280,28 @@ def wipe_result_file(sport: SportConfig) -> None:
     write_json_atomic(sport.result_json, empty_payload(sport))
 
 
-def _git_head_short() -> str:
+def _git_rev_parse_short() -> str:
+    """HEAD court — safe.directory pour repo ubuntu + service systemd root."""
     try:
         return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
+            [
+                "git",
+                "-c",
+                f"safe.directory={ROOT}",
+                "rev-parse",
+                "--short",
+                "HEAD",
+            ],
             cwd=str(ROOT),
             text=True,
+            stderr=subprocess.DEVNULL,
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
+
+
+def _git_head_short() -> str:
+    return _git_rev_parse_short()
 
 
 def clear_running_lock(*, reason: str = "") -> None:
