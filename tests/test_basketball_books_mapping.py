@@ -49,7 +49,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Plus de 4,5", 1.7), ("Moins de 4,5", 2.0)],
             ["Rhyne Howard"],
         )
-        self.assertEqual(markets[0].compare_key, "rebounds_player|howard|4.5")
+        self.assertEqual(markets[0].compare_key, "rebounds_player|rhynehoward|4.5")
 
     def test_normalize_winamax_threes_player(self) -> None:
         markets = normalize_winamax_market(
@@ -57,7 +57,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Plus de 1,5", 1.6), ("Moins de 1,5", 1.86)],
             ["Allisha Gray"],
         )
-        self.assertEqual(markets[0].compare_key, "threes_made_player|gray|1.5")
+        self.assertEqual(markets[0].compare_key, "threes_made_player|allishagray|1.5")
 
     def test_normalize_winamax_points_tier(self) -> None:
         markets = normalize_winamax_market(
@@ -65,7 +65,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Plus de 19,5", 1.2)],
             ["Allisha Gray"],
         )
-        self.assertEqual(markets[0].compare_key, "points_player|gray|19.5")
+        self.assertEqual(markets[0].compare_key, "points_player|allishagray|19.5")
         self.assertEqual(markets[0].outcomes[0].label, "Over")
 
     def test_normalize_winamax_double_double(self) -> None:
@@ -75,7 +75,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             ["Allisha Gray", "Nneka Ogwumike"],
         )
         self.assertEqual(len(markets), 2)
-        self.assertEqual(markets[0].compare_key, "double_double_player|gray|0")
+        self.assertEqual(markets[0].compare_key, "double_double_player|allishagray|0")
 
     def test_normalize_betclic_points_plus_minus_symbol(self) -> None:
         markets = normalize_betclic_market(
@@ -87,7 +87,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             ["Cade Cunningham"],
         )
         self.assertEqual(len(markets), 1)
-        self.assertEqual(markets[0].compare_key, "points_player|cunningham|24.5")
+        self.assertEqual(markets[0].compare_key, "points_player|cadecunningham|24.5")
 
     def test_normalize_betclic_points_plus_moins(self) -> None:
         markets = normalize_betclic_market(
@@ -98,7 +98,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             ],
             ["Allisha Gray"],
         )
-        self.assertEqual(markets[0].compare_key, "points_player|gray|20.5")
+        self.assertEqual(markets[0].compare_key, "points_player|allishagray|20.5")
 
     def test_normalize_betclic_points_paliers_from_betslip_labels(self) -> None:
         markets = normalize_betclic_market(
@@ -111,8 +111,8 @@ class BasketballBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(len(markets), 2)
         keys = {item.compare_key for item in markets}
-        self.assertIn("points_player|tatum|16.5", keys)
-        self.assertIn("points_player|cunningham|24.5", keys)
+        self.assertIn("points_player|jaysontatum|16.5", keys)
+        self.assertIn("points_player|cadecunningham|24.5", keys)
 
     def test_normalize_betclic_pra_long_performance_label(self) -> None:
         markets = normalize_betclic_market(
@@ -125,7 +125,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
         )
         self.assertEqual(len(markets), 1)
         self.assertEqual(markets[0].market_family, "pra_player")
-        self.assertEqual(markets[0].compare_key, "pra_player|thompson|19.5")
+        self.assertEqual(markets[0].compare_key, "pra_player|ausarthompson|19.5")
 
     def test_normalize_unibet_points_ou(self) -> None:
         from basketball_books_mapping import normalize_unibet_market
@@ -135,7 +135,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Plus 20.5", 1.65), ("Moins 20.5", 1.8)],
             ["Allisha Gray"],
         )
-        self.assertEqual(markets[0].compare_key, "points_player|gray|20.5")
+        self.assertEqual(markets[0].compare_key, "points_player|allishagray|20.5")
 
     def test_unibet_performance_keeps_ou_and_tiers(self) -> None:
         """+/- et paliers N+ restent : 25+ et Over 24,5 sont la même value entière."""
@@ -176,7 +176,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Allisha Gray 25+", 2.55)],
             ["Allisha Gray"],
         )
-        self.assertEqual(markets[0].compare_key, "points_player|gray|+25")
+        self.assertEqual(markets[0].compare_key, "points_player|allishagray|+25")
         self.assertEqual(markets[0].outcomes[0].label, "Over")
 
     def test_normalize_unibet_performance_pra_ou(self) -> None:
@@ -191,7 +191,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             ["Cade Cunningham"],
         )
         self.assertEqual(len(markets), 1)
-        self.assertEqual(markets[0].compare_key, "pra_player|cunningham|36.5")
+        self.assertEqual(markets[0].compare_key, "pra_player|cadecunningham|36.5")
         self.assertIn("Over", {o.label for o in markets[0].outcomes})
 
     def test_normalize_winamax_pra_shorthand(self) -> None:
@@ -200,7 +200,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Plus de 23,5", 1.64), ("Moins de 23,5", 1.82)],
             ["Jordin Canada"],
         )
-        self.assertEqual(markets[0].compare_key, "pra_player|canada|23.5")
+        self.assertEqual(markets[0].compare_key, "pra_player|jordincanada|23.5")
 
     def test_normalize_winamax_pts_passes_shorthand(self) -> None:
         markets = normalize_winamax_market(
@@ -208,7 +208,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
             [("Plus de 19,5", 1.66), ("Moins de 19,5", 1.78)],
             ["Jordin Canada"],
         )
-        self.assertEqual(markets[0].compare_key, "points_assists_player|canada|19.5")
+        self.assertEqual(markets[0].compare_key, "points_assists_player|jordincanada|19.5")
 
     def test_tennis_breaks_filter_unchanged(self) -> None:
         self.assertTrue(is_breaks_market("Plus / Moins Breaks - Match"))
@@ -217,7 +217,7 @@ class BasketballBooksMappingTests(unittest.TestCase):
 class BasketballMarketMappingTests(unittest.TestCase):
     def test_compare_key(self) -> None:
         key = build_player_prop_key("assists_player", "Jordin Canada", "7.5")
-        self.assertEqual(key, "assists_player|canada|7.5")
+        self.assertEqual(key, "assists_player|jordincanada|7.5")
         self.assertTrue(is_comparable_player_prop_key(key))
 
     def test_map_fanduel_points_player(self) -> None:
@@ -230,7 +230,7 @@ class BasketballMarketMappingTests(unittest.TestCase):
         }
         self.assertEqual(
             map_fanduel_market_to_compare_key(market, roster=["Allisha Gray"]),
-            "points_player|gray|20.5",
+            "points_player|allishagray|20.5",
         )
 
     def test_map_fanduel_pra_player(self) -> None:
@@ -242,7 +242,7 @@ class BasketballMarketMappingTests(unittest.TestCase):
         }
         self.assertEqual(
             map_fanduel_market_to_compare_key(market, roster=["Jordin Canada"]),
-            "pra_player|canada|24.5",
+            "pra_player|jordincanada|24.5",
         )
 
     def test_map_fanduel_made_threes(self) -> None:
@@ -255,7 +255,7 @@ class BasketballMarketMappingTests(unittest.TestCase):
         }
         self.assertEqual(
             map_fanduel_market_to_compare_key(market, roster=["Allisha Gray"]),
-            "threes_made_player|gray|1.5",
+            "threes_made_player|allishagray|1.5",
         )
 
     def test_fanduel_runner_outcome(self) -> None:

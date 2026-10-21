@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from functools import lru_cache
 from typing import Any, Iterator
 
 from tennis_market_mapping import format_numeric_line
@@ -19,162 +18,138 @@ def strip_accents(value: str) -> str:
     )
 
 
+_GENERATIONAL_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v"})
+
+
+def _collapse_leading_initials(parts: list[str]) -> list[str]:
+    """« P. J. Washington » et « PJ Washington » deviennent [pj, washington]."""
+    if len(parts) < 3:
+        return parts
+    index = 0
+    while index < len(parts) and len(parts[index]) == 1:
+        index += 1
+    if index >= 2 and index < len(parts):
+        return ["".join(parts[:index]), *parts[index:]]
+    return parts
+
+
 def _name_parts(name: str) -> list[str]:
-    parts = re.split(r"[\s.]+", strip_accents(name))
-    return [part for part in parts if part]
+    text = strip_accents(name).replace("'", "").replace("’", "")
+    raw = [part for part in re.split(r"[^a-z0-9]+", text) if part]
+    return _collapse_leading_initials(raw)
+
+
+def _identity(name: str) -> tuple[list[str], tuple[str, ...]]:
+    """Prénom(s) + nom, et le suffixe Jr/Sr/II à part.
+
+    Le suffixe reste dans l'identité : « Gary Trent » n'est pas « Gary Trent Jr ».
+    Il n'est pas le nom de famille : « Jones Jr » n'est pas « Acuff Jr ».
+    """
+    parts = _name_parts(name)
+    suffixes: list[str] = []
+    while len(parts) > 1 and parts[-1] in _GENERATIONAL_SUFFIXES:
+        suffixes.append(parts[-1])
+        parts = parts[:-1]
+    suffixes.reverse()
+    return parts, tuple(suffixes)
+
+
+def _core_name_parts(name: str) -> list[str]:
+    core, _suffix = _identity(name)
+    return core
+
+
+def _opens_with_initial(name: str) -> bool:
+    core, _suffix = _identity(name)
+    return len(core) >= 2 and len(core[0]) == 1
 
 
 def basketball_players_match(name_a: str, name_b: str) -> bool:
-    """Appariement joueur strict (évite deux « Chris » ou deux « Wilson » sans prénom)."""
-    a = _name_parts(name_a)
-    b = _name_parts(name_b)
-    if not a or not b:
+    """Même joueur seulement si prénom, nom et suffixe collent.
+
+    Un nom de famille seul, un « Jr » partagé, ou le même prénom ne suffit pas.
+    Une initiale (« J. Holiday », « A. Wilson ») ne colle que si elle préfixe
+    le prénom et que le reste du nom est identique.
+    """
+    core_a, suffix_a = _identity(name_a)
+    core_b, suffix_b = _identity(name_b)
+    if not core_a or not core_b or suffix_a != suffix_b:
         return False
-    if strip_accents(name_a) == strip_accents(name_b):
+    if core_a == core_b:
         return True
-    last_a, last_b = a[-1], b[-1]
-    if last_a != last_b:
+    if core_a[-1] != core_b[-1]:
         return False
-    if len(a) == 1 or len(b) == 1:
-        return True
-    first_a, first_b = a[0], b[0]
+    if len(core_a) == 1 or len(core_b) == 1:
+        return False
+    if core_a[1:] != core_b[1:]:
+        return False
+    first_a, first_b = core_a[0], core_b[0]
     if first_a == first_b:
         return True
-    if len(first_a) == 1 and first_b.startswith(first_a):
+    if len(first_a) == 1 and len(first_b) > 1 and first_b.startswith(first_a):
         return True
-    if len(first_b) == 1 and first_a.startswith(first_b):
+    if len(first_b) == 1 and len(first_a) > 1 and first_a.startswith(first_b):
         return True
     return False
 
 
-def player_token(name: str) -> str:
-    """Nom de famille seul (legacy). Preferer player_compare_token avec roster."""
-    parts = re.split(r"[\s.]+", strip_accents(name))
-    parts = [part for part in parts if part]
+def player_identity_token(name: str) -> str:
+    """Clé stable, indépendante du reste du roster.
+
+    « Derrick Jones Jr. » et « Darius Acuff Jr. » ne partagent plus « jr ».
+    """
+    parts = _name_parts(name)
     if not parts:
         return "player"
-    if len(parts) >= 2 and all(len(part) == 1 for part in parts[:-1]):
-        return parts[-1]
+    return "".join(parts)
+
+
+def player_token(name: str) -> str:
+    """Nom de famille, suffixe générationnel ignoré."""
+    parts = _core_name_parts(name)
+    if not parts:
+        return "player"
     return parts[-1]
 
 
-def _break_token_collisions(tokens: dict[str, str]) -> None:
-    """Suffixe numérique si deux libellés restent impossibles à départager."""
-    by_token: dict[str, list[str]] = {}
-    for name, token in tokens.items():
-        by_token.setdefault(token, []).append(name)
-    used = set(tokens.values())
-    for token, names in by_token.items():
-        if len(names) < 2:
-            continue
-        for index, name in enumerate(names[1:], start=2):
-            suffix = index
-            candidate = f"{token}{suffix}"
-            while candidate in used:
-                suffix += 1
-                candidate = f"{token}{suffix}"
-            tokens[name] = candidate
-            used.add(candidate)
-
-
 def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
-    """Tokens stables ; homonymes → préfixe prénom + nom de famille jusqu'à unicité.
-
-    Les graphies d'un même joueur (accents, points, espaces) partagent un token.
-    Sans ça, « Jokic » / « Jokić » ne se départagent jamais et la boucle ne sort pas.
-    """
-    identity_to_names: dict[str, list[str]] = {}
+    """Une clé par graphie. Elle ne dépend pas des autres joueurs du roster."""
+    result: dict[str, str] = {}
     for raw_name in roster:
         name = str(raw_name or "").strip()
-        if not name:
-            continue
-        identity = " ".join(_name_parts(name)) or strip_accents(name)
-        bucket = identity_to_names.setdefault(identity, [])
-        if name not in bucket:
-            bucket.append(name)
-    canonical = {
-        identity: max(names, key=len)
-        for identity, names in identity_to_names.items()
-    }
-    unique_names = sorted(canonical.values(), key=lambda item: strip_accents(item))
-    tokens = {name: player_token(name) for name in unique_names}
-
-    previous_collision_count: int | None = None
-    for _ in range(max(8, len(unique_names) + 1)):
-        by_token: dict[str, list[str]] = {}
-        for name, token in tokens.items():
-            by_token.setdefault(token, []).append(name)
-        collisions = {token: names for token, names in by_token.items() if len(names) > 1}
-        if not collisions:
-            break
-        collision_count = sum(len(names) for names in collisions.values())
-        if previous_collision_count is not None and collision_count >= previous_collision_count:
-            _break_token_collisions(tokens)
-            break
-        previous_collision_count = collision_count
-        for names in collisions.values():
-            last = player_token(names[0])
-            resolved = False
-            for prefix_len in range(1, 12):
-                trial: dict[str, str] = {}
-                for name in names:
-                    parts = _name_parts(name)
-                    first = parts[0] if parts else "x"
-                    trial[name] = f"{first[:prefix_len]}{last}"
-                if len(set(trial.values())) == len(names):
-                    tokens.update(trial)
-                    resolved = True
-                    break
-            if not resolved:
-                for name in names:
-                    parts = _name_parts(name)
-                    if len(parts) >= 2:
-                        tokens[name] = f"{parts[0]}{parts[-1]}"
-                    else:
-                        tokens[name] = f"{(parts[0] if parts else 'x')}{last}"
-    else:
-        _break_token_collisions(tokens)
-
-    by_token_left: dict[str, list[str]] = {}
-    for name, token in tokens.items():
-        by_token_left.setdefault(token, []).append(name)
-    if any(len(names) > 1 for names in by_token_left.values()):
-        _break_token_collisions(tokens)
-
-    result: dict[str, str] = {}
-    for identity, names in identity_to_names.items():
-        token = tokens[canonical[identity]]
-        for name in names:
-            result[name] = token
+        if name:
+            result[name] = player_identity_token(name)
     return result
 
 
-@lru_cache(maxsize=32)
-def _cached_player_compare_tokens(roster: tuple[str, ...]) -> dict[str, str]:
-    return build_player_compare_tokens(list(roster))
-
-
 def player_compare_token(name: str, roster: list[str] | None = None) -> str:
+    """Clé du joueur. Un nom complet ne change pas selon le roster.
+
+    Le roster ne sert qu'à développer une initiale unique (« A. Wilson »).
+    """
     text = str(name or "").strip()
     if not text:
         return "player"
-    if not roster:
-        return player_token(text)
-    token_map = _cached_player_compare_tokens(tuple(str(item) for item in roster))
-    resolved = resolve_roster_player(text, roster)
-    if resolved in token_map:
-        return token_map[resolved]
-    for roster_name, token in token_map.items():
-        if strip_accents(resolved) == strip_accents(roster_name):
-            return token
-        if basketball_players_match(resolved, roster_name) and _unique_roster_match(resolved, roster):
-            return token
-    return player_token(resolved)
+    if roster and _opens_with_initial(text):
+        resolved = resolve_roster_player(text, roster)
+        if resolved != text and basketball_players_match(text, resolved):
+            text = resolved
+    return player_identity_token(text)
 
 
-def _unique_roster_match(name: str, roster: list[str]) -> bool:
-    matches = [candidate for candidate in roster if basketball_players_match(name, candidate)]
-    return len(matches) == 1
+def fanduel_market_names_other_player(label: str, player_name: str) -> bool:
+    """True si le libellé FanDuel nomme un autre joueur que la ligne FR."""
+    text = str(label or "").strip()
+    named_player = str(player_name or "").strip()
+    if not text or not named_player or " - " not in text:
+        return False
+    lower = strip_accents(text)
+    if lower.startswith("to score") or lower.startswith("to record"):
+        return False
+    head = text.split(" - ", 1)[0].strip()
+    if not head:
+        return False
+    return not basketball_players_match(named_player, head)
 
 
 def is_player_prop_family(family: str) -> bool:

@@ -41,6 +41,7 @@ from basketball_market_mapping import (
     build_double_double_key,
     build_player_prop_key,
     build_player_tier_prop_key,
+    fanduel_market_names_other_player,
     fanduel_player_prop_runner_outcome,
     is_full_game_fanduel_prop_market,
     is_comparable_player_prop_key,
@@ -628,6 +629,11 @@ def compare_normalized_props(
             if not fd_match:
                 continue
             fd_market, fd_outcome, _fd_key = fd_match
+            if fanduel_market_names_other_player(
+                str(fd_market.get("market_label") or ""),
+                str(fr_market.get("player_name") or ""),
+            ):
+                continue
             fd_bundle = fd_market["outcomes"].get(fd_outcome)
             if not fd_bundle or fd_bundle.get("decimal_fr") is None:
                 continue

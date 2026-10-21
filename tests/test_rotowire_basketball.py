@@ -69,8 +69,8 @@ class RotoWireBasketballTests(unittest.TestCase):
             under_american=-120,
         )
         base = {
-            "points_player|clark|18.5": {
-                "compare_key": "points_player|clark|18.5",
+            "points_player|caitlinclark|18.5": {
+                "compare_key": "points_player|caitlinclark|18.5",
                 "source": "fanduel",
                 "source_label": "FanDuel",
                 "outcomes": {
@@ -87,8 +87,8 @@ class RotoWireBasketballTests(unittest.TestCase):
             roster=["Caitlin Clark"],
         )
         # FD Under 1.91 > RW Under (~1.83); Over equal → FD keep Over
-        self.assertEqual(merged["points_player|clark|18.5"]["outcomes"]["Over"]["us_source"], "fanduel")
-        self.assertEqual(merged["points_player|clark|18.5"]["outcomes"]["Under"]["us_source"], "fanduel")
+        self.assertEqual(merged["points_player|caitlinclark|18.5"]["outcomes"]["Over"]["us_source"], "fanduel")
+        self.assertEqual(merged["points_player|caitlinclark|18.5"]["outcomes"]["Under"]["us_source"], "fanduel")
 
     def test_overlay_fills_missing_under_from_rotowire(self) -> None:
         row = RotoWireBasketballPropRow(
@@ -102,8 +102,8 @@ class RotoWireBasketballTests(unittest.TestCase):
             under_american=-120,
         )
         base = {
-            "points_player|clark|18.5": {
-                "compare_key": "points_player|clark|18.5",
+            "points_player|caitlinclark|18.5": {
+                "compare_key": "points_player|caitlinclark|18.5",
                 "source": "fanduel",
                 "source_label": "FanDuel",
                 "outcomes": {
@@ -118,7 +118,7 @@ class RotoWireBasketballTests(unittest.TestCase):
             away_team="Indiana Fever",
             roster=["Caitlin Clark"],
         )
-        market = merged["points_player|clark|18.5"]
+        market = merged["points_player|caitlinclark|18.5"]
         self.assertEqual(market["outcomes"]["Over"]["us_source"], "fanduel")
         self.assertIn("Under", market["outcomes"])
         self.assertEqual(market["outcomes"]["Under"]["us_source"], "rotowire")
@@ -141,7 +141,7 @@ class RotoWireBasketballTests(unittest.TestCase):
             away_team="Indiana Fever",
             roster=["Caitlin Clark"],
         )
-        market = merged["points_player|clark|18.5"]
+        market = merged["points_player|caitlinclark|18.5"]
         self.assertEqual(market["source"], "rotowire")
         self.assertEqual(market["source_bookmaker"], "DraftKings")
         self.assertIn("Under", market["outcomes"])
@@ -163,7 +163,7 @@ class RotoWireBasketballTests(unittest.TestCase):
             away_team="Seattle Storm",
             roster=["Angel Reese"],
         )
-        self.assertIn("rebounds_player|reese|11.5", mapped)
+        self.assertIn("rebounds_player|angelreese|11.5", mapped)
 
 
 if __name__ == "__main__":

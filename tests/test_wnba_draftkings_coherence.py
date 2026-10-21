@@ -206,7 +206,7 @@ class WnbaFrDraftKingsKeyAlignmentTests(unittest.TestCase):
             [("Plus de 20,5", 1.85), ("Moins de 20,5", 1.9)],
             ROSTER,
         )
-        self.assertEqual(markets[0].compare_key, "points_player|clark|20.5")
+        self.assertEqual(markets[0].compare_key, "points_player|caitlinclark|20.5")
         rw = build_rotowire_player_props_map(
             [_rw_row("Caitlin Clark", "points_player", 20.5)],
             home_team=HOME,
@@ -246,16 +246,16 @@ class WnbaFrDraftKingsKeyAlignmentTests(unittest.TestCase):
             [("Plus de 3,5", 2.2), ("Moins de 3,5", 1.65)],
             ROSTER,
         )
-        self.assertEqual(reb[0].compare_key, "rebounds_player|boston|8.5")
-        self.assertEqual(ast[0].compare_key, "assists_player|clark|9.5")
-        self.assertEqual(threes[0].compare_key, "threes_made_player|clark|3.5")
+        self.assertEqual(reb[0].compare_key, "rebounds_player|aliyahboston|8.5")
+        self.assertEqual(ast[0].compare_key, "assists_player|caitlinclark|9.5")
+        self.assertEqual(threes[0].compare_key, "threes_made_player|caitlinclark|3.5")
 
 
 class WnbaDraftKingsIsolationTests(unittest.TestCase):
     def test_line_isolation(self) -> None:
         fr_map = {
-            "points_player|clark|20.5": _fr_slot(
-                "points_player|clark|20.5", over=1.9, under=1.85, player="Caitlin Clark"
+            "points_player|caitlinclark|20.5": _fr_slot(
+                "points_player|caitlinclark|20.5", over=1.9, under=1.85, player="Caitlin Clark"
             )
         }
         us_map = build_rotowire_player_props_map(
@@ -268,8 +268,8 @@ class WnbaDraftKingsIsolationTests(unittest.TestCase):
 
     def test_player_isolation(self) -> None:
         fr_map = {
-            "points_player|clark|20.5": _fr_slot(
-                "points_player|clark|20.5", over=1.9, under=1.85, player="Caitlin Clark"
+            "points_player|caitlinclark|20.5": _fr_slot(
+                "points_player|caitlinclark|20.5", over=1.9, under=1.85, player="Caitlin Clark"
             )
         }
         us_map = build_rotowire_player_props_map(
@@ -282,8 +282,8 @@ class WnbaDraftKingsIsolationTests(unittest.TestCase):
 
     def test_family_isolation(self) -> None:
         fr_map = {
-            "points_player|clark|9.5": _fr_slot(
-                "points_player|clark|9.5", over=1.9, under=1.85, player="Caitlin Clark"
+            "points_player|caitlinclark|9.5": _fr_slot(
+                "points_player|caitlinclark|9.5", over=1.9, under=1.85, player="Caitlin Clark"
             )
         }
         us_map = build_rotowire_player_props_map(
@@ -315,8 +315,8 @@ class WnbaDraftKingsIsolationTests(unittest.TestCase):
 class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
     def test_compare_uses_rotowire_when_fanduel_missing(self) -> None:
         fr_map = {
-            "points_player|clark|20.5": _fr_slot(
-                "points_player|clark|20.5", over=1.95, under=1.8, player="Caitlin Clark"
+            "points_player|caitlinclark|20.5": _fr_slot(
+                "points_player|caitlinclark|20.5", over=1.95, under=1.8, player="Caitlin Clark"
             )
         }
         us_map = overlay_us_reference_map(
@@ -327,7 +327,7 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
             roster=ROSTER,
             rotowire_captured_at="2026-07-31T12:00:00+00:00",
         )
-        self.assertEqual(us_map["points_player|clark|20.5"]["source"], "rotowire")
+        self.assertEqual(us_map["points_player|caitlinclark|20.5"]["source"], "rotowire")
         rows = compare_normalized_props(fr_map, us_map)
         self.assertEqual(len(rows), 2)
         over = next(row for row in rows if row["outcome"] == "Over")
@@ -341,8 +341,8 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
 
     def test_keeps_partial_fanduel_over_rotowire(self) -> None:
         incomplete_fd = {
-            "points_player|clark|20.5": {
-                "compare_key": "points_player|clark|20.5",
+            "points_player|caitlinclark|20.5": {
+                "compare_key": "points_player|caitlinclark|20.5",
                 "market_label": "Caitlin Clark - Points",
                 "market_family": "points_player",
                 "source": "fanduel",
@@ -360,15 +360,15 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
             away_team=AWAY,
             roster=ROSTER,
         )
-        market = us_map["points_player|clark|20.5"]
+        market = us_map["points_player|caitlinclark|20.5"]
         self.assertEqual(market["outcomes"]["Over"]["us_source"], "fanduel")
         self.assertIn("Under", market["outcomes"])
         self.assertEqual(market["outcomes"]["Under"]["us_source"], "rotowire")
 
     def test_keeps_fanduel_when_pair_complete(self) -> None:
         complete_fd = {
-            "points_player|clark|20.5": {
-                "compare_key": "points_player|clark|20.5",
+            "points_player|caitlinclark|20.5": {
+                "compare_key": "points_player|caitlinclark|20.5",
                 "market_label": "Caitlin Clark - Points",
                 "source": "fanduel",
                 "source_label": "FanDuel",
@@ -389,15 +389,15 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
             away_team=AWAY,
             roster=ROSTER,
         )
-        market = merged["points_player|clark|20.5"]
+        market = merged["points_player|caitlinclark|20.5"]
         self.assertEqual(market["outcomes"]["Over"]["us_source"], "fanduel")
         self.assertEqual(market["outcomes"]["Under"]["us_source"], "fanduel")
         self.assertEqual(market["source"], "fanduel")
 
     def test_rotowire_fills_missing_key_entirely(self) -> None:
         fr_map = {
-            "assists_player|clark|9.5": _fr_slot(
-                "assists_player|clark|9.5", over=2.05, under=1.75, player="Caitlin Clark"
+            "assists_player|caitlinclark|9.5": _fr_slot(
+                "assists_player|caitlinclark|9.5", over=2.05, under=1.75, player="Caitlin Clark"
             )
         }
         us_map = overlay_us_reference_map(
@@ -421,15 +421,15 @@ class WnbaDraftKingsOverlayCompareTests(unittest.TestCase):
             roster=ROSTER,
         )
         expected = {
-            "points_player|clark|20.5",
-            "points_player|mitchell|23.5",
-            "rebounds_player|boston|8.5",
-            "assists_player|clark|9.5",
-            "threes_made_player|clark|3.5",
+            "points_player|caitlinclark|20.5",
+            "points_player|kelseymitchell|23.5",
+            "rebounds_player|aliyahboston|8.5",
+            "assists_player|caitlinclark|9.5",
+            "threes_made_player|caitlinclark|3.5",
         }
         self.assertEqual(set(us_map), expected)
         # Other matchup must not leak into Fever @ Fire map.
-        self.assertNotIn("points_player|bueckers|19.5", us_map)
+        self.assertNotIn("points_player|paigebueckers|19.5", us_map)
 
 
 class NbaDraftKingsPrepTests(unittest.TestCase):
