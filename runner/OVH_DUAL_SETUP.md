@@ -11,7 +11,28 @@ VPS France appelle aussi le runner US en interne :
   US_RUNNER_URL + US_RUNNER_SECRET sur le service aces-runner (EU)
 ```
 
-Budget typique : **~10–13 €/mois** (2× VPS-1 OVH).
+Budget typique : **~10–13 €/mois** (2× VPS-1 OVH), ou **~4,6 €/mois** en phase 1 (France seule).
+
+---
+
+## Phase 1 — France seule (recommande pour demarrer)
+
+Tu peux **ne creer que le VPS FR** : tennis / WNBA / NBA / baseball + books FR + FanDuel fonctionnent sans runner US.
+
+- **Vercel** : seulement `RUNNER_URL` + `RUNNER_SECRET` + `TRIGGER_SECRET` (pas besoin de `RUNNER_US_URL`).
+- **VM FR** : ne configure **pas** `US_RUNNER_URL` sur `aces-runner.service` (Bet365 US reste en soft-fail).
+- **Bandeau site** : le runner US affichera « Non configure » — normal.
+
+Quand tu ajoutes Piwi247 / un autre site US : phase 2 (VPS US + `RUNNER_US_URL` sur Vercel + `US_RUNNER_URL` sur la VM FR).
+
+Checklist phase 1 :
+
+1. VPS OVH **Gravelines** ou **Strasbourg**, Ubuntu 22.04, VPS-1
+2. SSH + `git clone` + `sudo RUNNER_SECRET=TON_PIN bash runner/install_eu_runner.sh`
+3. Recuperer l’URL tunnel Cloudflare → `RUNNER_URL` sur Vercel → redeploy
+4. Tester : comparer tennis depuis le site
+
+Recuperer ton Python Oracle (si boot volume conserve) : copie `.env`, venv optionnel, ou `git pull` sur le repo.
 
 ---
 
