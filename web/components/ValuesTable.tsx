@@ -6,6 +6,7 @@ import { RowCaptureDetail } from "@/components/RowCaptureDetail";
 import { FrBookBadge, MatchLabel } from "@/lib/bookBadges";
 import { formatKellyWithStake } from "@/lib/bankroll";
 import type { ValueBetRow } from "@/lib/mptoValue";
+import { usSourceBadgeClass, usSourceBadgeLabel } from "@/lib/usSource";
 
 interface ValuesTableProps {
   title: string;
@@ -97,16 +98,8 @@ export function ValuesTable({
                     <td data-label="Pari">{row.bet}</td>
                     <td data-label="Contraire">{row.opposite}</td>
                     <td data-label="Book US">
-                      <span
-                        className={
-                          row.source.us_source === "rotowire"
-                            ? "us-source-badge us-source-badge-rotowire"
-                            : "us-source-badge us-source-badge-fanduel"
-                        }
-                      >
-                        {row.source.us_source === "rotowire" && row.source.us_bookmaker
-                          ? `${row.source.us_source_label} · ${row.source.us_bookmaker}`
-                          : row.source.us_source_label || "FanDuel"}
+                      <span className={usSourceBadgeClass(row.source.us_source)}>
+                        {usSourceBadgeLabel(row.source)}
                       </span>
                     </td>
                     <td data-label="Cote US">{row.coteFd}</td>

@@ -294,7 +294,7 @@ export function getTableColumns(marketKind: MarketKind) {
       label: "Book US",
       hint:
         marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba" || marketKind === "soccer"
-          ? "Source US retenue: meilleure cote entre FanDuel, RotoWire · DraftKings et Bet365 US"
+          ? "Source US retenue: FanDuel, RotoWire · DraftKings ou Bet365. Pinnacle remplace la ligne s'il est activé et cote les deux côtés."
           : "Source US retenue: meilleure cote entre FanDuel et Bet365 US",
     },
     {

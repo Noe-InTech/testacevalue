@@ -1,6 +1,7 @@
 import { FrBookBadge } from "@/lib/bookBadges";
 import { listFrBookOdds } from "@/lib/frBookOdds";
 import type { ComparableRow } from "@/lib/types";
+import { usSourceBadgeClass, usSourceBadgeLabel } from "@/lib/usSource";
 
 export function formatCaptureTime(value?: string): string {
   if (!value) {
@@ -31,12 +32,8 @@ export function RowCaptureDetail({
   const hasPreciseCapture = Boolean(
     row.fr_captured_at || row.us_captured_at || row.fd_captured_at || row.captured_at,
   );
-  const usLabel =
-    row.us_source === "rotowire" && row.us_bookmaker
-      ? `${row.us_source_label || "RotoWire"} · ${row.us_bookmaker}`
-      : row.us_source_label || "FanDuel";
-  const usBadgeClass =
-    row.us_source === "rotowire" ? "us-source-badge us-source-badge-rotowire" : "us-source-badge us-source-badge-fanduel";
+  const usLabel = usSourceBadgeLabel(row);
+  const usBadgeClass = usSourceBadgeClass(row.us_source);
 
   const bookUrl = row.url_fr?.trim() || "";
   const bookWebFallback = row.url_fr_web?.trim() || "";

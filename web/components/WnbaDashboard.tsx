@@ -174,6 +174,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
   const [match, setMatch] = useState("");
   const [nbaScheduleHours, setNbaScheduleHours] = useState<8 | 12 | 24 | 48>(24);
   const [useRotowire, setUseRotowire] = useState(false);
+  const [usePinnacle, setUsePinnacle] = useState(false);
   const [competitions, setCompetitions] = useState<
     Array<{ id: string; name: string; event_count?: number }>
   >([]);
@@ -526,6 +527,9 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           ...((league === "nba" || league === "wnba") && useRotowire
             ? { use_rotowire: true }
             : {}),
+          ...((league === "nba" || league === "wnba") && usePinnacle
+            ? { use_pinnacle: true }
+            : {}),
         }),
       });
       const data = await response.json();
@@ -735,7 +739,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
             <>
               Compare les stats joueurs <strong>points, rebonds, assists, 3pts, combos, paliers</strong>{" "}
               ({cfg.label} — Unibet, Betclic, Winamax) avec la référence US: <strong>FanDuel en priorité</strong>,
-              RotoWire · DraftKings seulement si la ligne est absente cote FanDuel.
+              RotoWire · DraftKings si coché. Pinnacle, si coché, remplace la ligne quand il cote les deux côtés.
             </>
           )}
         </p>
@@ -753,6 +757,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           />
         </label>
         {league === "nba" || league === "wnba" ? (
+          <>
           <label className="rotowire-toggle">
             <input
               type="checkbox"
@@ -765,6 +770,19 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
               <strong>plus lent</strong>, laisser décoché pour un run rapide)
             </span>
           </label>
+          <label className="rotowire-toggle">
+            <input
+              type="checkbox"
+              checked={usePinnacle}
+              onChange={(event) => setUsePinnacle(event.target.checked)}
+              disabled={busy}
+            />
+            <span>
+              Activer Pinnacle (sharp). S&apos;il cote les deux côtés, son prix remplace FanDuel pour
+              cette ligne.
+            </span>
+          </label>
+          </>
         ) : null}
         {league === "nba" ? (
           <fieldset className="nba-schedule-fieldset">

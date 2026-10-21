@@ -11,6 +11,7 @@ SOURCE_META = {
     "rotowire": ("RotoWire", "DraftKings"),
     "bet365": ("Bet365 US", "Bet365"),
     "bet365_us": ("Bet365 US", "Bet365"),
+    "pinnacle": ("Pinnacle", "Pinnacle"),
 }
 
 

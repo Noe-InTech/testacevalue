@@ -15,6 +15,7 @@ export async function triggerRunner(
   markets = "",
   nbaHours?: number,
   useRotowire = false,
+  usePinnacle = false,
 ): Promise<Response> {
   const { baseUrl, secret } = runnerConfig();
   if (!baseUrl || !secret) {
@@ -41,6 +42,9 @@ export async function triggerRunner(
           : {}),
         ...((sport === "nba" || sport === "wnba") && useRotowire
           ? { use_rotowire: true }
+          : {}),
+        ...((sport === "nba" || sport === "wnba") && usePinnacle
+          ? { use_pinnacle: true }
           : {}),
       }),
       cache: "no-store",

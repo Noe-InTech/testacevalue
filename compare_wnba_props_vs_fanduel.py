@@ -64,6 +64,10 @@ from fanduel_client import (
     format_french_decimal,
     runner_fanduel_price_bundle,
 )
+from pinnacle_basketball_props_client import (
+    PinnacleBasketballPropRow,
+    PinnacleBasketballPropsClient,
+)
 from rotowire_basketball_props_client import (
     RotoWireBasketballPropRow,
     RotoWireBasketballPropsClient,
@@ -385,6 +389,49 @@ def build_rotowire_player_props_map(
     return variant_map
 
 
+def build_pinnacle_player_props_map(
+    rows: list[PinnacleBasketballPropRow],
+    *,
+    home_team: str,
+    away_team: str,
+    roster: list[str],
+    captured_at: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    variant_map: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if not teams_match(home_team, away_team, row.home_team, row.away_team):
+            continue
+        player = resolve_roster_player(row.player_name, roster)
+        compare_key = build_player_prop_key(row.market_family, player, row.line, roster=roster)
+        over_decimal = american_to_decimal_fr(row.over_american)
+        under_decimal = american_to_decimal_fr(row.under_american)
+        if over_decimal is None or under_decimal is None:
+            continue
+        variant_map[compare_key] = {
+            "compare_key": compare_key,
+            "market_label": f"{player} - {row.market_label}",
+            "market_family": row.market_family,
+            "player_name": player,
+            "source": "pinnacle",
+            "source_label": "Pinnacle",
+            "source_bookmaker": row.bookmaker,
+            "captured_at": captured_at or "",
+            "outcomes": {
+                "Over": {
+                    "american": row.over_american,
+                    "decimal_raw": over_decimal,
+                    "decimal_fr": over_decimal,
+                },
+                "Under": {
+                    "american": row.under_american,
+                    "decimal_raw": under_decimal,
+                    "decimal_fr": under_decimal,
+                },
+            },
+        }
+    return variant_map
+
+
 def overlay_us_reference_map(
     base_map: dict[str, dict[str, Any]],
     *,
@@ -394,8 +441,10 @@ def overlay_us_reference_map(
     roster: list[str],
     rotowire_captured_at: str | None = None,
     bet365_map: dict[str, dict[str, Any]] | None = None,
+    pinnacle_rows: list[PinnacleBasketballPropRow] | None = None,
+    pinnacle_captured_at: str | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """Meilleure cote US gagne (FanDuel / RotoWire / Bet365) par issue."""
+    """Meilleure cote US gagne, puis Pinnacle remplace la ligne s'il a les deux côtés."""
     from us_odds_merge import merge_best_us_odds_maps, tag_us_market_map
 
     fanduel_tagged = tag_us_market_map(base_map, source="fanduel") if base_map else {}
@@ -409,7 +458,24 @@ def overlay_us_reference_map(
     rotowire_tagged = (
         tag_us_market_map(rotowire_map, source="rotowire") if rotowire_map else {}
     )
-    return merge_best_us_odds_maps(fanduel_tagged, rotowire_tagged, bet365_map or {})
+    merged = merge_best_us_odds_maps(fanduel_tagged, rotowire_tagged, bet365_map or {})
+    pinnacle_map = build_pinnacle_player_props_map(
+        pinnacle_rows or [],
+        home_team=home_team,
+        away_team=away_team,
+        roster=roster,
+        captured_at=pinnacle_captured_at,
+    )
+    pinnacle_tagged = tag_us_market_map(pinnacle_map, source="pinnacle") if pinnacle_map else {}
+    for compare_key, market in pinnacle_tagged.items():
+        outcomes = market.get("outcomes") or {}
+        over = outcomes.get("Over") or {}
+        under = outcomes.get("Under") or {}
+        if over.get("decimal_fr") is not None and under.get("decimal_fr") is not None:
+            merged[compare_key] = market
+        elif compare_key not in merged:
+            merged[compare_key] = market
+    return merged
 
 
 def props_outcome_label_fr(outcome: str) -> str:
@@ -912,6 +978,17 @@ def write_run_status_file(
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _fetch_pinnacle_rows(
+    league: str,
+) -> tuple[list[PinnacleBasketballPropRow], str | None, str | None]:
+    client = PinnacleBasketballPropsClient(league=league)
+    rows, scraped_at = _safe_call("Pinnacle", client.fetch_prop_rows, ([], None))
+    if not rows:
+        return [], scraped_at, f"Pinnacle: aucune cote {league.upper()} (API bloquée ou hors marché)."
+    log.info("Pinnacle %s — %d ligne(s)", league.upper(), len(rows))
+    return rows, scraped_at, None
+
+
 def _safe_call(label: str, callback: Callable[[], Any], fallback: Any) -> Any:
     try:
         return callback()
@@ -1195,6 +1272,8 @@ def compare_anchor(
     fanduel: FanDuelBasketballClient,
     rotowire_rows: list[RotoWireBasketballPropRow] | None = None,
     rotowire_scraped_at: str | None = None,
+    pinnacle_rows: list[PinnacleBasketballPropRow] | None = None,
+    pinnacle_scraped_at: str | None = None,
     league: str = "wnba",
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
 ) -> dict[str, Any]:
@@ -1217,6 +1296,7 @@ def compare_anchor(
     fd_scraped_at: str | None = None
     fanduel_payload: dict[str, Any] | None = None
     rw_rows = rotowire_rows or []
+    pin_rows = pinnacle_rows or []
 
     def flush(step: str) -> None:
         flush_anchor_partial(
@@ -1265,6 +1345,8 @@ def compare_anchor(
             roster=roster,
             rotowire_captured_at=rotowire_scraped_at,
             bet365_map=bet365_meta.get("map") or {},
+            pinnacle_rows=pin_rows,
+            pinnacle_captured_at=pinnacle_scraped_at,
         )
 
     book_lock = threading.Lock()
@@ -1430,6 +1512,7 @@ def run_compare(
     league: str = "wnba",
     schedule_hours: int | None = None,
     use_rotowire: bool = False,
+    use_pinnacle: bool = False,
 ) -> dict[str, Any]:
     unibet = UnibetBasketballClient()
     betclic = BetclicBasketballClient()
@@ -1472,6 +1555,13 @@ def run_compare(
         else:
             log.info("RotoWire %s — %d ligne(s) DraftKings", league.upper(), len(rotowire_rows))
 
+    pinnacle_rows: list[PinnacleBasketballPropRow] = []
+    pinnacle_scraped_at: str | None = None
+    if use_pinnacle:
+        pinnacle_rows, pinnacle_scraped_at, pinnacle_warning = _fetch_pinnacle_rows(league)
+        if pinnacle_warning:
+            book_warnings.append(pinnacle_warning)
+
     anchors = discover_anchors(
         unibet_events=unibet_events,
         betclic_links=betclic_links,
@@ -1502,6 +1592,8 @@ def run_compare(
             fanduel=fanduel,
             rotowire_rows=rotowire_rows,
             rotowire_scraped_at=rotowire_scraped_at,
+            pinnacle_rows=pinnacle_rows,
+            pinnacle_scraped_at=pinnacle_scraped_at,
             league=league,
         )
         for anchor in anchors
@@ -1524,6 +1616,7 @@ def run_live_compare(
     league: str = "wnba",
     schedule_hours: int | None = None,
     use_rotowire: bool = False,
+    use_pinnacle: bool = False,
 ) -> Path:
     league_label = league.upper()
     unibet = UnibetBasketballClient()
@@ -1590,6 +1683,16 @@ def run_live_compare(
         else:
             log.info("RotoWire %s — %d ligne(s) DraftKings", league_label, len(rotowire_rows))
             on_listing_status(f"RotoWire · DraftKings: {len(rotowire_rows)} ligne(s) {league_label}")
+
+    pinnacle_rows: list[PinnacleBasketballPropRow] = []
+    pinnacle_scraped_at: str | None = None
+    if use_pinnacle:
+        pinnacle_rows, pinnacle_scraped_at, pinnacle_warning = _fetch_pinnacle_rows(league)
+        if pinnacle_warning:
+            book_warnings.append(pinnacle_warning)
+            on_listing_status(pinnacle_warning)
+        else:
+            on_listing_status(f"Pinnacle: {len(pinnacle_rows)} ligne(s) {league_label}")
 
     anchors = discover_anchors(
         unibet_events=unibet_events,
@@ -1676,6 +1779,8 @@ def run_live_compare(
             fanduel=fanduel,
             rotowire_rows=rotowire_rows,
             rotowire_scraped_at=rotowire_scraped_at,
+            pinnacle_rows=pinnacle_rows,
+            pinnacle_scraped_at=pinnacle_scraped_at,
             league=league,
             on_partial=on_anchor_partial,
         )
@@ -1743,6 +1848,11 @@ def main() -> None:
         action="store_true",
         help="Inclure RotoWire / DraftKings (plus lent, secours si ligne absente FanDuel)",
     )
+    parser.add_argument(
+        "--pinnacle",
+        action="store_true",
+        help="Inclure Pinnacle. S'il a les deux côtés, son prix remplace la référence US.",
+    )
     args = parser.parse_args()
 
     if args.progress_json or args.status_json:
@@ -1752,10 +1862,15 @@ def main() -> None:
             progress_json=args.progress_json,
             status_json=args.status_json,
             use_rotowire=args.rotowire,
+            use_pinnacle=args.pinnacle,
         )
         return
 
-    payload = run_compare(match_filter=args.match, use_rotowire=args.rotowire)
+    payload = run_compare(
+        match_filter=args.match,
+        use_rotowire=args.rotowire,
+        use_pinnacle=args.pinnacle,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info(
