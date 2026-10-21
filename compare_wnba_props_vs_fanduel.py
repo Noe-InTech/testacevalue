@@ -1409,7 +1409,15 @@ def compare_anchor(
             for book, run_book in book_jobs:
                 log.info("%s — demarrage %s", match_label, book)
                 payload = run_book()
-                log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
+                if book == "unibet" and isinstance(payload, dict):
+                    log.info(
+                        "%s — unibet termine — %s marches bruts, roster %s",
+                        match_label,
+                        payload.get("market_count", len(payload.get("markets") or [])),
+                        len(payload.get("roster") or []),
+                    )
+                else:
+                    log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
                 if book == "fanduel":
                     if payload is None:
                         anchor_warnings.append(
