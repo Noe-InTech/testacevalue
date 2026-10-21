@@ -1207,6 +1207,7 @@ def compare_anchor(
     rotowire_scraped_at: str | None = None,
     league: str = "wnba",
     on_partial: Callable[[dict[str, Any], str], None] | None = None,
+    on_step: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     book_events: dict[str, dict[str, Any]] = {}
     home_team = anchor["home_team"]
@@ -1392,31 +1393,44 @@ def compare_anchor(
             )
         )
     if book_jobs:
-        with ThreadPoolExecutor(max_workers=min(5, len(book_jobs))) as pool:
-            futures = {pool.submit(job[1]): job[0] for job in book_jobs}
-            for future in as_completed(futures):
-                book = futures[future]
-                try:
-                    payload = future.result(timeout=FD_STEP_TIMEOUT + 5)
-                except Exception as exc:
-                    log.warning("%s ignore %s: %s", book, match_label, exc)
+        heartbeat_stop = threading.Event()
+
+        def scrape_heartbeat() -> None:
+            while not heartbeat_stop.wait(15.0):
+                if on_step is not None:
+                    on_step("scrape books en cours (Betclic / Unibet / Winamax / FanDuel)…")
+
+        heartbeat = threading.Thread(target=scrape_heartbeat, daemon=True)
+        heartbeat.start()
+        try:
+            with ThreadPoolExecutor(max_workers=min(5, len(book_jobs))) as pool:
+                futures = {pool.submit(job[1]): job[0] for job in book_jobs}
+                for future in as_completed(futures):
+                    book = futures[future]
+                    try:
+                        payload = future.result(timeout=FD_STEP_TIMEOUT + 5)
+                    except Exception as exc:
+                        log.warning("%s ignore %s: %s", book, match_label, exc)
+                        if book == "fanduel":
+                            anchor_warnings.append(
+                                f"FanDuel: timeout ou erreur pour {match_label}"
+                            )
+                        continue
+                    log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
                     if book == "fanduel":
-                        anchor_warnings.append(
-                            f"FanDuel: timeout ou erreur pour {match_label}"
-                        )
-                    continue
-                if book == "fanduel":
-                    if payload is None:
-                        anchor_warnings.append(
-                            f"FanDuel: scrape vide ou timeout pour {match_label}"
-                        )
-                    ingest_fanduel(payload)
-                else:
-                    if book == "betclic" and payload is None:
-                        anchor_warnings.append(
-                            f"Betclic: payload indisponible pour {match_label}"
-                        )
-                    ingest_fr_book(book, payload)
+                        if payload is None:
+                            anchor_warnings.append(
+                                f"FanDuel: scrape vide ou timeout pour {match_label}"
+                            )
+                        ingest_fanduel(payload)
+                    else:
+                        if book == "betclic" and payload is None:
+                            anchor_warnings.append(
+                                f"Betclic: payload indisponible pour {match_label}"
+                            )
+                        ingest_fr_book(book, payload)
+        finally:
+            heartbeat_stop.set()
 
     if not betclic_links:
         anchor_warnings.append(
@@ -1472,6 +1486,9 @@ def compare_anchor(
 
     if on_partial and book_events:
         flush("finalisation")
+
+    if on_step is not None:
+        on_step("finalisation (Bet365 US si configure + export)…")
 
     # Bet365 US une seule fois en fin de match (pas a chaque flush FR).
     with book_lock:
@@ -1756,6 +1773,28 @@ def run_live_compare(
                 sport=league,
             )
 
+        def on_anchor_step(detail: str) -> None:
+            agg = build_results_payload(
+                results,
+                partial=True,
+                anchors_total=anchors_total,
+                league=league,
+                include_fd_only_rows=False,
+            )
+            write_run_status_file(
+                status_json,
+                "running",
+                (
+                    f"{index}/{anchors_total} — {anchor['match']} — {detail} — "
+                    f"total {agg['comparable_count']} comparee(s), "
+                    f"{agg['fr_only_count']} FR seul"
+                ),
+                match_filter=match_filter,
+                results=results,
+                anchors_total=anchors_total,
+                sport=league,
+            )
+
         compared = compare_anchor(
             anchor,
             unibet_events=unibet_events,
@@ -1770,6 +1809,7 @@ def run_live_compare(
             rotowire_scraped_at=rotowire_scraped_at,
             league=league,
             on_partial=on_anchor_partial,
+            on_step=on_anchor_step,
         )
         results.append(compared)
         on_progress(

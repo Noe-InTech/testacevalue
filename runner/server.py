@@ -466,6 +466,7 @@ def run_compare(
         write_status(sport, "running", "Comparaison live en cours...", match_filter=match_filter)
         cmd = [
             sys.executable,
+            "-u",
             str(ROOT / sport.script),
             "-o",
             str(sport.result_json.with_suffix(".csv")),
@@ -492,12 +493,15 @@ def run_compare(
         log_handle = open(compare_log, "a", encoding="utf-8")
         log_handle.write(f"\n===== {utc_now()} compare {sport.key} start =====\n")
         log_handle.flush()
+        proc_env = os.environ.copy()
+        proc_env["PYTHONUNBUFFERED"] = "1"
         proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
             stdout=log_handle,
             stderr=subprocess.STDOUT,
             text=True,
+            env=proc_env,
         )
         with LOCK:
             CURRENT_PROC = proc
