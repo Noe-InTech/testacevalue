@@ -55,6 +55,7 @@ class SelfUpdateTests(unittest.TestCase):
             kwargs = popen.call_args.kwargs
             self.assertIsNot(kwargs["stdout"], subprocess.PIPE)
             self.assertEqual(kwargs["stderr"], subprocess.STDOUT)
+            self.assertEqual(kwargs["env"]["PYTHONUNBUFFERED"], "1")
             log = data / "compare_nba.log"
             self.assertIn("compare nba", log.read_text(encoding="utf-8"))
 

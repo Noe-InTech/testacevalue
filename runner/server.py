@@ -497,12 +497,15 @@ def run_compare(
         try:
             log_handle.write(f"\n--- compare {sport.key} {utc_now()} ---\n")
             log_handle.flush()
+            child_env = os.environ.copy()
+            child_env["PYTHONUNBUFFERED"] = "1"
             proc = subprocess.Popen(
                 cmd,
                 cwd=str(ROOT),
                 stdout=log_handle,
                 stderr=subprocess.STDOUT,
                 text=True,
+                env=child_env,
             )
             with LOCK:
                 CURRENT_PROC = proc
