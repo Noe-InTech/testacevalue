@@ -481,17 +481,28 @@ def run_compare(
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
         if sport.key in {"wnba", "nba"} and use_rotowire:
             cmd.append("--rotowire")
+        compare_log = DATA_DIR / f"compare_{sport.key}.log"
+        log_header = (
+            f"\n--- compare {sport.key} {datetime.now(timezone.utc).isoformat()} ---\n"
+        )
+        compare_log.parent.mkdir(parents=True, exist_ok=True)
+        log_handle = open(compare_log, "a", encoding="utf-8", buffering=1)
+        log_handle.write(log_header)
+        log_handle.flush()
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
         proc = subprocess.Popen(
             cmd,
             cwd=str(ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
             text=True,
+            env=env,
         )
         with LOCK:
             CURRENT_PROC = proc
         try:
-            stdout, stderr = proc.communicate(timeout=sport.timeout)
+            proc.communicate(timeout=sport.timeout)
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.communicate()
@@ -503,6 +514,7 @@ def run_compare(
             )
             return
         finally:
+            log_handle.close()
             with LOCK:
                 if CURRENT_PROC is proc:
                     CURRENT_PROC = None
@@ -518,7 +530,12 @@ def run_compare(
             return
 
         if proc.returncode != 0:
-            detail = (stderr or stdout or "Erreur inconnue.")[-2000:]
+            try:
+                detail = compare_log.read_text(encoding="utf-8")[-2000:]
+            except OSError:
+                detail = f"Echec live compare (voir {compare_log.name})."
+            if not detail.strip():
+                detail = "Erreur inconnue."
             current = read_json(sport.status_json, {})
             if current.get("status") not in {"error", "cancelled"}:
                 write_status(
