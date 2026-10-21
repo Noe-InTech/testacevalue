@@ -11,6 +11,7 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeout
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -47,7 +48,7 @@ from basketball_market_mapping import (
     parse_fanduel_alt_runner,
 )
 from betclic_basketball_client import BetclicBasketballClient
-from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
+from basketball_props_anchor import assemble_anchor_result
 from fanduel_basketball_client import FanDuelBasketballClient
 from fanduel_client import (
     american_to_decimal_fr,
@@ -73,6 +74,29 @@ log = logging.getLogger("compare_wnba")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 WINAMAX_FETCH_TIMEOUT = 10
+BOOK_STEP_TIMEOUT = 22.0
+FD_STEP_TIMEOUT = 55.0
+
+
+def _run_with_timeout(
+    callback: Callable[[], Any],
+    *,
+    timeout: float,
+    label: str,
+) -> Any | None:
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        future = pool.submit(callback)
+        try:
+            return future.result(timeout=timeout)
+        except FuturesTimeout:
+            log.warning("%s: timeout apres %.0fs — on passe", label, timeout)
+            return None
+        except Exception as exc:
+            log.warning("%s: %s — on passe", label, exc)
+            return None
+    finally:
+        pool.shutdown(wait=False)
 
 
 def utc_now() -> str:
@@ -1293,62 +1317,109 @@ def compare_anchor(
         None,
     )
 
-    futures: dict[Any, str] = {}
     build_fd_payload = (
         fanduel.build_nba_event_payload if league == "nba" else fanduel.build_event_payload
     )
-    with ThreadPoolExecutor(max_workers=5) as pool:
-        if betclic_link:
-            futures[
-                pool.submit(
-                    lambda link=betclic_link: _load_betclic_event_payload(link)
-                )
-            ] = "betclic"
-        if unibet_event:
-            futures[
-                pool.submit(
-                    lambda event=unibet_event: _safe_call(
-                        "Unibet",
-                        lambda: unibet.build_event_payload(event),
-                        None,
-                    )
-                )
-            ] = "unibet"
-        if winamax_link:
-            futures[
-                pool.submit(
-                    lambda link=winamax_link: _safe_call(
+    book_jobs: list[tuple[str, Callable[[], Any]]] = []
+    if winamax_link:
+        book_jobs.append(
+            (
+                "winamax",
+                lambda link=winamax_link: _run_with_timeout(
+                    lambda: _safe_call(
                         "Winamax",
                         lambda: winamax.build_event_payload(link),
                         None,
-                    )
-                )
-            ] = "winamax"
-        if fanduel_event:
-            futures[
-                pool.submit(
-                    lambda event=fanduel_event: _safe_call(
+                    ),
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Winamax {match_label}",
+                ),
+            )
+        )
+    if unibet_event:
+        book_jobs.append(
+            (
+                "unibet",
+                lambda event=unibet_event: _run_with_timeout(
+                    lambda: _safe_call(
+                        "Unibet",
+                        lambda: unibet.build_event_payload(event),
+                        None,
+                    ),
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Unibet {match_label}",
+                ),
+            )
+        )
+    if betclic_link:
+        book_jobs.append(
+            (
+                "betclic",
+                lambda link=betclic_link: _run_with_timeout(
+                    lambda: _load_betclic_event_payload(link),
+                    timeout=BOOK_STEP_TIMEOUT,
+                    label=f"Betclic {match_label}",
+                ),
+            )
+        )
+    if fanduel_event:
+        book_jobs.append(
+            (
+                "fanduel",
+                lambda event=fanduel_event: _run_with_timeout(
+                    lambda: _safe_call(
                         "FanDuel",
                         lambda: build_fd_payload(event),
                         None,
+                    ),
+                    timeout=FD_STEP_TIMEOUT,
+                    label=f"FanDuel {match_label}",
+                ),
+            )
+        )
+    if book_jobs:
+        heartbeat_stop = threading.Event()
+
+        def scrape_heartbeat() -> None:
+            while not heartbeat_stop.wait(15.0):
+                if on_step is not None:
+                    on_step("scrape books en cours (Winamax / Unibet / Betclic / FanDuel)…")
+
+        heartbeat = threading.Thread(target=scrape_heartbeat, daemon=True)
+        heartbeat.start()
+        try:
+            for book, run_book in book_jobs:
+                log.info("%s — demarrage %s", match_label, book)
+                payload = run_book()
+                if book == "unibet" and isinstance(payload, dict):
+                    log.info(
+                        "%s — unibet termine — %s marches bruts, roster %s",
+                        match_label,
+                        payload.get("market_count", len(payload.get("markets") or [])),
+                        len(payload.get("roster") or []),
                     )
-                )
-            ] = "fanduel"
-        for future in as_completed(futures):
-            book = futures[future]
-            try:
-                payload = future.result()
-            except Exception as exc:
-                log.warning("%s ignore %s: %s", book, anchor["match"], exc)
-                continue
-            if book == "fanduel":
-                ingest_fanduel(payload)
-            else:
-                if book == "betclic" and payload is None:
-                    anchor_warnings.append(
-                        f"Betclic: payload indisponible pour {anchor.get('match', '')}"
+                elif book == "winamax" and isinstance(payload, dict):
+                    log.info(
+                        "%s — winamax termine — %s marches bruts",
+                        match_label,
+                        payload.get("market_count", len(payload.get("markets") or [])),
                     )
-                ingest_fr_book(book, payload)
+                else:
+                    log.info("%s — %s termine (payload=%s)", match_label, book, bool(payload))
+                if book == "fanduel":
+                    if payload is None:
+                        anchor_warnings.append(
+                            f"FanDuel: scrape vide ou timeout pour {match_label}"
+                        )
+                    ingest_fanduel(payload)
+                else:
+                    if book == "betclic" and payload is None:
+                        anchor_warnings.append(
+                            f"Betclic: payload indisponible pour {match_label}"
+                        )
+                    ingest_fr_book(book, payload)
+        finally:
+            heartbeat_stop.set()
 
     if not betclic_links:
         anchor_warnings.append(
