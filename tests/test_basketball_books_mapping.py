@@ -246,6 +246,25 @@ class BasketballMarketMappingTests(unittest.TestCase):
         self.assertEqual(len(markets), 1)
         self.assertEqual(markets[0].market_family, "pra_player")
 
+    def test_unibet_performance_prefers_ou_over_tier_board(self) -> None:
+        """Board « Performance Joueur » : bucket +/- au lieu de 100+ marchés tier."""
+        roster = ["Jayson Tatum", "LaMelo Ball"]
+        outcomes = [
+            ("Jayson Tatum + de 28,5", 1.9),
+            ("Jayson Tatum - de 28,5", 1.85),
+            ("LaMelo Ball + de 22,5", 1.88),
+            ("LaMelo Ball - de 22,5", 1.82),
+        ]
+        markets = normalize_unibet_market(
+            "Performance Joueur-Point(s) - Match",
+            outcomes,
+            roster,
+        )
+        self.assertEqual(len(markets), 2)
+        keys = {m.compare_key for m in markets}
+        self.assertIn(build_player_prop_key("points_player", "Jayson Tatum", "28.5"), keys)
+        self.assertIn(build_player_prop_key("points_player", "LaMelo Ball", "22.5"), keys)
+
     def test_winamax_steals_tier_and_stocks(self) -> None:
         roster = ["Jayson Tatum"]
         steals = normalize_winamax_market(

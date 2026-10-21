@@ -185,6 +185,7 @@ def build_best_fr_player_props_map(
                 continue
             outcomes = [(str(raw), odds) for raw, odds in market.get("outcomes", [])]
             selection_ids = market.get("selection_ids") or {}
+            resolve_selection_ids = len(outcomes) <= 64
             for item in normalizer(label, outcomes, roster):
                 payload = normalized_market_to_dict(item, roster)
                 for outcome, odds in payload["outcomes"].items():
@@ -209,12 +210,16 @@ def build_best_fr_player_props_map(
                         "fr_book_match_id": str(
                             event.get("match_id") or event.get("event_id") or ""
                         ),
-                        "selection_id": selection_id_for_normalized_outcome(
-                            normalized_outcome=str(outcome),
-                            raw_outcomes=outcomes,
-                            selection_ids=selection_ids,
-                            player_name=item.player_name,
-                            line=str(getattr(item, "line", "") or ""),
+                        "selection_id": (
+                            selection_id_for_normalized_outcome(
+                                normalized_outcome=str(outcome),
+                                raw_outcomes=outcomes,
+                                selection_ids=selection_ids,
+                                player_name=item.player_name,
+                                line=str(getattr(item, "line", "") or ""),
+                            )
+                            if resolve_selection_ids
+                            else ""
                         ),
                     }
                     outcome_slot = slot["outcomes"].setdefault(
@@ -1263,7 +1268,19 @@ def compare_anchor(
             book_events[book] = payload
             roster = merge_roster_from_books()
             fr_scraped_at = utc_now()
-            fr_map = build_best_fr_player_props_map(book_events, roster=roster)
+            events_snapshot = dict(book_events)
+            roster_snapshot = list(roster)
+        map_label = f"mapFR {book} {match_label}"
+        built = _run_with_timeout(
+            lambda: build_best_fr_player_props_map(events_snapshot, roster=roster_snapshot),
+            timeout=120.0,
+            label=map_label,
+        )
+        if built is None:
+            log.warning("%s — %s map FR timeout (>120s)", match_label, book)
+            built = {}
+        with book_lock:
+            fr_map = built
         log.info(
             "%s — %s integre en %.1fs (%s marches bruts)",
             match_label,
