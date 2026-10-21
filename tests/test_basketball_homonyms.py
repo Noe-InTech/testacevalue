@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import unittest
 
 from basketball_books_mapping import match_player_name, normalize_winamax_market
@@ -58,6 +59,26 @@ class BasketballHomonymTests(unittest.TestCase):
         self.assertFalse(basketball_players_match("Chris Paul", "Chris Banchero"))
         roster = ["Chris Paul", "Chris Banchero"]
         self.assertEqual(resolve_roster_player("Chris", roster), "Chris")
+
+    def test_accent_and_spacing_duplicates_finish(self) -> None:
+        """Jokic/Jokić et « J. Holiday » / « J Holiday » ne doivent pas boucler."""
+        roster = [
+            "Nikola Jokic",
+            "Nikola Jokić",
+            "J. Holiday",
+            "J Holiday",
+            "Jamal Murray",
+        ]
+        started = time.perf_counter()
+        jokic = player_compare_token("Nikola Jokić", roster)
+        holiday = player_compare_token("J Holiday", roster)
+        murray = player_compare_token("Jamal Murray", roster)
+        elapsed = time.perf_counter() - started
+        self.assertLess(elapsed, 0.5)
+        self.assertEqual(jokic, player_compare_token("Nikola Jokic", roster))
+        self.assertEqual(holiday, player_compare_token("J. Holiday", roster))
+        self.assertEqual(murray, "murray")
+        self.assertNotEqual(jokic, murray)
 
     def test_winamax_fr_and_key_align_with_roster(self) -> None:
         roster = ["A'ja Wilson", "Erica Wilson"]

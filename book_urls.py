@@ -6,7 +6,7 @@ import re
 from typing import Any, Callable, Mapping
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from tennis_books_mapping import normalize_ou_label, strip_accents
+from tennis_books_mapping import format_line, normalize_ou_label, parse_french_number, strip_accents
 from tennis_market_mapping import players_match
 
 
@@ -166,6 +166,94 @@ def _labels_match(left: str, right: str) -> bool:
 def _tier_suffix(label: str) -> str:
     match = re.search(r"(\d+)\s*\+\s*$", str(label or "").strip())
     return match.group(1) if match else ""
+
+
+_PLAYER_OU_RE = re.compile(r"(.+?)\s*([+-])\s*de\s*([\d.,]+)\s*$", re.I)
+_PLAYER_TIER_RE = re.compile(r"(.+?)\s+(\d+)\+\s*$")
+
+
+class FrSelectionIndex:
+    """Index linéaire des selection ids d'un marché (un passage sur les issues)."""
+
+    def __init__(self) -> None:
+        self.by_side: dict[str, list[str]] = {}
+        self.by_player_ou: dict[tuple[str, str, str], str] = {}
+        self.by_tier: dict[tuple[str, str], str] = {}
+        self.by_label: dict[str, str] = {}
+
+
+def index_fr_selection_ids(
+    raw_outcomes: list[tuple[str, float | None]],
+    selection_ids: Mapping[str, Any] | None,
+) -> FrSelectionIndex:
+    """Construit l'index une fois par marché.
+
+    Le lookup flou de selection_id_for_normalized_outcome est O(issues²) et
+    fige les tableaux Unibet Performance (centaines d'issues) pendant des minutes.
+    """
+    ids = {
+        str(label): str(selection_id)
+        for label, selection_id in (selection_ids or {}).items()
+        if selection_id
+    }
+    index = FrSelectionIndex()
+    if not ids:
+        return index
+    for raw, _odds in raw_outcomes:
+        label = str(raw)
+        sid = ids.get(label, "")
+        if not sid:
+            continue
+        index.by_label[strip_accents(label)] = sid
+        side = normalize_ou_label(label)
+        if side in {"Over", "Under"}:
+            index.by_side.setdefault(side, []).append(sid)
+        player_ou = _PLAYER_OU_RE.match(label.strip())
+        if player_ou:
+            ou_side = "Over" if player_ou.group(2) == "+" else "Under"
+            parsed = parse_french_number(player_ou.group(3))
+            line = format_line(parsed if parsed is not None else player_ou.group(3))
+            player = strip_accents(player_ou.group(1))
+            index.by_player_ou[(player, line, ou_side)] = sid
+            index.by_side.setdefault(ou_side, []).append(sid)
+            continue
+        tier = _PLAYER_TIER_RE.match(label.strip())
+        if tier:
+            player = strip_accents(tier.group(1))
+            index.by_tier[(player, tier.group(2))] = sid
+    return index
+
+
+def lookup_indexed_selection_id(
+    index: FrSelectionIndex,
+    *,
+    normalized_outcome: str,
+    player_name: str = "",
+    line: str = "",
+) -> str:
+    """Résout un selection id en O(1) après index_fr_selection_ids."""
+    target = str(normalized_outcome or "").strip()
+    player = strip_accents(player_name)
+    line_text = str(line or "").strip()
+    if player and line_text.startswith("+"):
+        threshold = line_text[1:].split(".", 1)[0]
+        hit = index.by_tier.get((player, threshold))
+        if hit:
+            return hit
+    if player and line_text and target in {"Over", "Under"}:
+        parsed = parse_french_number(line_text)
+        norm_line = format_line(parsed if parsed is not None else line_text)
+        hit = index.by_player_ou.get((player, norm_line, target))
+        if hit:
+            return hit
+    if target in {"Yes", "Oui"} and player:
+        hit = index.by_label.get(player)
+        if hit:
+            return hit
+    sides = index.by_side.get(target) or []
+    if len(sides) == 1:
+        return sides[0]
+    return ""
 
 
 def _tier_threshold_from_ou_line(line: str) -> str:

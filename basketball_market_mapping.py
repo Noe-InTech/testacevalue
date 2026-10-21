@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from functools import lru_cache
 from typing import Any, Iterator
 
 from tennis_market_mapping import format_numeric_line
@@ -57,22 +58,60 @@ def player_token(name: str) -> str:
     return parts[-1]
 
 
+def _break_token_collisions(tokens: dict[str, str]) -> None:
+    """Suffixe numérique si deux libellés restent impossibles à départager."""
+    by_token: dict[str, list[str]] = {}
+    for name, token in tokens.items():
+        by_token.setdefault(token, []).append(name)
+    used = set(tokens.values())
+    for token, names in by_token.items():
+        if len(names) < 2:
+            continue
+        for index, name in enumerate(names[1:], start=2):
+            suffix = index
+            candidate = f"{token}{suffix}"
+            while candidate in used:
+                suffix += 1
+                candidate = f"{token}{suffix}"
+            tokens[name] = candidate
+            used.add(candidate)
+
+
 def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
-    """Tokens stables ; homonymes → préfixe prénom + nom de famille jusqu'à unicité."""
-    unique_names = sorted(
-        {str(raw_name or "").strip() for raw_name in roster if str(raw_name or "").strip()},
-        key=lambda item: strip_accents(item),
-    )
+    """Tokens stables ; homonymes → préfixe prénom + nom de famille jusqu'à unicité.
+
+    Les graphies d'un même joueur (accents, points, espaces) partagent un token.
+    Sans ça, « Jokic » / « Jokić » ne se départagent jamais et la boucle ne sort pas.
+    """
+    identity_to_names: dict[str, list[str]] = {}
+    for raw_name in roster:
+        name = str(raw_name or "").strip()
+        if not name:
+            continue
+        identity = " ".join(_name_parts(name)) or strip_accents(name)
+        bucket = identity_to_names.setdefault(identity, [])
+        if name not in bucket:
+            bucket.append(name)
+    canonical = {
+        identity: max(names, key=len)
+        for identity, names in identity_to_names.items()
+    }
+    unique_names = sorted(canonical.values(), key=lambda item: strip_accents(item))
     tokens = {name: player_token(name) for name in unique_names}
 
-    while True:
+    previous_collision_count: int | None = None
+    for _ in range(max(8, len(unique_names) + 1)):
         by_token: dict[str, list[str]] = {}
         for name, token in tokens.items():
             by_token.setdefault(token, []).append(name)
         collisions = {token: names for token, names in by_token.items() if len(names) > 1}
         if not collisions:
             break
-        progressed = False
+        collision_count = sum(len(names) for names in collisions.values())
+        if previous_collision_count is not None and collision_count >= previous_collision_count:
+            _break_token_collisions(tokens)
+            break
+        previous_collision_count = collision_count
         for names in collisions.values():
             last = player_token(names[0])
             resolved = False
@@ -85,7 +124,6 @@ def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
                 if len(set(trial.values())) == len(names):
                     tokens.update(trial)
                     resolved = True
-                    progressed = True
                     break
             if not resolved:
                 for name in names:
@@ -93,11 +131,27 @@ def build_player_compare_tokens(roster: list[str]) -> dict[str, str]:
                     if len(parts) >= 2:
                         tokens[name] = f"{parts[0]}{parts[-1]}"
                     else:
-                        tokens[name] = f"{name[:3]}{last}"
-                progressed = True
-        if not progressed:
-            break
-    return tokens
+                        tokens[name] = f"{(parts[0] if parts else 'x')}{last}"
+    else:
+        _break_token_collisions(tokens)
+
+    by_token_left: dict[str, list[str]] = {}
+    for name, token in tokens.items():
+        by_token_left.setdefault(token, []).append(name)
+    if any(len(names) > 1 for names in by_token_left.values()):
+        _break_token_collisions(tokens)
+
+    result: dict[str, str] = {}
+    for identity, names in identity_to_names.items():
+        token = tokens[canonical[identity]]
+        for name in names:
+            result[name] = token
+    return result
+
+
+@lru_cache(maxsize=32)
+def _cached_player_compare_tokens(roster: tuple[str, ...]) -> dict[str, str]:
+    return build_player_compare_tokens(list(roster))
 
 
 def player_compare_token(name: str, roster: list[str] | None = None) -> str:
@@ -106,7 +160,7 @@ def player_compare_token(name: str, roster: list[str] | None = None) -> str:
         return "player"
     if not roster:
         return player_token(text)
-    token_map = build_player_compare_tokens(roster)
+    token_map = _cached_player_compare_tokens(tuple(str(item) for item in roster))
     resolved = resolve_roster_player(text, roster)
     if resolved in token_map:
         return token_map[resolved]

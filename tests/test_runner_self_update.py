@@ -37,6 +37,28 @@ class SelfUpdateTests(unittest.TestCase):
             popen.assert_called_once()
             self.assertTrue(status.is_file())
 
+    def test_run_compare_logs_to_file_not_pipe(self) -> None:
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            sport = runner_server.SPORTS["nba"]
+            proc = mock.Mock()
+            proc.wait.return_value = 0
+            proc.returncode = 0
+            with mock.patch.object(runner_server, "DATA_DIR", data), mock.patch.object(
+                runner_server, "write_status"
+            ), mock.patch.object(
+                runner_server, "read_json", return_value={"status": "success"}
+            ), mock.patch("runner.server.subprocess.Popen", return_value=proc) as popen:
+                runner_server.run_compare(sport, "wizards")
+            kwargs = popen.call_args.kwargs
+            self.assertIsNot(kwargs["stdout"], subprocess.PIPE)
+            self.assertEqual(kwargs["stderr"], subprocess.STDOUT)
+            self.assertEqual(kwargs["env"]["PYTHONUNBUFFERED"], "1")
+            log = data / "compare_nba.log"
+            self.assertIn("compare nba", log.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
