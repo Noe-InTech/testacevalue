@@ -1000,6 +1000,55 @@ td.side {
   gap: 6px;
 }
 
+.books-listing-panel .books-listing-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.books-listing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.books-listing-table th,
+.books-listing-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  text-align: left;
+  vertical-align: top;
+}
+
+.books-listing-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.books-listing-ok {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.books-listing-empty {
+  background: #fef7e0;
+  color: #a15c00;
+}
+
+.books-listing-error {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.books-listing-detail {
+  max-width: 280px;
+  word-break: break-word;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 720px) {
   .runner-link-row {
     grid-template-columns: 1fr;

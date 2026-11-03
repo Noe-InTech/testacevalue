@@ -101,6 +101,26 @@ export interface MarketPayload {
   /** Nombre de lignes comparables ayant une cote par book FR. */
   fr_books_row_counts?: Record<string, number>;
   notes?: string[];
+  /** État du scrape calendrier par book (OK / vide / erreur). */
+  books_listing?: BooksListingReport;
+}
+
+export type BookListingStatus = "ok" | "empty" | "error";
+
+export interface BookListingEntry {
+  status: BookListingStatus;
+  match_count: number;
+  match_count_raw?: number;
+  match_count_window?: number;
+  seconds?: number;
+  error?: string | null;
+}
+
+export interface BooksListingReport {
+  phase: string;
+  league?: string;
+  schedule_hours?: number;
+  books: Record<string, BookListingEntry>;
 }
 
 export interface CombinedPropsPayload {
@@ -135,6 +155,7 @@ export interface RunStatus {
   fr_higher_count?: number;
   value_count?: number;
   fr_only_count?: number;
+  books_listing?: BooksListingReport;
 }
 
 export type ApiPayload = MarketPayload | CombinedPropsPayload;

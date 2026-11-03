@@ -882,6 +882,7 @@ def build_results_payload(
     partial: bool,
     anchors_total: int | None = None,
     book_warnings: list[str] | None = None,
+    books_listing: dict[str, Any] | None = None,
     league: str = "wnba",
     include_fd_only_rows: bool = False,
     max_fr_only_rows: int | None = 200,
@@ -915,7 +916,7 @@ def build_results_payload(
         fr_only_export = fr_only_rows[:max_fr_only_rows]
     else:
         fr_only_export = fr_only_rows
-    return {
+    payload: dict[str, Any] = {
         "source": f"{league}_player_props_comparable",
         "generated_at": utc_now(),
         "partial": partial,
@@ -943,6 +944,9 @@ def build_results_payload(
             *anchor_warnings,
         ],
     }
+    if books_listing:
+        payload["books_listing"] = books_listing
+    return payload
 
 
 def write_progress_json(
@@ -952,6 +956,8 @@ def write_progress_json(
     partial: bool,
     anchors_total: int | None = None,
     league: str = "wnba",
+    book_warnings: list[str] | None = None,
+    books_listing: dict[str, Any] | None = None,
 ) -> None:
     if path is None:
         return
@@ -962,6 +968,8 @@ def write_progress_json(
         anchors_total=anchors_total,
         league=league,
         include_fd_only_rows=False,
+        book_warnings=book_warnings,
+        books_listing=books_listing,
     )
     from atomic_json import write_json_atomic
 
@@ -980,6 +988,7 @@ def write_run_status_file(
     results: list[dict[str, Any]] | None = None,
     anchors_total: int | None = None,
     sport: str = "wnba",
+    books_listing: dict[str, Any] | None = None,
 ) -> None:
     if path is None:
         return
@@ -990,6 +999,8 @@ def write_run_status_file(
         "sport": sport,
         "updated_at": utc_now(),
     }
+    if books_listing is not None:
+        payload["books_listing"] = books_listing
     if anchors_total is not None:
         payload["anchors_total"] = anchors_total
     if results is not None:
@@ -1020,6 +1031,52 @@ def _safe_call(label: str, callback: Callable[[], Any], fallback: Any) -> Any:
     except Exception as exc:
         log.warning("%s indisponible (live): %s", label, exc)
         return fallback
+
+
+def _listing_fetch(label: str, callback: Callable[[], Any]) -> tuple[list[Any], dict[str, Any]]:
+    """Listing calendrier : distingue OK / vide / erreur réseau."""
+    started = time.perf_counter()
+    try:
+        raw = callback()
+        items = list(raw) if raw is not None else []
+        status = "ok" if items else "empty"
+        error: str | None = None
+    except Exception as exc:
+        items = []
+        status = "error"
+        error = str(exc)[:200]
+        log.warning("%s listing: %s", label, exc)
+    return items, {
+        "status": status,
+        "match_count": len(items),
+        "seconds": round(time.perf_counter() - started, 2),
+        "error": error,
+    }
+
+
+def _build_books_listing_report(
+    *,
+    league: str,
+    entries: dict[str, dict[str, Any]],
+    schedule_hours: int | None = None,
+    raw_counts: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    books: dict[str, dict[str, Any]] = {}
+    for name, entry in entries.items():
+        book = dict(entry)
+        if raw_counts is not None and name in raw_counts:
+            book["match_count_raw"] = int(raw_counts[name])
+            window = int(book.get("match_count") or 0)
+            book["match_count_window"] = window
+        books[name] = book
+    report: dict[str, Any] = {
+        "phase": "calendar",
+        "league": league,
+        "books": books,
+    }
+    if schedule_hours is not None:
+        report["schedule_hours"] = int(schedule_hours)
+    return report
 
 
 def _fetch_betclic_links_with_retry(*, league: str, attempts: int = 3) -> list[Any]:
@@ -1098,7 +1155,7 @@ def fetch_live_wnba_listings(
     winamax: WinamaxBasketballClient,
     fanduel: FanDuelBasketballClient,
     on_status: Callable[[str], None] | None = None,
-) -> tuple[list[Any], list[Any], list[Any], list[Any], list[str]]:
+) -> tuple[list[Any], list[Any], list[Any], list[Any], list[str], dict[str, Any]]:
     def status(message: str) -> None:
         if on_status is not None:
             on_status(message)
@@ -1107,15 +1164,18 @@ def fetch_live_wnba_listings(
     status("Chargement parallele des calendriers WNBA...")
 
     with ThreadPoolExecutor(max_workers=3) as pool:
-        fut_unibet = pool.submit(unibet.list_wnba_events)
-        fut_winamax = pool.submit(winamax.list_wnba_matches)
-        fut_fanduel = pool.submit(fanduel.list_wnba_events)
+        fut_unibet = pool.submit(_listing_fetch, "Unibet", unibet.list_wnba_events)
+        fut_winamax = pool.submit(_listing_fetch, "Winamax", winamax.list_wnba_matches)
+        fut_fanduel = pool.submit(_listing_fetch, "FanDuel", fanduel.list_wnba_events)
 
-        unibet_events = _safe_call("Unibet", fut_unibet.result, [])
-        winamax_links = _safe_call("Winamax", fut_winamax.result, [])
-        fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
+        unibet_events, unibet_meta = fut_unibet.result()
+        winamax_links, winamax_meta = fut_winamax.result()
+        fanduel_events, fanduel_meta = fut_fanduel.result()
 
-    betclic_links = _fetch_betclic_links_with_retry(league="wnba")
+    betclic_links, betclic_meta = _listing_fetch(
+        "Betclic",
+        lambda: _fetch_betclic_links_with_retry(league="wnba"),
+    )
 
     if not unibet_events:
         warnings.append("Unibet indisponible depuis le runner EU (souvent bloque IP datacenter).")
@@ -1128,12 +1188,21 @@ def fetch_live_wnba_listings(
     if not fanduel_events:
         warnings.append("FanDuel: aucun evenement WNBA ou scrape indisponible.")
 
+    books_listing = _build_books_listing_report(
+        league="wnba",
+        entries={
+            "Unibet": unibet_meta,
+            "Betclic": betclic_meta,
+            "Winamax": winamax_meta,
+            "FanDuel": fanduel_meta,
+        },
+    )
     status(
         "Calendriers WNBA — "
         f"Unibet {len(unibet_events)}, Betclic {len(betclic_links)}, "
         f"Winamax {len(winamax_links)}, FanDuel {len(fanduel_events)}"
     )
-    return unibet_events, betclic_links, winamax_links, fanduel_events, warnings
+    return unibet_events, betclic_links, winamax_links, fanduel_events, warnings, books_listing
 
 
 def fetch_live_nba_listings(
@@ -1144,7 +1213,7 @@ def fetch_live_nba_listings(
     fanduel: FanDuelBasketballClient,
     on_status: Callable[[str], None] | None = None,
     schedule_hours: int | None = 12,
-) -> tuple[list[Any], list[Any], list[Any], list[Any], list[str]]:
+) -> tuple[list[Any], list[Any], list[Any], list[Any], list[str], dict[str, Any]]:
     def status(message: str) -> None:
         if on_status is not None:
             on_status(message)
@@ -1153,15 +1222,24 @@ def fetch_live_nba_listings(
     status("Chargement parallele des calendriers NBA...")
 
     with ThreadPoolExecutor(max_workers=3) as pool:
-        fut_unibet = pool.submit(unibet.list_nba_events)
-        fut_winamax = pool.submit(winamax.list_nba_matches)
-        fut_fanduel = pool.submit(fanduel.list_nba_events)
+        fut_unibet = pool.submit(_listing_fetch, "Unibet", unibet.list_nba_events)
+        fut_winamax = pool.submit(_listing_fetch, "Winamax", winamax.list_nba_matches)
+        fut_fanduel = pool.submit(_listing_fetch, "FanDuel", fanduel.list_nba_events)
 
-        unibet_events = _safe_call("Unibet", fut_unibet.result, [])
-        winamax_links = _safe_call("Winamax", fut_winamax.result, [])
-        fanduel_events = _safe_call("FanDuel", fut_fanduel.result, [])
+        unibet_events, unibet_meta = fut_unibet.result()
+        winamax_links, winamax_meta = fut_winamax.result()
+        fanduel_events, fanduel_meta = fut_fanduel.result()
 
-    betclic_links = _fetch_betclic_links_with_retry(league="nba")
+    betclic_links, betclic_meta = _listing_fetch(
+        "Betclic",
+        lambda: _fetch_betclic_links_with_retry(league="nba"),
+    )
+    raw_counts = {
+        "Unibet": len(unibet_events),
+        "Betclic": len(betclic_links),
+        "Winamax": len(winamax_links),
+        "FanDuel": len(fanduel_events),
+    }
 
     if not unibet_events:
         warnings.append("Unibet: aucun match NBA ou scrape indisponible.")
@@ -1202,13 +1280,30 @@ def fetch_live_nba_listings(
             if empty_hint:
                 warnings.append(empty_hint)
                 status(empty_hint)
+        unibet_meta = {**unibet_meta, "match_count": len(unibet_events)}
+        betclic_meta = {**betclic_meta, "match_count": len(betclic_links)}
+        winamax_meta = {**winamax_meta, "match_count": len(winamax_links)}
+        fanduel_meta = {**fanduel_meta, "match_count": len(fanduel_events)}
+    else:
+        window = None
 
+    books_listing = _build_books_listing_report(
+        league="nba",
+        entries={
+            "Unibet": unibet_meta,
+            "Betclic": betclic_meta,
+            "Winamax": winamax_meta,
+            "FanDuel": fanduel_meta,
+        },
+        schedule_hours=window,
+        raw_counts=raw_counts,
+    )
     status(
         "Calendriers NBA — "
         f"Unibet {len(unibet_events)}, Betclic {len(betclic_links)}, "
         f"Winamax {len(winamax_links)}, FanDuel {len(fanduel_events)}"
     )
-    return unibet_events, betclic_links, winamax_links, fanduel_events, warnings
+    return unibet_events, betclic_links, winamax_links, fanduel_events, warnings, books_listing
 
 
 def _anchor_matches_text_filter(anchor: dict[str, Any], needle: str) -> bool:
@@ -1553,8 +1648,8 @@ def run_compare(
     }
     if league == "nba":
         listing_kwargs["schedule_hours"] = nba_hours
-    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_listings(
-        **listing_kwargs,
+    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings, books_listing = (
+        fetch_listings(**listing_kwargs)
     )
     if league == "nba" and match_filter.strip():
         unibet_events, betclic_links, winamax_links, fanduel_events = _apply_match_filter_to_nba_listings(
@@ -1628,6 +1723,7 @@ def run_compare(
         partial=False,
         anchors_total=len(anchors),
         book_warnings=book_warnings,
+        books_listing=books_listing,
         league=league,
     )
 
@@ -1651,6 +1747,7 @@ def run_live_compare(
     anchors_total = 0
     results: list[dict[str, Any]] = []
     book_warnings: list[str] = []
+    books_listing: dict[str, Any] | None = None
     nba_hours = normalize_nba_hours(schedule_hours) if league == "nba" else None
     fetch_listings = fetch_live_nba_listings if league == "nba" else fetch_live_wnba_listings
 
@@ -1670,6 +1767,7 @@ def run_live_compare(
             message,
             match_filter=match_filter,
             sport=league,
+            books_listing=books_listing,
         )
 
     listing_kwargs: dict[str, Any] = {
@@ -1681,8 +1779,24 @@ def run_live_compare(
     }
     if league == "nba":
         listing_kwargs["schedule_hours"] = nba_hours
-    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings = fetch_listings(
-        **listing_kwargs,
+    unibet_events, betclic_links, winamax_links, fanduel_events, book_warnings, books_listing = (
+        fetch_listings(**listing_kwargs)
+    )
+    write_run_status_file(
+        status_json,
+        "running",
+        "Calendriers charges — voir etat des books.",
+        match_filter=match_filter,
+        sport=league,
+        books_listing=books_listing,
+    )
+    write_progress_json(
+        progress_json,
+        [],
+        partial=True,
+        league=league,
+        book_warnings=book_warnings,
+        books_listing=books_listing,
     )
     if league == "nba" and match_filter.strip():
         unibet_events, betclic_links, winamax_links, fanduel_events = _apply_match_filter_to_nba_listings(
@@ -1747,8 +1861,17 @@ def run_live_compare(
         match_filter=match_filter,
         anchors_total=anchors_total,
         sport=league,
+        books_listing=books_listing,
     )
-    write_progress_json(progress_json, [], partial=True, anchors_total=anchors_total, league=league)
+    write_progress_json(
+        progress_json,
+        [],
+        partial=True,
+        anchors_total=anchors_total,
+        league=league,
+        book_warnings=book_warnings,
+        books_listing=books_listing,
+    )
 
     def on_progress(message: str) -> None:
         write_progress_json(
@@ -1757,6 +1880,8 @@ def run_live_compare(
             partial=True,
             anchors_total=anchors_total,
             league=league,
+            book_warnings=book_warnings,
+            books_listing=books_listing,
         )
         write_run_status_file(
             status_json,
@@ -1766,6 +1891,7 @@ def run_live_compare(
             results=results,
             anchors_total=anchors_total,
             sport=league,
+            books_listing=books_listing,
         )
 
     for index, anchor in enumerate(anchors, start=1):
@@ -1777,6 +1903,8 @@ def run_live_compare(
                 partial=True,
                 anchors_total=anchors_total,
                 league=league,
+                book_warnings=book_warnings,
+                books_listing=books_listing,
             )
             write_run_status_file(
                 status_json,
@@ -1790,6 +1918,7 @@ def run_live_compare(
                 results=snapshot,
                 anchors_total=anchors_total,
                 sport=league,
+                books_listing=books_listing,
             )
 
         compared = compare_anchor(
@@ -1821,13 +1950,20 @@ def run_live_compare(
         partial=False,
         anchors_total=anchors_total,
         book_warnings=book_warnings,
+        books_listing=books_listing,
         league=league,
     )
     output_path = output or (OUTPUT_DIR / f"{league}_props_compare.json")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     write_progress_json(
-        progress_json, results, partial=False, anchors_total=anchors_total, league=league
+        progress_json,
+        results,
+        partial=False,
+        anchors_total=anchors_total,
+        league=league,
+        book_warnings=book_warnings,
+        books_listing=books_listing,
     )
     write_run_status_file(
         status_json,
@@ -1837,6 +1973,7 @@ def run_live_compare(
         results=results,
         anchors_total=anchors_total,
         sport=league,
+        books_listing=books_listing,
     )
     log.info(
         "%s compare terminé — %d match(s), %d comparable(s), %d FR seul, %d FD seul",
