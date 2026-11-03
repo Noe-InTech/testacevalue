@@ -1,0 +1,4 @@
+# Copie vers runner/data/winamax_fallback_urls.txt (install EU runner le fait).
+# Une URL de relais Vercel par ligne — meme RUNNER_SECRET que sur Vercel.
+# https://testacevalue-eight.vercel.app
+# https://mon-second-deploy.vercel.app

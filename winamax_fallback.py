@@ -6,6 +6,7 @@ import logging
 import os
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -13,6 +14,9 @@ import requests
 log = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = float(os.environ.get("WINAMAX_FALLBACK_TIMEOUT", "45"))
+_EXTRA_URLS_FILE = (
+    Path(__file__).resolve().parent / "runner" / "data" / "winamax_fallback_urls.txt"
+)
 
 # Relais prod (Vercel) — utilisé automatiquement sur RUNNER_ROLE=eu si RUNNER_SECRET est défini.
 BUILTIN_EU_FALLBACK_BASES: tuple[str, ...] = (
@@ -60,6 +64,22 @@ def _auto_builtin_fallback_allowed() -> bool:
     return _fallback_secret() is not None
 
 
+def _urls_from_extra_file() -> list[str]:
+    path = Path(os.environ.get("WINAMAX_FALLBACK_URLS_FILE", str(_EXTRA_URLS_FILE)))
+    if not path.is_file():
+        return []
+    lines: list[str] = []
+    try:
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            text = raw.strip()
+            if not text or text.startswith("#"):
+                continue
+            lines.append(text)
+    except OSError as exc:
+        log.warning("Lecture %s impossible: %s", path, exc)
+    return lines
+
+
 def fallback_base_urls() -> list[str]:
     """URLs de relais dans l'ordre de preference (deduplique)."""
     seen: set[str] = set()
@@ -74,6 +94,8 @@ def fallback_base_urls() -> list[str]:
     for part in (os.environ.get("WINAMAX_FALLBACK_URLS") or "").split(","):
         add(part)
     add(os.environ.get("WINAMAX_FALLBACK_URL"))
+    for line in _urls_from_extra_file():
+        add(line)
     add(os.environ.get("WEB_APP_URL"))
     add(os.environ.get("VERCEL_URL"))
     if _auto_builtin_fallback_allowed():

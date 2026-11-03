@@ -33,6 +33,19 @@ def test_fallback_tries_second_url_after_first_fails(monkeypatch):
     assert wf._LAST_GOOD_BASE == "https://good.example"
 
 
+def test_extra_urls_file(monkeypatch, tmp_path):
+    monkeypatch.setenv("RUNNER_ROLE", "eu")
+    monkeypatch.setenv("RUNNER_SECRET", "s")
+    monkeypatch.delenv("WINAMAX_FALLBACK_URLS", raising=False)
+    monkeypatch.delenv("WINAMAX_FALLBACK_URL", raising=False)
+    path = tmp_path / "urls.txt"
+    path.write_text("# comment\nhttps://file-relay.example\n", encoding="utf-8")
+    monkeypatch.setenv("WINAMAX_FALLBACK_URLS_FILE", str(path))
+    monkeypatch.setenv("WINAMAX_DISABLE_BUILTIN_FALLBACK", "1")
+    bases = wf.fallback_base_urls()
+    assert "https://file-relay.example" in bases
+
+
 def test_eu_runner_defaults_to_relay(monkeypatch):
     monkeypatch.setenv("RUNNER_ROLE", "eu")
     monkeypatch.setenv("RUNNER_SECRET", "s")
