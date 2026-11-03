@@ -1,6 +1,7 @@
 {
   "name": "aces-compare-web",
   "private": true,
+  "description": "Dashboard compare — rebuild pour appliquer RUNNER_URL (2026-11-03)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
