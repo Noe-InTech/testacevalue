@@ -52,6 +52,11 @@ _SELECTION_OBJECT_RE = re.compile(
     r'\{"id":(\d+),"description":"((?:\\.|[^"\\])*)","parent":"[^"]*","pos":\d+,'
     r'"price":"([^"]+)"[^}]*?"marketDesc":"((?:\\.|[^"\\])*)"',
 )
+# Variante LVS embarquée (ex. aces live) sans parent/pos, parfois avec spread.
+_SELECTION_OBJECT_COMPACT_RE = re.compile(
+    r'\{"id":(\d+),"description":"((?:\\.|[^"\\])*)","price":"([^"]+)"[^}]*?'
+    r'"marketDesc":"((?:\\.|[^"\\])*)"',
+)
 
 
 class UnibetClient:
@@ -183,6 +188,97 @@ class UnibetClient:
         return response.text
 
     @staticmethod
+    def _extract_application_json_bootstrap(html: str) -> dict[str, Any]:
+        match = re.search(
+            r'<script[^>]*type="application/json"[^>]*>(.*?)</script>',
+            html,
+            flags=re.S,
+        )
+        if not match:
+            return {}
+        try:
+            payload = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    @staticmethod
+    def _format_spread_outcome_label(description: str, spread: Any) -> str:
+        label = str(description or "").strip()
+        if not label:
+            return ""
+        if spread in (None, "", 0, 0.0):
+            return label
+        if re.match(r"^(?:Plus|Moins)\s+[\d.,]+$", label, flags=re.I):
+            return label
+        if re.match(r"^(?:Plus|Moins)$", label, flags=re.I):
+            spread_s = str(spread).replace(".", ",") if isinstance(spread, float) else str(spread)
+            spread_s = spread_s.replace(",", ".")
+            try:
+                number = float(spread_s)
+                spread_s = str(int(number)) if number.is_integer() else str(number)
+            except ValueError:
+                spread_s = str(spread)
+            return f"{label} {spread_s}"
+        return label
+
+    @staticmethod
+    def _is_plausible_outcome_label(outcome_label: str, market_desc: str) -> bool:
+        label = str(outcome_label or "").strip()
+        if not label:
+            return False
+        market = str(market_desc or "").strip()
+        if market and label.lower() == market.lower():
+            return False
+        if "plus / moins" in label.lower() and "(aces)" in label.lower():
+            return False
+        return True
+
+    def extract_events_detail_markets_from_html(self, html: str) -> list[UnibetMarket]:
+        """Marchés présents dans le bootstrap SSR (EventsDetail), y compris lite board."""
+        bootstrap = self._extract_application_json_bootstrap(html)
+        events_detail = bootstrap.get("EventsDetail") or {}
+        events = events_detail.get("events") or []
+        if not isinstance(events, list):
+            return []
+        markets: list[UnibetMarket] = []
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            for group in event.get("groupedMarkets") or []:
+                if not isinstance(group, dict):
+                    continue
+                for market in group.get("markets") or []:
+                    if not isinstance(market, dict):
+                        continue
+                    market_desc = str(market.get("marketDesc") or group.get("description") or "").strip()
+                    if not market_desc:
+                        continue
+                    outcomes: list[UnibetOutcome] = []
+                    for raw in market.get("outcomes") or []:
+                        if not isinstance(raw, dict):
+                            continue
+                        description = self._format_spread_outcome_label(
+                            str(raw.get("description") or ""),
+                            raw.get("spread"),
+                        )
+                        if not self._is_plausible_outcome_label(description, market_desc):
+                            continue
+                        odds = self._parse_decimal_odds(str(raw.get("price") or ""))
+                        if odds is None:
+                            continue
+                        outcomes.append(
+                            UnibetOutcome(
+                                label=description,
+                                odds=odds,
+                                selection_id=str(raw.get("id") or ""),
+                            )
+                        )
+                    if outcomes:
+                        markets.append(UnibetMarket(label=market_desc, outcomes=tuple(outcomes)))
+        return markets
+
+    @staticmethod
     def _strip_html(value: str) -> str:
         text = re.sub(r"<[^>]+>", " ", value)
         text = text.replace("&nbsp;", " ")
@@ -201,13 +297,14 @@ class UnibetClient:
     ) -> dict[tuple[str, str], tuple[str, float]]:
         """Index (marketDesc, outcomeDesc) -> (selection_id, odds)."""
         catalog: dict[tuple[str, str], tuple[str, float]] = {}
-        for match in _SELECTION_OBJECT_RE.finditer(html):
-            selection_id, description, price, market_desc = match.groups()
-            odds = self._parse_decimal_odds(price)
-            if odds is None:
-                continue
-            key = (market_desc.strip(), description.strip())
-            catalog[key] = (selection_id, odds)
+        for pattern in (_SELECTION_OBJECT_RE, _SELECTION_OBJECT_COMPACT_RE):
+            for match in pattern.finditer(html):
+                selection_id, description, price, market_desc = match.groups()
+                odds = self._parse_decimal_odds(price)
+                if odds is None:
+                    continue
+                key = (market_desc.strip(), description.strip())
+                catalog[key] = (selection_id, odds)
         return catalog
 
     def _attach_selection_ids(
@@ -378,9 +475,9 @@ class UnibetClient:
         grouped: dict[str, dict[str, UnibetOutcome]] = {}
         catalog = self.extract_selection_catalog(html)
         for (market_desc, description), (selection_id, odds) in catalog.items():
-            # Prefer aces-like markets for tennis embedded path; keep all for catalog attach.
             if "ace" not in market_desc.lower() and "aces" not in market_desc.lower():
-                # Still useful for ID attach on SSR cards; skip building full market noise.
+                continue
+            if not self._is_plausible_outcome_label(description, market_desc):
                 continue
             bucket = grouped.setdefault(market_desc, {})
             bucket[description] = UnibetOutcome(
@@ -388,36 +485,6 @@ class UnibetClient:
                 odds=odds,
                 selection_id=selection_id,
             )
-        # Also keep legacy regex for labels that miss the compact object form.
-        for match in re.finditer(
-            r'"description":"((?:Plus / Moins \(Aces\)[^"]+|Plus / Moins Ace\(s\)[^"]+))"',
-            html,
-        ):
-            chunk = html[match.start() : match.start() + 2500]
-            description = match.group(1)
-            period_match = re.search(r'"period":"([^"]*)"', chunk)
-            period = period_match.group(1).strip() if period_match else ""
-            label = description if not period or period in description else f"{description} - {period}"
-            bucket = grouped.setdefault(label, {})
-            for outcome_match in re.finditer(
-                r'"description":"([^"]+)"[^}]*?"price":"([^"]+)"',
-                chunk,
-            ):
-                odds = self._parse_decimal_odds(outcome_match.group(2))
-                if odds is None:
-                    continue
-                outcome_label = outcome_match.group(1)
-                selection_id = ""
-                hit = catalog.get((label, outcome_label)) or catalog.get((description, outcome_label))
-                if hit:
-                    selection_id = hit[0]
-                previous = bucket.get(outcome_label)
-                if previous is None or (not previous.selection_id and selection_id):
-                    bucket[outcome_label] = UnibetOutcome(
-                        label=outcome_label,
-                        odds=odds,
-                        selection_id=selection_id,
-                    )
         return [
             UnibetMarket(label=label, outcomes=tuple(outcomes.values()))
             for label, outcomes in grouped.items()
@@ -427,7 +494,12 @@ class UnibetClient:
     def extract_all_event_markets_from_html(self, html: str) -> list[UnibetMarket]:
         catalog = self.extract_selection_catalog(html)
         merged: dict[str, UnibetMarket] = {}
-        for market in self.extract_event_markets_from_html(html) + self.extract_embedded_markets_from_html(html):
+        sources = (
+            self.extract_event_markets_from_html(html)
+            + self.extract_embedded_markets_from_html(html)
+            + self.extract_events_detail_markets_from_html(html)
+        )
+        for market in sources:
             existing = merged.get(market.label)
             if existing is None or len(market.outcomes) > len(existing.outcomes):
                 merged[market.label] = market

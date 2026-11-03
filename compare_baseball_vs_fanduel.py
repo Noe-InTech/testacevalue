@@ -53,7 +53,7 @@ logging.basicConfig(
 log = logging.getLogger("compare_baseball")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-WINAMAX_FETCH_TIMEOUT = 10
+WINAMAX_FETCH_TIMEOUT = 25
 # Un match / book bloqué ne doit pas geler tout le run.
 BOOK_STEP_TIMEOUT = 22.0
 FD_STEP_TIMEOUT = 55.0

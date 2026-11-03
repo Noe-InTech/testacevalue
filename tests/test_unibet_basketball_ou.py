@@ -37,6 +37,19 @@ class UnibetBasketballOuTests(unittest.TestCase):
         self.assertEqual(odds["Over"], 1.95)
         self.assertEqual(odds["Under"], 1.5)
 
+    def test_spread_as_french_string_in_embedded_block(self) -> None:
+        html = (
+            '{"id":1,"description":"Plus","price":"1,95","spread":"4,5",'
+            '"marketDesc":"Plus / Moins rebonds - Jordin Canada - Match"}'
+            '{"id":2,"description":"Moins","price":"1,50","spread":"4,5",'
+            '"marketDesc":"Plus / Moins rebonds - Jordin Canada - Match"}'
+        )
+        markets = UnibetBasketballClient().extract_basketball_player_markets_from_html(html)
+        self.assertEqual(len(markets), 1)
+        by_label = {o.label: o.odds for o in markets[0].outcomes}
+        self.assertEqual(by_label["Plus 4.5"], 1.95)
+        self.assertEqual(by_label["Moins 4.5"], 1.5)
+
     def test_extract_markets_do_not_mix_players_in_chunk(self) -> None:
         html = (
             '{"id":1,"description":"Moins 4.5","price":"1,50","spread":4.5,'
