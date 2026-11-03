@@ -86,7 +86,7 @@ logging.basicConfig(
 log = logging.getLogger("compare_wnba")
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-WINAMAX_FETCH_TIMEOUT = 10
+WINAMAX_FETCH_TIMEOUT = 25
 
 
 def utc_now() -> str:

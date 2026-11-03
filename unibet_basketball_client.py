@@ -176,7 +176,10 @@ class UnibetBasketballClient(UnibetClient):
             odds = self._parse_decimal_odds(self._extract_json_string(block, "price") or "")
             spread_raw = self._extract_json_number(block, "spread")
             if spread_raw is not None and re.match(r"^(?:Plus|Moins)$", description.strip(), flags=re.I):
-                description = f"{description.strip()} {spread_raw}"
+                line = spread_raw
+                if isinstance(line, float) and line.is_integer():
+                    line = int(line)
+                description = f"{description.strip()} {line}"
             selection_id = self._extract_json_id(block)
             yield market_desc.strip(), description.strip(), odds, selection_id
 
@@ -192,6 +195,12 @@ class UnibetBasketballClient(UnibetClient):
 
     @staticmethod
     def _extract_json_number(block: str, key: str) -> float | None:
+        quoted = re.search(rf'"{re.escape(key)}":"([^"]+)"', block)
+        if quoted:
+            try:
+                return float(quoted.group(1).replace(",", "."))
+            except ValueError:
+                pass
         field = re.search(rf'"{re.escape(key)}":(-?[\d.]+)', block)
         if not field:
             return None
@@ -295,8 +304,9 @@ class UnibetBasketballClient(UnibetClient):
     def build_event_payload(self, event: UnibetBasketballEvent) -> dict[str, Any]:
         html = self.get_event_html(event.url)
         embedded_markets = self.extract_basketball_player_markets_from_html(html)
+        detail_markets = self.extract_events_detail_markets_from_html(html)
         merged: dict[str, UnibetMarket] = {}
-        for market in embedded_markets:
+        for market in embedded_markets + detail_markets:
             existing = merged.get(market.label)
             if existing is None or len(market.outcomes) > len(existing.outcomes):
                 merged[market.label] = market

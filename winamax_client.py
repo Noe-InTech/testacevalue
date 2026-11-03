@@ -21,6 +21,8 @@ TENNIS_SPORT_ID = 5
 DEFAULT_ORIGIN = "https://www.winamax.fr"
 BASE_URL = "https://www.winamax.fr"
 _CURL_IMPERSONATE = "chrome124"
+# Cloudflare / Engine.IO peut laisser un poll sans octets >20s — ne pas couper à 20s.
+_SOCKET_HTTP_TIMEOUT = float(__import__("os").environ.get("WINAMAX_SOCKET_HTTP_TIMEOUT", "45"))
 _BROWSER_HEADERS = {
     "Origin": DEFAULT_ORIGIN,
     "Referer": f"{DEFAULT_ORIGIN}/paris-sportifs",
@@ -137,10 +139,21 @@ class WinamaxClient:
                 if route_request_id == request_id:
                     results[route] = data
 
+    @staticmethod
+    def _socket_http_timeout(wait_time: float) -> float:
+        return max(_SOCKET_HTTP_TIMEOUT, float(wait_time) + 5.0)
+
+    @staticmethod
+    def _poll_wait_time(route_count: int, timeout: float | None, default: float) -> float:
+        base = default if timeout is None else float(timeout)
+        # Batch match:* : laisser le temps de recevoir chaque réponse route.
+        return max(base, 8.0 + 0.45 * max(1, route_count))
+
     def fetch_routes(self, routes: list[str], timeout: float | None = None) -> dict[str, dict[str, Any] | None]:
         if not routes:
             return {}
-        wait_time = self.fetch_timeout if timeout is None else timeout
+        wait_time = self._poll_wait_time(len(routes), timeout, self.fetch_timeout)
+        http_timeout = self._socket_http_timeout(wait_time)
         request_ids = {route: str(uuid.uuid4()) for route in routes}
         results: dict[str, dict[str, Any] | None] = {route: None for route in routes}
         endpoint = self._socket_endpoint()
@@ -150,7 +163,7 @@ class WinamaxClient:
             endpoint,
             params={"EIO": "4", "transport": "polling"},
             headers=_BROWSER_HEADERS,
-            timeout=20,
+            timeout=http_timeout,
         )
         handshake.raise_for_status()
         if not handshake.text.startswith("0"):
@@ -163,14 +176,14 @@ class WinamaxClient:
             params={"EIO": "4", "transport": "polling", "sid": sid},
             data="40",
             headers={**_BROWSER_HEADERS, "Content-Type": "text/plain;charset=UTF-8"},
-            timeout=20,
+            timeout=http_timeout,
         )
         connect.raise_for_status()
         ack = session.get(
             endpoint,
             params={"EIO": "4", "transport": "polling", "sid": sid},
             headers=_BROWSER_HEADERS,
-            timeout=20,
+            timeout=http_timeout,
         )
         ack.raise_for_status()
         self._ingest_engineio_packets(
@@ -192,7 +205,7 @@ class WinamaxClient:
                 params={"EIO": "4", "transport": "polling", "sid": sid},
                 data=body,
                 headers={**_BROWSER_HEADERS, "Content-Type": "text/plain;charset=UTF-8"},
-                timeout=20,
+                timeout=http_timeout,
             )
             emitted.raise_for_status()
 
@@ -202,7 +215,7 @@ class WinamaxClient:
                 endpoint,
                 params={"EIO": "4", "transport": "polling", "sid": sid},
                 headers=_BROWSER_HEADERS,
-                timeout=20,
+                timeout=http_timeout,
             )
             polled.raise_for_status()
             self._ingest_engineio_packets(
@@ -216,7 +229,21 @@ class WinamaxClient:
         return results
 
     def fetch_route(self, route: str, timeout: float | None = None) -> dict[str, Any] | None:
-        return self.fetch_routes([route], timeout=timeout).get(route)
+        last_error: Exception | None = None
+        attempts = max(1, int(__import__("os").environ.get("WINAMAX_ROUTE_RETRIES", "3")))
+        for attempt in range(attempts):
+            try:
+                payload = self.fetch_routes([route], timeout=timeout).get(route)
+                if payload is not None:
+                    return payload
+            except Exception as exc:
+                last_error = exc
+                if attempt + 1 >= attempts:
+                    raise
+                time.sleep(min(2**attempt, 4))
+        if last_error:
+            raise last_error
+        return None
 
     def _match_url(self, match_id: str) -> str:
         return f"{self.base_url}/paris-sportifs/match/{match_id}"

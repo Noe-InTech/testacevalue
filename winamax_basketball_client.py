@@ -101,6 +101,10 @@ class WinamaxBasketballClient(WinamaxClient):
     @staticmethod
     def _looks_like_wnba(link: WinamaxBasketballMatchLink) -> bool:
         blob = f"{link.title} {link.competition}".lower()
+        if re.search(r"\bnba\b", blob) and "wnba" not in blob:
+            return False
+        if "phoenix suns" in blob or re.search(r"\bsuns\b", blob):
+            return False
         wnba_markers = (
             "wnba",
             "dream",
@@ -110,13 +114,13 @@ class WinamaxBasketballClient(WinamaxClient):
             "aces",
             "fever",
             "sky",
-            "sun",
+            "connecticut sun",
             "liberty",
             "wings",
             "storm",
             "mystics",
         )
-        return any(marker in blob for marker in wnba_markers)
+        return any(re.search(rf"\b{re.escape(marker)}\b", blob) for marker in wnba_markers)
 
     def _parse_basketball_match(
         self,
