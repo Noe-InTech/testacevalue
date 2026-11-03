@@ -10,7 +10,7 @@ import { ValuesTable } from "@/components/ValuesTable";
 import { useBankroll } from "@/lib/bankroll";
 import { frBookBadgeClass } from "@/lib/bookBadges";
 import { buildValueRows } from "@/lib/mptoValue";
-import type { BooksListingReport, MarketPayload, RunStatus } from "@/lib/types";
+import type { BooksListingReport, MarketPayload, MatchOddsSnapshot, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
 import { shouldApplyRunnerPayload, shouldUseLocalResultsCache } from "@/lib/runSession";
 import { getDisplayRunMeta } from "@/lib/runMeta";
@@ -64,6 +64,58 @@ const BOOK_LISTING_STATUS_LABELS: Record<string, string> = {
   empty: "Vide",
   error: "Erreur",
 };
+
+function MatchOddsPanel({ snapshots }: { snapshots: MatchOddsSnapshot[] | null | undefined }) {
+  if (!snapshots?.length) {
+    return null;
+  }
+  return (
+    <section className="panel books-listing-panel match-odds-panel">
+      <h2 className="books-listing-title">Cotes match — vérification scrape</h2>
+      <p className="hint">
+        Moneyline, handicap et total (ligne principale FanDuel ; FR alignés sur la même ligne quand
+        possible). Utile quand les props joueur ne sont pas encore publiées.
+      </p>
+      {snapshots.map((snap) => (
+        <div key={snap.match} className="match-odds-block">
+          <h3 className="match-odds-match-title">{snap.match}</h3>
+          <div className="table-scroll">
+            <table className="books-listing-table match-odds-table">
+              <thead>
+                <tr>
+                  <th>Book</th>
+                  <th>ML dom.</th>
+                  <th>ML ext.</th>
+                  <th>Hdp ligne</th>
+                  <th>Hdp dom.</th>
+                  <th>Hdp ext.</th>
+                  <th>Total</th>
+                  <th>Over</th>
+                  <th>Under</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snap.books.map((row) => (
+                  <tr key={row.book}>
+                    <td>{row.book_label}</td>
+                    <td>{row.moneyline_home ?? "—"}</td>
+                    <td>{row.moneyline_away ?? "—"}</td>
+                    <td>{row.spread_line ?? "—"}</td>
+                    <td>{row.spread_home ?? "—"}</td>
+                    <td>{row.spread_away ?? "—"}</td>
+                    <td>{row.total_line ?? "—"}</td>
+                    <td>{row.total_over ?? "—"}</td>
+                    <td>{row.total_under ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
 
 function BooksListingPanel({ report }: { report: BooksListingReport | null | undefined }) {
   if (!report?.books || Object.keys(report.books).length === 0) {
@@ -713,6 +765,10 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => payload?.books_listing ?? status?.books_listing ?? null,
     [payload?.books_listing, status?.books_listing],
   );
+  const matchOdds = useMemo(
+    () => payload?.match_odds ?? status?.match_odds ?? null,
+    [payload?.match_odds, status?.match_odds],
+  );
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
   const filteredProgress = useMemo(() => {
     const needle = progressSearch.trim().toLowerCase();
@@ -1103,6 +1159,7 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
       </section>
 
       <BooksListingPanel report={booksListing} />
+      <MatchOddsPanel snapshots={matchOdds ?? undefined} />
 
       {overlapHint ? (
         <section className="panel">

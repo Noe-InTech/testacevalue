@@ -1049,6 +1049,26 @@ td.side {
   font-size: 0.85rem;
 }
 
+.match-odds-block {
+  margin-top: 16px;
+}
+
+.match-odds-block:first-of-type {
+  margin-top: 8px;
+}
+
+.match-odds-match-title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.match-odds-table th,
+.match-odds-table td {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .runner-link-row {
     grid-template-columns: 1fr;

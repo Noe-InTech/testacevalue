@@ -103,6 +103,28 @@ export interface MarketPayload {
   notes?: string[];
   /** État du scrape calendrier par book (OK / vide / erreur). */
   books_listing?: BooksListingReport;
+  /** Cotes match (ML / spread / total) par book — vérif scrape. */
+  match_odds?: MatchOddsSnapshot[];
+}
+
+export interface BookMatchOddsRow {
+  book: string;
+  book_label: string;
+  moneyline_home?: string | null;
+  moneyline_away?: string | null;
+  spread_line?: string | null;
+  spread_home?: string | null;
+  spread_away?: string | null;
+  total_line?: string | null;
+  total_over?: string | null;
+  total_under?: string | null;
+}
+
+export interface MatchOddsSnapshot {
+  match: string;
+  home: string;
+  away: string;
+  books: BookMatchOddsRow[];
 }
 
 export type BookListingStatus = "ok" | "empty" | "error";
@@ -156,6 +178,7 @@ export interface RunStatus {
   value_count?: number;
   fr_only_count?: number;
   books_listing?: BooksListingReport;
+  match_odds?: MatchOddsSnapshot[];
 }
 
 export type ApiPayload = MarketPayload | CombinedPropsPayload;

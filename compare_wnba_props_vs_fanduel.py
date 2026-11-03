@@ -57,6 +57,7 @@ from basketball_market_mapping import (
     parse_fanduel_alt_runner,
 )
 from betclic_basketball_client import BetclicBasketballClient
+from basketball_match_odds import build_basketball_match_odds_snapshot, collect_match_odds_from_results
 from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
 from fanduel_basketball_client import FanDuelBasketballClient
 from fanduel_client import (
@@ -946,6 +947,9 @@ def build_results_payload(
     }
     if books_listing:
         payload["books_listing"] = books_listing
+    match_odds = collect_match_odds_from_results(results)
+    if match_odds:
+        payload["match_odds"] = match_odds
     return payload
 
 
@@ -1010,6 +1014,9 @@ def write_run_status_file(
         payload["value_count"] = 0
         payload["matches_done"] = len(results)
         payload["fr_only_count"] = sum(int(item.get("fr_only_count", 0)) for item in results)
+        match_odds = collect_match_odds_from_results(results)
+        if match_odds:
+            payload["match_odds"] = match_odds
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -1636,6 +1643,13 @@ def compare_anchor(
         enrich_fr_only_row=enrich_fr_only_row,
         enrich_fd_only_row=enrich_fd_only_row,
         attach_capture_times=attach_capture_times,
+    )
+    result["match_odds"] = build_basketball_match_odds_snapshot(
+        match=str(anchor.get("match") or ""),
+        home=home_team,
+        away=away_team,
+        book_events=book_events,
+        fanduel_event=fanduel_payload,
     )
     result["fr_books_scraped"] = sorted(book_events.keys())
     if anchor_warnings:
