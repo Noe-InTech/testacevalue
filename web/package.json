@@ -1,7 +1,7 @@
 {
   "name": "aces-compare-web",
   "private": true,
-  "description": "Dashboard compare — Vercel redeploy 2026-11-03T08:42+01:00",
+  "description": "Dashboard compare — books listing status panel",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
