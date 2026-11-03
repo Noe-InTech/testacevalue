@@ -44,6 +44,14 @@ ufw --force enable >/dev/null 2>&1 || true
 echo "==> systemd aces-runner"
 install -m 644 "${REPO_DIR}/runner/aces-runner.service" /etc/systemd/system/aces-runner.service
 sed -i "s/CHANGE_ME/${SECRET}/" /etc/systemd/system/aces-runner.service
+mkdir -p /etc/systemd/system/aces-runner.service.d
+WEB_APP="${WEB_APP_URL:-https://testacevalue-eight.vercel.app}"
+cat >/etc/systemd/system/aces-runner.service.d/winamax.conf <<EOF
+[Service]
+Environment=WINAMAX_FALLBACK_URL=${WEB_APP}
+Environment=WINAMAX_FALLBACK_SECRET=${SECRET}
+Environment=WINAMAX_PROBE_SECONDS=300
+EOF
 
 echo "==> systemd cloudflared-aces"
 install -m 644 "${REPO_DIR}/runner/cloudflared-aces.service" /etc/systemd/system/cloudflared-aces.service

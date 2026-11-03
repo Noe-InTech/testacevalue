@@ -691,22 +691,27 @@ class Handler(BaseHTTPRequestHandler):
                     "anchors_total": status.get("anchors_total"),
                     "comparable_count": status.get("comparable_count"),
                 }
-            self._json_response(
-                200,
-                {
-                    "ok": True,
-                    "role": RUNNER_ROLE,
-                    "running": busy,
-                    "sport": sport or "",
-                    "public_url": resolve_public_url(),
-                    "sports": list(SPORTS.keys()) if RUNNER_ROLE == "eu" else [],
-                    "sports_status": sports_status if RUNNER_ROLE == "eu" else {},
-                    "us_endpoints": ["/api/us/bet365"] if RUNNER_ROLE == "us" else [],
-                    "git_head": _git_head_short(),
-                    "last_update": read_last_update(),
-                    "fetched_at": utc_now(),
-                },
-            )
+            health_payload: dict[str, Any] = {
+                "ok": True,
+                "role": RUNNER_ROLE,
+                "running": busy,
+                "sport": sport or "",
+                "public_url": resolve_public_url(),
+                "sports": list(SPORTS.keys()) if RUNNER_ROLE == "eu" else [],
+                "sports_status": sports_status if RUNNER_ROLE == "eu" else {},
+                "us_endpoints": ["/api/us/bet365"] if RUNNER_ROLE == "us" else [],
+                "git_head": _git_head_short(),
+                "last_update": read_last_update(),
+                "fetched_at": utc_now(),
+            }
+            if RUNNER_ROLE == "eu":
+                try:
+                    from winamax_fallback import get_winamax_relay_status
+
+                    health_payload["winamax_relay"] = get_winamax_relay_status()
+                except Exception as exc:
+                    health_payload["winamax_relay"] = {"ok": False, "message": str(exc)}
+            self._json_response(200, health_payload)
             return
         if path == "/api/competitions":
             sport = self._resolve_sport(self.path)
@@ -1034,6 +1039,15 @@ def main() -> None:
             current = read_json(sport.status_json, {})
             if current.get("status") != "idle":
                 write_status(sport, "idle", "Runner pret.")
+    if RUNNER_ROLE == "eu":
+        try:
+            from winamax_fallback import probe_winamax_relay, start_winamax_relay_watchdog
+
+            start_winamax_relay_watchdog()
+            probe_winamax_relay()
+        except Exception as exc:
+            print(f"Winamax relay watchdog non demarre: {exc}")
+
     server = ThreadingHTTPServer((host, port), Handler)
     if RUNNER_ROLE == "us":
         print(f"Bet365 US runner sur http://{host}:{port} (role=us)")

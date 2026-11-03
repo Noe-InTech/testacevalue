@@ -96,9 +96,15 @@ def _winamax_use_vercel_fallback() -> bool:
     if not winamax_fallback_enabled():
         return False
     force = (os.environ.get("WINAMAX_FORCE_FALLBACK") or "").strip().lower()
+    if force in {"0", "false", "no", "off"}:
+        return is_winamax_datacenter_feed_blocked(refresh=True)
+    role = (os.environ.get("RUNNER_ROLE") or "eu").strip().lower()
+    if role == "eu":
+        # Runner EU (OVH, etc.) : relais auto par defaut — pas de config manuelle.
+        return True
     if force in {"1", "true", "yes", "on"}:
         return True
-    return is_winamax_datacenter_feed_blocked()
+    return is_winamax_datacenter_feed_blocked(refresh=True)
 
 
 @dataclass(frozen=True)
