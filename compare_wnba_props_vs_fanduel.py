@@ -1046,12 +1046,29 @@ def _listing_fetch(label: str, callback: Callable[[], Any]) -> tuple[list[Any], 
         status = "error"
         error = str(exc)[:200]
         log.warning("%s listing: %s", label, exc)
-    return items, {
+    elapsed = round(time.perf_counter() - started, 2)
+    entry = {
         "status": status,
         "match_count": len(items),
-        "seconds": round(time.perf_counter() - started, 2),
+        "seconds": elapsed,
         "error": error,
     }
+    return items, _finalize_listing_entry(entry)
+
+
+def _finalize_listing_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    out = dict(entry)
+    if out.get("status") != "empty" or out.get("error"):
+        return out
+    seconds = float(out.get("seconds") or 0)
+    if seconds >= 12:
+        out["error"] = (
+            "Listing vide après attente longue — timeout ou réseau runner "
+            "→ Winamax (sports-eu-west-3), pas un calendrier NBA absent."
+        )
+    else:
+        out["error"] = "Feed OK mais 0 match NBA listé."
+    return out
 
 
 def _build_books_listing_report(
@@ -1063,7 +1080,7 @@ def _build_books_listing_report(
 ) -> dict[str, Any]:
     books: dict[str, dict[str, Any]] = {}
     for name, entry in entries.items():
-        book = dict(entry)
+        book = _finalize_listing_entry(dict(entry))
         if raw_counts is not None and name in raw_counts:
             book["match_count_raw"] = int(raw_counts[name])
             window = int(book.get("match_count") or 0)
