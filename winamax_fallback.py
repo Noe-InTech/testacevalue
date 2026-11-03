@@ -40,11 +40,16 @@ def fetch_sport_payload_via_fallback(sport_id: int) -> dict[str, Any] | None:
     if not base or not secret:
         return None
     url = f"{base}/api/winamax-list"
+    headers = {"X-Runner-Secret": secret}
+    bypass = (os.environ.get("WINAMAX_FALLBACK_BYPASS") or "").strip()
+    if bypass:
+        headers["x-vercel-protection-bypass"] = bypass
+
     try:
         response = requests.get(
             url,
             params={"sport": str(sport_id)},
-            headers={"X-Runner-Secret": secret},
+            headers=headers,
             timeout=DEFAULT_TIMEOUT,
         )
     except requests.RequestException as exc:
