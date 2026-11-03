@@ -115,8 +115,8 @@ export interface CombinedPropsPayload {
   victoires?: MarketPayload;
 }
 
-export type SportKey = "tennis" | "wnba" | "nba" | "baseball" | "soccer";
-export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba" | "baseball" | "soccer";
+export type SportKey = "tennis" | "wnba" | "nba" | "euroleague" | "baseball" | "soccer";
+export type MarketKind = "aces" | "breaks" | "victoires" | "wnba" | "nba" | "euroleague" | "baseball" | "soccer";
 export type TennisMarketKind = "aces" | "breaks" | "victoires";
 
 export type AcesPayload = MarketPayload;
@@ -202,7 +202,11 @@ function ligneLabel(row: ComparableRow, marketKind: MarketKind): string {
       ? "ligne_breaks_fr"
       : marketKind === "victoires"
         ? "ligne_victoires_fr"
-        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball" || marketKind === "soccer"
+        : marketKind === "wnba" ||
+            marketKind === "nba" ||
+            marketKind === "euroleague" ||
+            marketKind === "baseball" ||
+            marketKind === "soccer"
           ? "ligne_props_fr"
           : "ligne_aces_fr";
   const explicit = row[key]?.trim();
@@ -239,7 +243,7 @@ export function getTableColumns(marketKind: MarketKind) {
           ? "Pari baseball"
           : marketKind === "soccer"
             ? "Prop foot"
-            : marketKind === "wnba" || marketKind === "nba"
+            : marketKind === "wnba" || marketKind === "nba" || marketKind === "euroleague"
             ? "Prop joueur"
             : "Pari aces";
   const lineKey =
@@ -247,7 +251,11 @@ export function getTableColumns(marketKind: MarketKind) {
       ? "ligne_breaks"
       : marketKind === "victoires"
         ? "ligne_victoires"
-        : marketKind === "wnba" || marketKind === "nba" || marketKind === "baseball" || marketKind === "soccer"
+        : marketKind === "wnba" ||
+            marketKind === "nba" ||
+            marketKind === "euroleague" ||
+            marketKind === "baseball" ||
+            marketKind === "soccer"
           ? "ligne_props"
           : "ligne_aces";
 
@@ -266,7 +274,7 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "marche_fanduel" as const,
       label: "Equiv. US",
       hint:
-        marketKind === "wnba" || marketKind === "nba"
+        marketKind === "wnba" || marketKind === "nba" || marketKind === "euroleague"
           ? "Ligne US exacte (19,5 ou 20+) puis le libelle du marche"
           : marketKind === "baseball"
             ? "Meme marche baseball cote par la reference US"
@@ -285,7 +293,7 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "bookmaker_fr" as const,
       label: "Books FR",
       hint:
-        marketKind === "wnba" || marketKind === "nba"
+        marketKind === "wnba" || marketKind === "nba" || marketKind === "euroleague"
           ? "Cote decimale par book FR (Winamax, Unibet, Betclic) sur cette ligne"
           : "Bookmaker FR retenu pour ce cote",
     },
@@ -293,7 +301,11 @@ export function getTableColumns(marketKind: MarketKind) {
       key: "us_source_label" as const,
       label: "Book US",
       hint:
-        marketKind === "baseball" || marketKind === "wnba" || marketKind === "nba" || marketKind === "soccer"
+        marketKind === "baseball" ||
+        marketKind === "wnba" ||
+        marketKind === "nba" ||
+        marketKind === "euroleague" ||
+        marketKind === "soccer"
           ? "Source US retenue: FanDuel, RotoWire · DraftKings ou Bet365. Pinnacle remplace la ligne s'il est activé et cote les deux côtés."
           : "Source US retenue: meilleure cote entre FanDuel et Bet365 US",
     },

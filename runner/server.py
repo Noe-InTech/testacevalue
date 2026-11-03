@@ -48,6 +48,15 @@ def list_competitions_for_sport(sport_key: str) -> list[dict[str, Any]]:
             {"id": "kbo", "name": "KBO", "event_count": 0, "source": "static"},
             {"id": "npb", "name": "NPB", "event_count": 0, "source": "static"},
         ]
+    if sport_key == "euroleague":
+        return [
+            {
+                "id": "euroleague",
+                "name": "Euroleague",
+                "event_count": 0,
+                "source": "static",
+            }
+        ]
     if sport_key in {"wnba", "nba"}:
         return [
             {
@@ -92,6 +101,14 @@ SPORTS: dict[str, SportConfig] = {
         script="compare_nba_props_vs_fanduel.py",
         result_json=DATA_DIR / "latest_nba.json",
         status_json=DATA_DIR / "run_status_nba.json",
+        combined=False,
+        timeout=900,
+    ),
+    "euroleague": SportConfig(
+        key="euroleague",
+        script="compare_euroleague_props_vs_fanduel.py",
+        result_json=DATA_DIR / "latest_euroleague.json",
+        status_json=DATA_DIR / "run_status_euroleague.json",
         combined=False,
         timeout=900,
     ),
@@ -377,7 +394,7 @@ def ensure_status_files() -> None:
 
 
 def empty_payload(sport: SportConfig) -> dict[str, Any]:
-    if sport.key in {"wnba", "nba", "baseball", "soccer"}:
+    if sport.key in {"wnba", "nba", "euroleague", "baseball", "soccer"}:
         source = (
             "baseball_markets_comparable"
             if sport.key == "baseball"
@@ -489,6 +506,10 @@ def run_compare(
             from basketball_schedule import normalize_nba_hours
 
             cmd.extend(["--hours", str(normalize_nba_hours(nba_hours))])
+        if sport.key == "euroleague":
+            from basketball_schedule import normalize_euroleague_hours
+
+            cmd.extend(["--hours", str(normalize_euroleague_hours(nba_hours))])
         if sport.key in {"wnba", "nba"} and use_rotowire:
             cmd.append("--rotowire")
         if sport.key in {"wnba", "nba"} and use_pinnacle:
@@ -713,7 +734,7 @@ class Handler(BaseHTTPRequestHandler):
             if sport is None:
                 self._json_response(
                     400,
-                    {"error": "Sport inconnu (tennis, wnba, nba, baseball ou soccer)."},
+                    {"error": "Sport inconnu (tennis, wnba, nba, euroleague, baseball ou soccer)."},
                 )
                 return
             try:
@@ -742,7 +763,7 @@ class Handler(BaseHTTPRequestHandler):
         if sport is None:
             self._json_response(
                 400,
-                {"error": "Sport inconnu (tennis, wnba, nba, baseball ou soccer)."},
+                {"error": "Sport inconnu (tennis, wnba, nba, euroleague, baseball ou soccer)."},
             )
             return
         recover_stuck_run()
@@ -922,7 +943,7 @@ class Handler(BaseHTTPRequestHandler):
         if sport is None:
             self._json_response(
                 400,
-                {"error": "Sport inconnu (tennis, wnba, nba, baseball ou soccer)."},
+                {"error": "Sport inconnu (tennis, wnba, nba, euroleague, baseball ou soccer)."},
             )
             return
 
@@ -1040,7 +1061,7 @@ def main() -> None:
     else:
         print(
             f"Props runner live sur http://{host}:{port} "
-            f"(role=eu, tennis + wnba + nba + baseball + soccer)"
+            f"(role=eu, tennis + wnba + nba + euroleague + baseball + soccer)"
         )
     server.serve_forever()
 

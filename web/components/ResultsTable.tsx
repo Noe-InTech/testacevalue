@@ -30,7 +30,7 @@ function filterRows(rows: ComparableRow[], query: string, marketKind: MarketKind
       ? "ligne_breaks_fr"
       : marketKind === "victoires"
         ? "ligne_victoires_fr"
-        : marketKind === "wnba" || marketKind === "nba"
+        : marketKind === "wnba" || marketKind === "nba" || marketKind === "euroleague"
           ? "ligne_props_fr"
           : "ligne_aces_fr";
   return rows.filter((row) => {

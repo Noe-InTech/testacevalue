@@ -7,10 +7,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from basketball_constants import (
+    BETCLIC_EUROLEAGUE_COMPETITION_PREFIX,
+    BETCLIC_EUROLEAGUE_LISTING_PATH,
     BETCLIC_NBA_COMPETITION_PREFIX,
     BETCLIC_NBA_LISTING_PATH,
     BETCLIC_WNBA_LISTING_PATH,
 )
+from euroleague_teams import split_euroleague_clubs
 from basketball_listings import is_basketball_outright_slug
 from betclic_client import BetclicClient
 
@@ -127,6 +130,36 @@ class BetclicBasketballClient(BetclicClient):
                 skip_href=lambda href: "nba-cup" in href.lower(),
                 skip_slug=is_basketball_outright_slug,
             )
+        return sorted(links.values(), key=lambda item: item.url)
+
+    def list_euroleague_matches(self) -> list[BetclicBasketballMatchLink]:
+        pattern = (
+            rf'href="(/basketball-sbasketball/{re.escape(BETCLIC_EUROLEAGUE_COMPETITION_PREFIX)}/[^"]+-m\d+)"'
+        )
+        links: dict[str, BetclicBasketballMatchLink] = {}
+        for path in (BETCLIC_EUROLEAGUE_LISTING_PATH, "/basketball-sbasketball"):
+            try:
+                html = self.get_page_html(path)
+            except Exception:
+                continue
+            for href in re.findall(pattern, html, flags=re.I):
+                id_match = re.search(r"-m(\d+)$", href)
+                if not id_match:
+                    continue
+                slug = href.rsplit("/", 1)[-1]
+                if is_basketball_outright_slug(slug):
+                    continue
+                home, away = split_euroleague_clubs(slug)
+                if not home or not away:
+                    continue
+                match_id = id_match.group(1)
+                links[match_id] = BetclicBasketballMatchLink(
+                    match_id=match_id,
+                    url=f"{self.base_url}{href}",
+                    slug=slug,
+                    home_team=home,
+                    away_team=away,
+                )
         return sorted(links.values(), key=lambda item: item.url)
 
     def _collect_basketball_hrefs(

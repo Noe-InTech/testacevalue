@@ -375,11 +375,16 @@ def align_fr_outcome_to_fanduel(outcome: str, compare_key: str) -> str:
 align_fr_outcome_to_pinnacle = align_fr_outcome_to_fanduel
 
 
+# « Total » est le libellé Euroleague (Marcus Carr - Total Points). La NBA reste
+# « Joueur - Points ».
 FD_PLAYER_PROP_SPECS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("points_player", re.compile(r"^(.+?)\s*-\s*points$", re.I)),
-    ("rebounds_player", re.compile(r"^(.+?)\s*-\s*rebounds$", re.I)),
-    ("assists_player", re.compile(r"^(.+?)\s*-\s*assists$", re.I)),
-    ("threes_made_player", re.compile(r"^(.+?)\s*-\s*made\s*threes$", re.I)),
+    ("points_player", re.compile(r"^(.+?)\s*-\s*(?:total\s+)?points$", re.I)),
+    ("rebounds_player", re.compile(r"^(.+?)\s*-\s*(?:total\s+)?rebounds$", re.I)),
+    ("assists_player", re.compile(r"^(.+?)\s*-\s*(?:total\s+)?assists$", re.I)),
+    (
+        "threes_made_player",
+        re.compile(r"^(.+?)\s*-\s*(?:total\s+)?(?:made\s+threes|threes(?:\s+made)?)$", re.I),
+    ),
     ("blocks_player", re.compile(r"^(.+?)\s*-\s*blocks$", re.I)),
     ("steals_player", re.compile(r"^(.+?)\s*-\s*steals$", re.I)),
     ("turnovers_player", re.compile(r"^(.+?)\s*-\s*turnovers$", re.I)),
@@ -498,6 +503,36 @@ def resolve_roster_player(player_name: str, roster: list[str] | None) -> str:
     return text
 
 
+# « Points Milestones - Marcus Carr » / runner « Marcus Carr to Score 11+ Points ».
+# Une seule cote, sans moins : même traitement qu'un palier NBA « To Score 20+ ».
+_FD_MILESTONE_MARKET = re.compile(
+    r"^(?P<stat>points|rebounds|assists|threes|made threes)\s+milestones\s*-\s*(?P<player>.+)$",
+    re.I,
+)
+_FD_MILESTONE_RUNNER = re.compile(
+    r"to\s+(?:score|record)\s+(?P<threshold>\d+)\+\s+(?:points|rebounds|assists|made\s+threes|threes)\b",
+    re.I,
+)
+_FD_MILESTONE_FAMILY = {
+    "points": "points_player",
+    "rebounds": "rebounds_player",
+    "assists": "assists_player",
+    "threes": "threes_made_player",
+    "made threes": "threes_made_player",
+}
+_NON_PLAYER_SIDE = re.compile(
+    r"\b(half|quarter|qtr|period|overtime|alternate|margin|spread|moneyline|team|game|winning|total)\b",
+    re.I,
+)
+
+
+def _player_side_name(name: str) -> str | None:
+    player = str(name or "").strip()
+    if not player or _NON_PLAYER_SIDE.search(player):
+        return None
+    return player
+
+
 def map_fanduel_market_to_compare_key(
     market: dict[str, Any],
     *,
@@ -513,9 +548,50 @@ def map_fanduel_market_to_compare_key(
         match = pattern.search(name)
         if not match:
             continue
-        player_name = resolve_roster_player(match.group(1).strip(), roster)
+        player_name = _player_side_name(match.group(1))
+        if not player_name:
+            return None
+        player_name = resolve_roster_player(player_name, roster)
         return build_player_prop_key(family, player_name, line, roster=roster)
     return None
+
+
+def map_fanduel_milestone_market(
+    market: dict[str, Any],
+    *,
+    roster: list[str] | None = None,
+) -> list[tuple[str, str, str]]:
+    """Paliers Euroleague une cote. Retourne (clé, joueur, libellé marché)."""
+    name = str(market.get("marketName", "")).strip()
+    if not is_full_game_fanduel_prop_market(name):
+        return []
+    match = _FD_MILESTONE_MARKET.search(name)
+    if not match:
+        return []
+    family = _FD_MILESTONE_FAMILY.get(strip_accents(match.group("stat")))
+    player_name = _player_side_name(match.group("player"))
+    if not family or not player_name:
+        return []
+    player_name = resolve_roster_player(player_name, roster)
+    found: list[tuple[str, str, str]] = []
+    seen: set[str] = set()
+    for runner in market.get("runners", []):
+        if runner.get("runnerStatus") not in (None, "ACTIVE"):
+            continue
+        runner_match = _FD_MILESTONE_RUNNER.search(str(runner.get("runnerName", "")))
+        if not runner_match:
+            continue
+        key = build_player_tier_prop_key(
+            family,
+            player_name,
+            int(runner_match.group("threshold")),
+            roster=roster,
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        found.append((key, player_name, name))
+    return found
 
 
 def parse_fanduel_alt_runner(

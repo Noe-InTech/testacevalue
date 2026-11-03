@@ -8,6 +8,8 @@ from typing import Any
 
 from basketball_constants import (
     FANDUEL_BASKETBALL_EVENT_TYPE_ID,
+    FANDUEL_EUROLEAGUE_COMPETITION_ID,
+    FANDUEL_EUROLEAGUE_EVENT_TABS,
     FANDUEL_NBA_COMPETITION_IDS,
     FANDUEL_NBA_CONTENT_PAGE,
     FANDUEL_NBA_EVENT_TABS,
@@ -112,6 +114,18 @@ class FanDuelBasketballClient(FanDuelClient):
                 merged[event.event_id] = event
         return sorted(merged.values(), key=lambda item: (item.open_date, item.name))
 
+    def list_euroleague_events(self) -> list[FanDuelBasketballEvent]:
+        events = self._list_competition_events(FANDUEL_EUROLEAGUE_COMPETITION_ID)
+        kept: list[FanDuelBasketballEvent] = []
+        for event in events:
+            lower = event.name.lower()
+            if any(token in lower for token in ("futures", "winner", "outright", "awards")):
+                continue
+            if not event.home_team or not event.away_team:
+                continue
+            kept.append(event)
+        return sorted(kept, key=lambda item: (item.open_date, item.name))
+
     def build_event_payload(
         self,
         event: FanDuelBasketballEvent,
@@ -135,3 +149,6 @@ class FanDuelBasketballClient(FanDuelClient):
 
     def build_nba_event_payload(self, event: FanDuelBasketballEvent) -> dict[str, Any]:
         return self.build_event_payload(event, tabs=FANDUEL_NBA_EVENT_TABS)
+
+    def build_euroleague_event_payload(self, event: FanDuelBasketballEvent) -> dict[str, Any]:
+        return self.build_event_payload(event, tabs=FANDUEL_EUROLEAGUE_EVENT_TABS)

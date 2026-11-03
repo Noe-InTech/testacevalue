@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     : (body.markets || "").trim();
   const nbaHoursRaw = body.nba_hours ?? body.hours;
   const nbaHours =
-    sport === "nba" && nbaHoursRaw !== undefined && nbaHoursRaw !== null
+    (sport === "nba" || sport === "euroleague") && nbaHoursRaw !== undefined && nbaHoursRaw !== null
       ? Number(nbaHoursRaw)
       : undefined;
   const useRotowire = Boolean(body.use_rotowire ?? body.rotowire);
