@@ -21,8 +21,11 @@ TENNIS_SPORT_ID = 5
 DEFAULT_ORIGIN = "https://www.winamax.fr"
 BASE_URL = "https://www.winamax.fr"
 _CURL_IMPERSONATE = "chrome124"
-# Cloudflare / Engine.IO peut laisser un poll sans octets >20s — ne pas couper à 20s.
-_SOCKET_HTTP_TIMEOUT = float(__import__("os").environ.get("WINAMAX_SOCKET_HTTP_TIMEOUT", "45"))
+# Poll HTTP : marge au-dessus de wait_time (long poll >20s possible), plafond pour ne pas bloquer des minutes.
+_SOCKET_HTTP_MIN = float(__import__("os").environ.get("WINAMAX_SOCKET_HTTP_MIN", "28"))
+_SOCKET_HTTP_MAX = float(__import__("os").environ.get("WINAMAX_SOCKET_HTTP_MAX", "40"))
+# Calendrier sport:* — rapide comme avant ; match:* garde fetch_timeout client (compare).
+SPORT_ROUTE_POLL_SECONDS = float(__import__("os").environ.get("WINAMAX_SPORT_POLL_SECONDS", "12"))
 _BROWSER_HEADERS = {
     "Origin": DEFAULT_ORIGIN,
     "Referer": f"{DEFAULT_ORIGIN}/paris-sportifs",
@@ -62,7 +65,7 @@ class WinamaxClient:
         socket_url: str = SOCKET_URL,
         socket_path: str = SOCKET_PATH,
         base_url: str = BASE_URL,
-        fetch_timeout: float = 25.0,
+        fetch_timeout: float = 10.0,
     ):
         self.socket_url = socket_url
         self.socket_path = socket_path
@@ -142,7 +145,9 @@ class WinamaxClient:
 
     @staticmethod
     def _socket_http_timeout(wait_time: float) -> float:
-        return max(_SOCKET_HTTP_TIMEOUT, float(wait_time) + 5.0)
+        # wait_time + marge : couvre les polls Engine.IO un peu >20s sans attendre 45s par GET mort.
+        target = float(wait_time) + 10.0
+        return min(_SOCKET_HTTP_MAX, max(_SOCKET_HTTP_MIN, target))
 
     @staticmethod
     def _poll_wait_time(route_count: int, timeout: float | None, default: float) -> float:
@@ -231,19 +236,42 @@ class WinamaxClient:
             )
         return results
 
-    def fetch_route(self, route: str, timeout: float | None = None) -> dict[str, Any] | None:
+    @staticmethod
+    def _default_route_retries(route: str) -> int:
+        if str(route).startswith("sport:"):
+            return max(1, int(__import__("os").environ.get("WINAMAX_SPORT_ROUTE_RETRIES", "2")))
+        return max(1, int(__import__("os").environ.get("WINAMAX_ROUTE_RETRIES", "2")))
+
+    @staticmethod
+    def _default_route_poll_timeout(route: str, explicit: float | None) -> float | None:
+        if explicit is not None:
+            return explicit
+        if str(route).startswith("sport:"):
+            return SPORT_ROUTE_POLL_SECONDS
+        return None
+
+    def fetch_route(
+        self,
+        route: str,
+        timeout: float | None = None,
+        *,
+        retries: int | None = None,
+    ) -> dict[str, Any] | None:
+        poll_timeout = self._default_route_poll_timeout(route, timeout)
+        attempts = retries if retries is not None else self._default_route_retries(route)
         last_error: Exception | None = None
-        attempts = max(1, int(__import__("os").environ.get("WINAMAX_ROUTE_RETRIES", "3")))
         for attempt in range(attempts):
             try:
-                payload = self.fetch_routes([route], timeout=timeout).get(route)
+                payload = self.fetch_routes([route], timeout=poll_timeout).get(route)
                 if payload is not None:
                     return payload
+                # Réponse absente dans la fenêtre : ne pas enchaîner 3×25s (listing).
+                return None
             except Exception as exc:
                 last_error = exc
                 if attempt + 1 >= attempts:
                     raise
-                time.sleep(min(2**attempt, 4))
+                time.sleep(min(2**attempt, 2))
         if last_error:
             raise last_error
         return None
@@ -306,7 +334,7 @@ class WinamaxClient:
         )
 
     def list_singles_tennis_matches(self) -> list[WinamaxMatchLink]:
-        payload = self.fetch_route(f"sport:{TENNIS_SPORT_ID}")
+        payload = self.fetch_route(f"sport:{TENNIS_SPORT_ID}")  # sport:* → poll court
         if not payload:
             return []
         matches = payload.get("matches") or {}
