@@ -1,7 +1,7 @@
 {
   "name": "aces-compare-web",
   "private": true,
-  "description": "Dashboard compare — rebuild pour appliquer RUNNER_URL (2026-11-03)",
+  "description": "Dashboard compare — Vercel redeploy 2026-11-03T08:00+01:00",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
