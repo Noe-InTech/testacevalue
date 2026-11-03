@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from basketball_constants import WINAMAX_BASKETBALL_SPORT_ID
-from winamax_client import WinamaxClient, WinamaxMatchLink
+from winamax_client import WinamaxClient, WinamaxMatchLink, is_winamax_datacenter_feed_blocked
+from winamax_fallback import fetch_sport_payload_via_fallback, winamax_fallback_enabled
 
 
 @dataclass(frozen=True)
@@ -23,8 +24,23 @@ class WinamaxBasketballMatchLink:
 
 
 class WinamaxBasketballClient(WinamaxClient):
-    def list_wnba_matches(self) -> list[WinamaxBasketballMatchLink]:
+    def _fetch_basketball_sport_payload(self) -> dict[str, Any] | None:
+        blocked = is_winamax_datacenter_feed_blocked()
+        if blocked and winamax_fallback_enabled():
+            payload = fetch_sport_payload_via_fallback(WINAMAX_BASKETBALL_SPORT_ID)
+            if payload:
+                return payload
+        if blocked:
+            return None
         payload = self.fetch_route(f"sport:{WINAMAX_BASKETBALL_SPORT_ID}")
+        if payload:
+            return payload
+        if winamax_fallback_enabled():
+            return fetch_sport_payload_via_fallback(WINAMAX_BASKETBALL_SPORT_ID)
+        return None
+
+    def list_wnba_matches(self) -> list[WinamaxBasketballMatchLink]:
+        payload = self._fetch_basketball_sport_payload()
         if not payload:
             return []
         matches = payload.get("matches") or {}
@@ -41,7 +57,7 @@ class WinamaxBasketballClient(WinamaxClient):
         return links
 
     def list_nba_matches(self) -> list[WinamaxBasketballMatchLink]:
-        payload = self.fetch_route(f"sport:{WINAMAX_BASKETBALL_SPORT_ID}")
+        payload = self._fetch_basketball_sport_payload()
         if not payload:
             return []
         matches = payload.get("matches") or {}

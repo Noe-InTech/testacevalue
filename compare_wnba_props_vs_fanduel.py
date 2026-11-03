@@ -1063,8 +1063,8 @@ def _finalize_listing_entry(entry: dict[str, Any]) -> dict[str, Any]:
     seconds = float(out.get("seconds") or 0)
     if seconds >= 12:
         out["error"] = (
-            "Listing vide après attente longue — timeout ou réseau runner "
-            "→ Winamax (sports-eu-west-3), pas un calendrier NBA absent."
+            "Listing vide après attente longue — IP datacenter OVH souvent bloquée par Winamax. "
+            "Configurer WINAMAX_FALLBACK_URL (app Vercel) ou WINAMAX_PROXY (proxy FR)."
         )
     else:
         out["error"] = "Feed OK mais 0 match NBA listé."

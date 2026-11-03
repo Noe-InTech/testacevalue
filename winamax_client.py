@@ -7,6 +7,7 @@ On passe donc par curl_cffi (empreinte Chrome) en transport polling.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import uuid
@@ -31,6 +32,53 @@ _BROWSER_HEADERS = {
     "Referer": f"{DEFAULT_ORIGIN}/paris-sportifs",
     "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
 }
+_PRELOADED_STATE_RE = re.compile(r"var PRELOADED_STATE = (\{.*?\});\s*\n", re.DOTALL)
+_BASKETBALL_SPORT_PAGE = f"{DEFAULT_ORIGIN}/paris-sportifs/sports/2"
+
+
+def _winamax_proxy_map() -> dict[str, str] | None:
+    proxy = (os.environ.get("WINAMAX_PROXY") or os.environ.get("HTTPS_PROXY") or "").strip()
+    if not proxy:
+        return None
+    return {"http": proxy, "https": proxy}
+
+
+def _new_winamax_session() -> Any:
+    kwargs: dict[str, Any] = {"impersonate": _CURL_IMPERSONATE}
+    proxies = _winamax_proxy_map()
+    if proxies:
+        kwargs["proxies"] = proxies
+    return curl_requests.Session(**kwargs)
+
+
+def _parse_preloaded_state(html: str) -> dict[str, Any] | None:
+    match = _PRELOADED_STATE_RE.search(html)
+    if not match:
+        return None
+    try:
+        state = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
+    return state if isinstance(state, dict) else None
+
+
+def is_winamax_datacenter_feed_blocked() -> bool:
+    """Winamax renvoie un PRELOADED_STATE sans calendrier sur les IP datacenter (OVH, etc.)."""
+    try:
+        response = _new_winamax_session().get(
+            _BASKETBALL_SPORT_PAGE,
+            headers=_BROWSER_HEADERS,
+            timeout=20,
+        )
+        response.raise_for_status()
+    except Exception:
+        return False
+    state = _parse_preloaded_state(response.text)
+    if not state:
+        return len(response.text) < 80_000
+    if "sports" in state or "sportIds" in state:
+        return False
+    return True
 
 
 @dataclass(frozen=True)
@@ -127,6 +175,9 @@ class WinamaxClient:
                     timeout=http_timeout,
                 )
                 continue
+            # Socket.IO namespace connect (40{...}) — pas le sid Engine.IO (?sid=).
+            if packet.startswith("40"):
+                continue
             if not packet.startswith("42"):
                 continue
             try:
@@ -163,7 +214,7 @@ class WinamaxClient:
         request_ids = {route: str(uuid.uuid4()) for route in routes}
         results: dict[str, dict[str, Any] | None] = {route: None for route in routes}
         endpoint = self._socket_endpoint()
-        session = curl_requests.Session(impersonate=_CURL_IMPERSONATE)
+        session = _new_winamax_session()
 
         handshake = session.get(
             endpoint,
@@ -176,6 +227,10 @@ class WinamaxClient:
             raise RuntimeError(f"Winamax handshake invalide: {handshake.text[:120]}")
         open_packet = json.loads(handshake.text[1:])
         sid = str(open_packet["sid"])
+        ping_interval_s = float(open_packet.get("pingInterval") or 25000) / 1000.0
+        # Datacenter : 1er long-poll peut ne renvoyer qu'un ping (~25s) avant la route sport:*.
+        wait_time = max(wait_time, ping_interval_s + 8.0)
+        http_timeout = self._socket_http_timeout(wait_time)
 
         connect = session.post(
             endpoint,
