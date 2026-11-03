@@ -10,7 +10,7 @@ import { ValuesTable } from "@/components/ValuesTable";
 import { useBankroll } from "@/lib/bankroll";
 import { frBookBadgeClass } from "@/lib/bookBadges";
 import { buildValueRows } from "@/lib/mptoValue";
-import type { BooksListingReport, MarketPayload, MatchOddsSnapshot, RunStatus } from "@/lib/types";
+import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
 import { shouldApplyRunnerPayload, shouldUseLocalResultsCache } from "@/lib/runSession";
 import { getDisplayRunMeta } from "@/lib/runMeta";
@@ -58,127 +58,6 @@ import {
   saveCachedSoccerResults,
   type SoccerBookFilter,
 } from "@/lib/soccer";
-
-const BOOK_LISTING_STATUS_LABELS: Record<string, string> = {
-  ok: "OK",
-  empty: "Vide",
-  error: "Erreur",
-};
-
-function MatchOddsPanel({ snapshots }: { snapshots: MatchOddsSnapshot[] | null | undefined }) {
-  if (!snapshots?.length) {
-    return null;
-  }
-  return (
-    <section className="panel books-listing-panel match-odds-panel">
-      <h2 className="books-listing-title">Cotes match — vérification scrape</h2>
-      <p className="hint">
-        Moneyline, handicap et total (ligne principale FanDuel ; FR alignés sur la même ligne quand
-        possible). Utile quand les props joueur ne sont pas encore publiées.
-      </p>
-      {snapshots.map((snap) => (
-        <div key={snap.match} className="match-odds-block">
-          <h3 className="match-odds-match-title">{snap.match}</h3>
-          <div className="table-scroll">
-            <table className="books-listing-table match-odds-table">
-              <thead>
-                <tr>
-                  <th>Book</th>
-                  <th>ML dom.</th>
-                  <th>ML ext.</th>
-                  <th>Hdp ligne</th>
-                  <th>Hdp dom.</th>
-                  <th>Hdp ext.</th>
-                  <th>Total</th>
-                  <th>Over</th>
-                  <th>Under</th>
-                </tr>
-              </thead>
-              <tbody>
-                {snap.books.map((row) => (
-                  <tr key={row.book}>
-                    <td>{row.book_label}</td>
-                    <td>{row.moneyline_home ?? "—"}</td>
-                    <td>{row.moneyline_away ?? "—"}</td>
-                    <td>{row.spread_line ?? "—"}</td>
-                    <td>{row.spread_home ?? "—"}</td>
-                    <td>{row.spread_away ?? "—"}</td>
-                    <td>{row.total_line ?? "—"}</td>
-                    <td>{row.total_over ?? "—"}</td>
-                    <td>{row.total_under ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function BooksListingPanel({ report }: { report: BooksListingReport | null | undefined }) {
-  if (!report?.books || Object.keys(report.books).length === 0) {
-    return null;
-  }
-  const rows = Object.entries(report.books).sort(([left], [right]) => left.localeCompare(right));
-  const showWindow = typeof report.schedule_hours === "number";
-  return (
-    <section className="panel books-listing-panel">
-      <h2 className="books-listing-title">État des books — calendrier</h2>
-      {showWindow ? (
-        <p className="hint">
-          « Fenêtre » = matchs dans les {report.schedule_hours} h sélectionnées. « Brut » = listing complet
-          avant filtre horaire.
-        </p>
-      ) : (
-        <p className="hint">Listing au lancement du compare — utile quand il n&apos;y a aucune ligne comparable.</p>
-      )}
-      <div className="table-scroll">
-        <table className="books-listing-table">
-          <thead>
-            <tr>
-              <th>Book</th>
-              <th>Statut</th>
-              {showWindow ? (
-                <>
-                  <th>Fenêtre</th>
-                  <th>Brut</th>
-                </>
-              ) : (
-                <th>Matchs</th>
-              )}
-              <th>Temps</th>
-              <th>Détail</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([name, book]) => (
-              <tr key={name}>
-                <td>{name}</td>
-                <td>
-                  <span className={`books-listing-badge books-listing-${book.status}`}>
-                    {BOOK_LISTING_STATUS_LABELS[book.status] ?? book.status}
-                  </span>
-                </td>
-                {showWindow ? (
-                  <>
-                    <td>{book.match_count_window ?? book.match_count ?? 0}</td>
-                    <td>{book.match_count_raw ?? "—"}</td>
-                  </>
-                ) : (
-                  <td>{book.match_count ?? 0}</td>
-                )}
-                <td>{book.seconds != null ? `${book.seconds}s` : "—"}</td>
-                <td className="books-listing-detail">{book.error ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
 
 type BasketballLeague = "wnba" | "nba" | "baseball" | "soccer";
 type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter | SoccerBookFilter;
@@ -761,14 +640,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => cfg.countRowsByStat(statCountRows),
     [cfg, statCountRows],
   );
-  const booksListing = useMemo(
-    () => payload?.books_listing ?? status?.books_listing ?? null,
-    [payload?.books_listing, status?.books_listing],
-  );
-  const matchOdds = useMemo(
-    () => payload?.match_odds ?? status?.match_odds ?? null,
-    [payload?.match_odds, status?.match_odds],
-  );
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
   const filteredProgress = useMemo(() => {
     const needle = progressSearch.trim().toLowerCase();
@@ -1157,9 +1028,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           <strong>{fdOnlyRows.length}</strong>
         </div>
       </section>
-
-      <BooksListingPanel report={booksListing} />
-      <MatchOddsPanel snapshots={matchOdds ?? undefined} />
 
       {overlapHint ? (
         <section className="panel">

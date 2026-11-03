@@ -338,6 +338,8 @@ class WinamaxClient:
             payload = fetch_route_payload_via_fallback(route)
             if payload is not None:
                 return payload
+            # IP datacenter : ne pas enchaîner un poll socket ~25s inutile.
+            return None
         poll_timeout = self._default_route_poll_timeout(route, timeout)
         attempts = retries if retries is not None else self._default_route_retries(route)
         last_error: Exception | None = None
