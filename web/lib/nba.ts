@@ -29,7 +29,9 @@ export function hasNbaData(payload: MarketPayload | null | undefined): boolean {
     (payload.comparable_count ?? 0) > 0 ||
     (payload.fr_only_count ?? 0) > 0 ||
     (payload.fd_only_count ?? 0) > 0 ||
-    (payload.comparables?.length ?? 0) > 0
+    (payload.comparables?.length ?? 0) > 0 ||
+    (payload.match_odds?.length ?? 0) > 0 ||
+    ((payload.matches_done ?? 0) > 0 && Boolean(payload.generated_at?.trim()))
   );
 }
 

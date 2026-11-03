@@ -57,7 +57,12 @@ from basketball_market_mapping import (
     parse_fanduel_alt_runner,
 )
 from betclic_basketball_client import BetclicBasketballClient
-from basketball_match_odds import build_basketball_match_odds_snapshot, collect_match_odds_from_results
+from basketball_match_odds import (
+    build_basketball_match_odds_snapshot,
+    build_match_odds_comparable_rows,
+    collect_match_odds_from_results,
+    format_ligne_match_odds_fr,
+)
 from basketball_props_anchor import assemble_anchor_result, flush_anchor_partial
 from fanduel_basketball_client import FanDuelBasketballClient
 from fanduel_client import (
@@ -837,6 +842,21 @@ def collect_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any
     return rows
 
 
+def collect_match_odds_comparable_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    snapshots = collect_match_odds_from_results(results)
+    if not snapshots:
+        return []
+    enriched: list[dict[str, Any]] = []
+    for raw in build_match_odds_comparable_rows(snapshots):
+        row = enrich_comparable_row(raw)
+        row["ligne_props_fr"] = format_ligne_match_odds_fr(row)
+        row["issue_fr"] = str(raw.get("outcome") or row.get("issue_fr") or "")
+        if raw.get("market_family") == "match_total":
+            row["issue_fr"] = "Plus" if raw.get("outcome") == "Over" else "Moins"
+        enriched.append(row)
+    return enriched
+
+
 def collect_fr_higher_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("best_side") == "fr"]
 
@@ -888,7 +908,7 @@ def build_results_payload(
     include_fd_only_rows: bool = False,
     max_fr_only_rows: int | None = 200,
 ) -> dict[str, Any]:
-    comparable_rows = collect_comparable_rows(results)
+    comparable_rows = collect_comparable_rows(results) + collect_match_odds_comparable_rows(results)
     fr_higher_rows = collect_fr_higher_rows(comparable_rows)
     fr_only_rows = collect_fr_only_rows(results)
     fd_only_rows = collect_fd_only_rows(results)
@@ -1008,7 +1028,7 @@ def write_run_status_file(
     if anchors_total is not None:
         payload["anchors_total"] = anchors_total
     if results is not None:
-        comparable_rows = collect_comparable_rows(results)
+        comparable_rows = collect_comparable_rows(results) + collect_match_odds_comparable_rows(results)
         payload["comparable_count"] = len(comparable_rows)
         payload["fr_higher_count"] = len(collect_fr_higher_rows(comparable_rows))
         payload["value_count"] = 0

@@ -1,4 +1,7 @@
-from basketball_match_odds import build_basketball_match_odds_snapshot
+from basketball_match_odds import (
+    build_basketball_match_odds_snapshot,
+    build_match_odds_comparable_rows,
+)
 
 
 def test_build_match_odds_winamax_and_fanduel() -> None:
@@ -57,3 +60,10 @@ def test_build_match_odds_winamax_and_fanduel() -> None:
     assert wx["book"] == "winamax"
     assert wx["total_line"] == "218,5"
     assert wx["spread_line"] == "-1,5"
+
+    comparables = build_match_odds_comparable_rows([snap])
+    assert len(comparables) == 6
+    ml_home = next(r for r in comparables if r["compare_key"] == "match_ml|home")
+    assert ml_home["best_fr_odds"] == 1.62
+    assert ml_home["fanduel_odds"] == 1.8
+    assert "winamax" in ml_home["by_book"]

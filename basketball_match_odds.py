@@ -361,3 +361,207 @@ def collect_match_odds_from_results(results: list[dict[str, Any]]) -> list[dict[
         if isinstance(snap, dict) and snap.get("books"):
             snapshots.append(snap)
     return snapshots
+
+
+def _decimal_from_fr(value: str | None) -> float | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text.replace(",", "."))
+    except ValueError:
+        return None
+
+
+def format_ligne_match_odds_fr(row: dict[str, Any]) -> str:
+    family = str(row.get("market_family") or "")
+    outcome = str(row.get("outcome") or "")
+    line = str(row.get("line_label") or "").strip()
+    if family == "match_moneyline":
+        return f"Vainqueur — {outcome}"
+    if family == "match_spread":
+        return f"Handicap {outcome}" if not line else f"Handicap {outcome} ({line})"
+    if family == "match_total":
+        side = "Plus" if outcome == "Over" else "Moins"
+        return f"{side} {line} points" if line else f"{side} points (total)"
+    return str(row.get("fr_market_label") or outcome)
+
+
+def _append_match_side_row(
+    rows: list[dict[str, Any]],
+    *,
+    match: str,
+    home: str,
+    away: str,
+    compare_key: str,
+    market_family: str,
+    outcome: str,
+    fr_market_label: str,
+    fd_market_label: str,
+    fd_row: dict[str, Any],
+    fr_books: list[dict[str, Any]],
+    fr_field: str,
+    fd_field: str,
+    line_label: str = "",
+) -> None:
+    fd_decimal = _decimal_from_fr(fd_row.get(fd_field))
+    if fd_decimal is None:
+        return
+    by_book: dict[str, dict[str, Any]] = {}
+    best_odds: float | None = None
+    best_label = ""
+    for book_row in fr_books:
+        dec = _decimal_from_fr(book_row.get(fr_field))
+        if dec is None:
+            continue
+        book_key = str(book_row.get("book") or "")
+        label = str(book_row.get("book_label") or BOOK_LABELS.get(book_key, book_key))
+        by_book[book_key] = {
+            "odds": dec,
+            "bookmaker": book_key,
+            "bookmaker_label": label,
+        }
+        if best_odds is None or dec > best_odds:
+            best_odds = dec
+            best_label = label
+    if best_odds is None:
+        return
+    rows.append(
+        {
+            "match": match,
+            "compare_key": compare_key,
+            "fanduel_compare_key": compare_key,
+            "market_family": market_family,
+            "outcome": outcome,
+            "home": home,
+            "away": away,
+            "line_label": line_label,
+            "fr_market_label": fr_market_label,
+            "fanduel_market_label": fd_market_label,
+            "best_fr_odds": best_odds,
+            "best_fr_bookmaker": best_label,
+            "by_book": by_book,
+            "fanduel_odds": fd_decimal,
+            "fanduel_american": None,
+            "fanduel_decimal_fr": fd_decimal,
+            "line_delta": 0.0,
+        }
+    )
+
+
+def build_match_odds_comparable_rows(snapshots: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Lignes brutes (pre-enrich) pour ML / spread / total vs FanDuel."""
+    rows: list[dict[str, Any]] = []
+    for snap in snapshots:
+        match = str(snap.get("match") or "")
+        home = str(snap.get("home") or "")
+        away = str(snap.get("away") or "")
+        books = snap.get("books") or []
+        if not isinstance(books, list):
+            continue
+        fd_row = next((b for b in books if isinstance(b, dict) and b.get("book") == "fanduel"), None)
+        if not fd_row:
+            continue
+        fr_books = [b for b in books if isinstance(b, dict) and b.get("book") != "fanduel"]
+        spread_line = str(fd_row.get("spread_line") or "").strip()
+        total_line = str(fd_row.get("total_line") or "").strip()
+
+        _append_match_side_row(
+            rows,
+            match=match,
+            home=home,
+            away=away,
+            compare_key="match_ml|home",
+            market_family="match_moneyline",
+            outcome=home,
+            fr_market_label="Vainqueur",
+            fd_market_label="Moneyline",
+            fd_row=fd_row,
+            fr_books=fr_books,
+            fr_field="moneyline_home",
+            fd_field="moneyline_home",
+        )
+        _append_match_side_row(
+            rows,
+            match=match,
+            home=home,
+            away=away,
+            compare_key="match_ml|away",
+            market_family="match_moneyline",
+            outcome=away,
+            fr_market_label="Vainqueur",
+            fd_market_label="Moneyline",
+            fd_row=fd_row,
+            fr_books=fr_books,
+            fr_field="moneyline_away",
+            fd_field="moneyline_away",
+        )
+        if spread_line:
+            _append_match_side_row(
+                rows,
+                match=match,
+                home=home,
+                away=away,
+                compare_key=f"match_spread|home|{spread_line}",
+                market_family="match_spread",
+                outcome=home,
+                fr_market_label=f"Handicap ({spread_line})",
+                fd_market_label=f"Spread ({spread_line})",
+                fd_row=fd_row,
+                fr_books=fr_books,
+                fr_field="spread_home",
+                fd_field="spread_home",
+                line_label=spread_line,
+            )
+            _append_match_side_row(
+                rows,
+                match=match,
+                home=home,
+                away=away,
+                compare_key=f"match_spread|away|{spread_line}",
+                market_family="match_spread",
+                outcome=away,
+                fr_market_label=f"Handicap ({spread_line})",
+                fd_market_label=f"Spread ({spread_line})",
+                fd_row=fd_row,
+                fr_books=fr_books,
+                fr_field="spread_away",
+                fd_field="spread_away",
+                line_label=spread_line,
+            )
+        if total_line:
+            _append_match_side_row(
+                rows,
+                match=match,
+                home=home,
+                away=away,
+                compare_key=f"match_total|over|{total_line}",
+                market_family="match_total",
+                outcome="Over",
+                fr_market_label=f"Total ({total_line})",
+                fd_market_label=f"Total Points ({total_line})",
+                fd_row=fd_row,
+                fr_books=fr_books,
+                fr_field="total_over",
+                fd_field="total_over",
+                line_label=total_line,
+            )
+            _append_match_side_row(
+                rows,
+                match=match,
+                home=home,
+                away=away,
+                compare_key=f"match_total|under|{total_line}",
+                market_family="match_total",
+                outcome="Under",
+                fr_market_label=f"Total ({total_line})",
+                fd_market_label=f"Total Points ({total_line})",
+                fd_row=fd_row,
+                fr_books=fr_books,
+                fr_field="total_under",
+                fd_field="total_under",
+                line_label=total_line,
+            )
+    return rows
