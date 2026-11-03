@@ -35,21 +35,24 @@ def winamax_fallback_enabled() -> bool:
     return bool(base and secret)
 
 
-def fetch_sport_payload_via_fallback(sport_id: int) -> dict[str, Any] | None:
-    base, secret = _fallback_config()
-    if not base or not secret:
-        return None
-    url = f"{base}/api/winamax-list"
+def _fallback_headers(secret: str) -> dict[str, str]:
     headers = {"X-Runner-Secret": secret}
     bypass = (os.environ.get("WINAMAX_FALLBACK_BYPASS") or "").strip()
     if bypass:
         headers["x-vercel-protection-bypass"] = bypass
+    return headers
 
+
+def _get_fallback_json(path: str, *, params: dict[str, str]) -> dict[str, Any] | None:
+    base, secret = _fallback_config()
+    if not base or not secret:
+        return None
+    url = f"{base}{path}"
     try:
         response = requests.get(
             url,
-            params={"sport": str(sport_id)},
-            headers=headers,
+            params=params,
+            headers=_fallback_headers(secret),
             timeout=DEFAULT_TIMEOUT,
         )
     except requests.RequestException as exc:
@@ -68,3 +71,27 @@ def fetch_sport_payload_via_fallback(sport_id: int) -> dict[str, Any] | None:
         return None
     payload = data.get("payload")
     return payload if isinstance(payload, dict) else None
+
+
+def fetch_sport_payload_via_fallback(sport_id: int) -> dict[str, Any] | None:
+    return _get_fallback_json("/api/winamax-list", params={"sport": str(sport_id)})
+
+
+def fetch_match_payload_via_fallback(match_id: str) -> dict[str, Any] | None:
+    mid = str(match_id).strip()
+    if not mid.isdigit():
+        return None
+    return _get_fallback_json("/api/winamax-match", params={"matchId": mid})
+
+
+def fetch_route_payload_via_fallback(route: str) -> dict[str, Any] | None:
+    text = str(route).strip()
+    if text.startswith("match:"):
+        return fetch_match_payload_via_fallback(text.split(":", 1)[1])
+    if text.startswith("sport:"):
+        try:
+            sport_id = int(text.split(":", 1)[1])
+        except (IndexError, ValueError):
+            return None
+        return fetch_sport_payload_via_fallback(sport_id)
+    return None

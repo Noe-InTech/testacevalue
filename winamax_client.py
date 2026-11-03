@@ -34,6 +34,7 @@ _BROWSER_HEADERS = {
 }
 _PRELOADED_STATE_RE = re.compile(r"var PRELOADED_STATE = (\{.*?\});\s*\n", re.DOTALL)
 _BASKETBALL_SPORT_PAGE = f"{DEFAULT_ORIGIN}/paris-sportifs/sports/2"
+_DATACENTER_BLOCK_CACHE: bool | None = None
 
 
 def _winamax_proxy_map() -> dict[str, str] | None:
@@ -62,8 +63,12 @@ def _parse_preloaded_state(html: str) -> dict[str, Any] | None:
     return state if isinstance(state, dict) else None
 
 
-def is_winamax_datacenter_feed_blocked() -> bool:
+def is_winamax_datacenter_feed_blocked(*, refresh: bool = False) -> bool:
     """Winamax renvoie un PRELOADED_STATE sans calendrier sur les IP datacenter (OVH, etc.)."""
+    global _DATACENTER_BLOCK_CACHE
+    if not refresh and _DATACENTER_BLOCK_CACHE is not None:
+        return _DATACENTER_BLOCK_CACHE
+    blocked = False
     try:
         response = _new_winamax_session().get(
             _BASKETBALL_SPORT_PAGE,
@@ -72,13 +77,28 @@ def is_winamax_datacenter_feed_blocked() -> bool:
         )
         response.raise_for_status()
     except Exception:
+        _DATACENTER_BLOCK_CACHE = False
         return False
     state = _parse_preloaded_state(response.text)
     if not state:
-        return len(response.text) < 80_000
-    if "sports" in state or "sportIds" in state:
+        blocked = len(response.text) < 80_000
+    elif "sports" in state or "sportIds" in state:
+        blocked = False
+    else:
+        blocked = True
+    _DATACENTER_BLOCK_CACHE = blocked
+    return blocked
+
+
+def _winamax_use_vercel_fallback() -> bool:
+    from winamax_fallback import winamax_fallback_enabled
+
+    if not winamax_fallback_enabled():
         return False
-    return True
+    force = (os.environ.get("WINAMAX_FORCE_FALLBACK") or "").strip().lower()
+    if force in {"1", "true", "yes", "on"}:
+        return True
+    return is_winamax_datacenter_feed_blocked()
 
 
 @dataclass(frozen=True)
@@ -312,6 +332,12 @@ class WinamaxClient:
         *,
         retries: int | None = None,
     ) -> dict[str, Any] | None:
+        if _winamax_use_vercel_fallback():
+            from winamax_fallback import fetch_route_payload_via_fallback
+
+            payload = fetch_route_payload_via_fallback(route)
+            if payload is not None:
+                return payload
         poll_timeout = self._default_route_poll_timeout(route, timeout)
         attempts = retries if retries is not None else self._default_route_retries(route)
         last_error: Exception | None = None

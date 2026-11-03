@@ -1,7 +1,7 @@
 {
   "name": "aces-compare-web",
   "private": true,
-  "description": "Dashboard compare — Winamax listing fallback API",
+  "description": "Dashboard compare — Winamax match fallback API",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
