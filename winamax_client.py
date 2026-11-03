@@ -62,7 +62,7 @@ class WinamaxClient:
         socket_url: str = SOCKET_URL,
         socket_path: str = SOCKET_PATH,
         base_url: str = BASE_URL,
-        fetch_timeout: float = 8.0,
+        fetch_timeout: float = 25.0,
     ):
         self.socket_url = socket_url
         self.socket_path = socket_path
@@ -112,6 +112,7 @@ class WinamaxClient:
         session: Any,
         endpoint: str,
         sid: str,
+        http_timeout: float,
     ) -> None:
         for packet in self._split_engineio_payload(raw):
             if packet == "2":
@@ -120,7 +121,7 @@ class WinamaxClient:
                     params={"EIO": "4", "transport": "polling", "sid": sid},
                     data="3",
                     headers={**_BROWSER_HEADERS, "Content-Type": "text/plain;charset=UTF-8"},
-                    timeout=20,
+                    timeout=http_timeout,
                 )
                 continue
             if not packet.startswith("42"):
@@ -193,6 +194,7 @@ class WinamaxClient:
             session=session,
             endpoint=endpoint,
             sid=sid,
+            http_timeout=http_timeout,
         )
 
         for route, request_id in request_ids.items():
@@ -225,6 +227,7 @@ class WinamaxClient:
                 session=session,
                 endpoint=endpoint,
                 sid=sid,
+                http_timeout=http_timeout,
             )
         return results
 
