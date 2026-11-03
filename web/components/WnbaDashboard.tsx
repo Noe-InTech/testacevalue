@@ -10,7 +10,7 @@ import { ValuesTable } from "@/components/ValuesTable";
 import { useBankroll } from "@/lib/bankroll";
 import { frBookBadgeClass } from "@/lib/bookBadges";
 import { buildValueRows } from "@/lib/mptoValue";
-import type { BooksListingReport, MarketPayload, RunStatus } from "@/lib/types";
+import type { MarketPayload, RunStatus } from "@/lib/types";
 import { getPayloadProgressSnapshot } from "@/lib/types";
 import { shouldApplyRunnerPayload, shouldUseLocalResultsCache } from "@/lib/runSession";
 import { getDisplayRunMeta } from "@/lib/runMeta";
@@ -58,75 +58,6 @@ import {
   saveCachedSoccerResults,
   type SoccerBookFilter,
 } from "@/lib/soccer";
-
-const BOOK_LISTING_STATUS_LABELS: Record<string, string> = {
-  ok: "OK",
-  empty: "Vide",
-  error: "Erreur",
-};
-
-function BooksListingPanel({ report }: { report: BooksListingReport | null | undefined }) {
-  if (!report?.books || Object.keys(report.books).length === 0) {
-    return null;
-  }
-  const rows = Object.entries(report.books).sort(([left], [right]) => left.localeCompare(right));
-  const showWindow = typeof report.schedule_hours === "number";
-  return (
-    <section className="panel books-listing-panel">
-      <h2 className="books-listing-title">État des books — calendrier</h2>
-      {showWindow ? (
-        <p className="hint">
-          « Fenêtre » = matchs dans les {report.schedule_hours} h sélectionnées. « Brut » = listing complet
-          avant filtre horaire.
-        </p>
-      ) : (
-        <p className="hint">Listing au lancement du compare — utile quand il n&apos;y a aucune ligne comparable.</p>
-      )}
-      <div className="table-scroll">
-        <table className="books-listing-table">
-          <thead>
-            <tr>
-              <th>Book</th>
-              <th>Statut</th>
-              {showWindow ? (
-                <>
-                  <th>Fenêtre</th>
-                  <th>Brut</th>
-                </>
-              ) : (
-                <th>Matchs</th>
-              )}
-              <th>Temps</th>
-              <th>Détail</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([name, book]) => (
-              <tr key={name}>
-                <td>{name}</td>
-                <td>
-                  <span className={`books-listing-badge books-listing-${book.status}`}>
-                    {BOOK_LISTING_STATUS_LABELS[book.status] ?? book.status}
-                  </span>
-                </td>
-                {showWindow ? (
-                  <>
-                    <td>{book.match_count_window ?? book.match_count ?? 0}</td>
-                    <td>{book.match_count_raw ?? "—"}</td>
-                  </>
-                ) : (
-                  <td>{book.match_count ?? 0}</td>
-                )}
-                <td>{book.seconds != null ? `${book.seconds}s` : "—"}</td>
-                <td className="books-listing-detail">{book.error ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
 
 type BasketballLeague = "wnba" | "nba" | "baseball" | "soccer";
 type BookFilter = WnbaBookFilter | NbaBookFilter | BaseballBookFilter | SoccerBookFilter;
@@ -709,10 +640,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
     () => cfg.countRowsByStat(statCountRows),
     [cfg, statCountRows],
   );
-  const booksListing = useMemo(
-    () => payload?.books_listing ?? status?.books_listing ?? null,
-    [payload?.books_listing, status?.books_listing],
-  );
   const matchProgress = useMemo(() => payload?.match_progress ?? [], [payload]);
   const filteredProgress = useMemo(() => {
     const needle = progressSearch.trim().toLowerCase();
@@ -1101,8 +1028,6 @@ export function BasketballDashboard({ league = "wnba" }: { league?: BasketballLe
           <strong>{fdOnlyRows.length}</strong>
         </div>
       </section>
-
-      <BooksListingPanel report={booksListing} />
 
       {overlapHint ? (
         <section className="panel">
